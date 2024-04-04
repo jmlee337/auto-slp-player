@@ -92,7 +92,7 @@ const createWindow = async () => {
     return { action: 'deny' };
   });
 
-  await setupIPCs();
+  await setupIPCs(mainWindow);
 };
 
 /**

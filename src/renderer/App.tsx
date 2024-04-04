@@ -1,7 +1,16 @@
 import { MemoryRouter as Router, Routes, Route } from 'react-router-dom';
 import { useEffect, useState } from 'react';
 import './App.css';
-import { Button, IconButton, InputBase, Stack, Tooltip } from '@mui/material';
+import {
+  Button,
+  IconButton,
+  InputBase,
+  List,
+  ListItem,
+  ListItemText,
+  Stack,
+  Tooltip,
+} from '@mui/material';
 import {
   PlayCircle,
   SdCard,
@@ -9,6 +18,7 @@ import {
   Terminal,
   Visibility,
 } from '@mui/icons-material';
+import { IpcRendererEvent } from 'electron';
 
 function Hello() {
   const [dolphinPath, setDolphinPath] = useState('');
@@ -25,6 +35,14 @@ function Hello() {
 
   const [watchDir, setWatchDir] = useState('');
   const [watching, setWatching] = useState(false);
+  const [availableSets, setAvailableSets] = useState<string[]>([]);
+  useEffect(() => {
+    window.electron.onUnzip(
+      (event: IpcRendererEvent, newAvailableSets: string[]) => {
+        setAvailableSets(newAvailableSets);
+      },
+    );
+  }, []);
 
   return (
     <>
@@ -93,6 +111,15 @@ function Hello() {
           {watching ? 'Stop' : 'Start'}
         </Button>
       </Stack>
+      {availableSets && (
+        <List>
+          {availableSets.map((availableSet) => (
+            <ListItem>
+              <ListItemText>{availableSet}</ListItemText>
+            </ListItem>
+          ))}
+        </List>
+      )}
     </>
   );
 }

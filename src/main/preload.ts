@@ -1,4 +1,4 @@
-import { contextBridge, ipcRenderer } from 'electron';
+import { IpcRendererEvent, contextBridge, ipcRenderer } from 'electron';
 
 const electronHandler = {
   getDolphinPath: (): Promise<string> => ipcRenderer.invoke('getDolphinPath'),
@@ -8,6 +8,12 @@ const electronHandler = {
   chooseIsoPath: (): Promise<string> => ipcRenderer.invoke('chooseIsoPath'),
   chooseWatchDir: (): Promise<string> => ipcRenderer.invoke('chooseWatchDir'),
   watch: (start: boolean): Promise<void> => ipcRenderer.invoke('watch', start),
+  onUnzip: (
+    callback: (event: IpcRendererEvent, availableSets: string[]) => void,
+  ) => {
+    ipcRenderer.removeAllListeners('unzip');
+    ipcRenderer.on('unzip', callback);
+  },
 };
 
 contextBridge.exposeInMainWorld('electron', electronHandler);

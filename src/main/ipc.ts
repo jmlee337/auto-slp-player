@@ -1,12 +1,19 @@
 import { FSWatcher, watch } from 'chokidar';
-import { IpcMainInvokeEvent, app, dialog, ipcMain } from 'electron';
+import {
+  BrowserWindow,
+  IpcMainInvokeEvent,
+  app,
+  dialog,
+  ipcMain,
+} from 'electron';
 import Store from 'electron-store';
-import { createWriteStream } from 'fs';
-import { access, mkdir, rmdir } from 'fs/promises';
+import { access, mkdir } from 'fs/promises';
 import path from 'path';
-import { open } from 'yauzl';
+import unzip from './unzip';
 
-export default async function setupIPCs(): Promise<void> {
+export default async function setupIPCs(
+  mainWindow: BrowserWindow,
+): Promise<void> {
   const store = new Store();
   let dolphinPath = store.has('dolphinPath')
     ? (store.get('dolphinPath') as string)
@@ -71,7 +78,7 @@ export default async function setupIPCs(): Promise<void> {
   } catch (e: any) {
     throw new Error(`Could not make temp dir: ${e}`);
   }
-
+  const availableSets: string[] = [];
   ipcMain.removeHandler('watch');
   ipcMain.handle('watch', async (event: IpcMainInvokeEvent, start: boolean) => {
     if (start) {
@@ -81,51 +88,20 @@ export default async function setupIPCs(): Promise<void> {
           : watchDir;
       const glob = `${normalizedDir}/*.zip`;
       watcher = watch(glob);
-      watcher.on('add', (newZipPath) => {
-        open(newZipPath, { lazyEntries: true }, async (openErr, zipFile) => {
-          if (openErr) return;
-          const unzipDir = path.join(
-            tempPath,
-            path.basename(newZipPath, '.zip'),
-          );
-          try {
-            await mkdir(unzipDir);
-          } catch (e: any) {
-            return;
+      watcher.on('add', async (newZipPath) => {
+        try {
+          const unzipped = await unzip(newZipPath, tempPath);
+          availableSets.push(unzipped);
+          mainWindow.webContents.send('unzip', availableSets);
+        } catch (e: any) {
+          if (e instanceof Error) {
+            console.log(e.message);
           }
-
-          zipFile.on('entry', async (entry) => {
-            if (
-              entry.fileName === 'context.json' ||
-              entry.fileName.endsWith('.slp')
-            ) {
-              zipFile.openReadStream(
-                entry,
-                async (openReadStreamErr, readStream) => {
-                  if (openReadStreamErr) {
-                    await rmdir(unzipDir);
-                    zipFile.close();
-                    return;
-                  }
-
-                  readStream.on('end', () => {
-                    zipFile.readEntry();
-                  });
-                  const unzipPath = path.join(unzipDir, entry.fileName);
-                  const writeStream = createWriteStream(unzipPath);
-                  readStream.pipe(writeStream);
-                },
-              );
-            } else {
-              await rmdir(unzipDir);
-              zipFile.close();
-            }
-          });
-          zipFile.readEntry();
-        });
+        }
       });
     } else if (watcher) {
       await watcher.close();
+      availableSets.length = 0;
     }
   });
 }

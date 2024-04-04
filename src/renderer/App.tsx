@@ -18,7 +18,7 @@ function Hello() {
   }, []);
 
   return (
-    <Stack>
+    <>
       <Stack direction="row">
         <InputBase
           disabled
@@ -53,7 +53,7 @@ function Hello() {
           </IconButton>
         </Tooltip>
       </Stack>
-    </Stack>
+    </>
   );
 }
 

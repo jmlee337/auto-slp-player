@@ -4,9 +4,6 @@ import Store from 'electron-store';
 import path from 'path';
 
 export default function setupIPCs(): void {
-  let watchDir = '';
-  let watcher: FSWatcher | undefined;
-
   const store = new Store();
   let dolphinPath = store.has('dolphinPath')
     ? (store.get('dolphinPath') as string)
@@ -35,6 +32,12 @@ export default function setupIPCs(): void {
   ipcMain.removeHandler('chooseIsoPath');
   ipcMain.handle('chooseIsoPath', async (): Promise<string> => {
     const openDialogRes = await dialog.showOpenDialog({
+      filters: [
+        {
+          name: 'Melee ISO',
+          extensions: ['iso', 'gcm', 'gcz', 'ciso'],
+        },
+      ],
       properties: ['openFile', 'showHiddenFiles'],
     });
     if (openDialogRes.canceled) {
@@ -45,6 +48,7 @@ export default function setupIPCs(): void {
     return isoPath;
   });
 
+  let watchDir = '';
   ipcMain.removeHandler('chooseWatchDir');
   ipcMain.handle('chooseWatchDir', async (): Promise<string> => {
     const openDialogRes = await dialog.showOpenDialog({
@@ -57,6 +61,7 @@ export default function setupIPCs(): void {
     return watchDir;
   });
 
+  let watcher: FSWatcher | undefined;
   ipcMain.removeHandler('watch');
   ipcMain.handle('watch', async (event: IpcMainInvokeEvent, start: boolean) => {
     if (start) {

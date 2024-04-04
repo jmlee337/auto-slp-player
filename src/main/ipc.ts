@@ -30,7 +30,7 @@ export default async function setupIPCs(
       properties: ['openFile', 'showHiddenFiles'],
     });
     if (openDialogRes.canceled) {
-      return '';
+      return dolphinPath;
     }
     [dolphinPath] = openDialogRes.filePaths;
     store.set('dolphinPath', dolphinPath);
@@ -52,7 +52,7 @@ export default async function setupIPCs(
       properties: ['openFile', 'showHiddenFiles'],
     });
     if (openDialogRes.canceled) {
-      return '';
+      return isoPath;
     }
     [isoPath] = openDialogRes.filePaths;
     store.set('isoPath', isoPath);
@@ -66,7 +66,7 @@ export default async function setupIPCs(
       properties: ['openDirectory', 'showHiddenFiles'],
     });
     if (openDialogRes.canceled) {
-      return '';
+      return watchDir;
     }
     [watchDir] = openDialogRes.filePaths;
     return watchDir;

@@ -1,7 +1,12 @@
-import { dialog, ipcMain } from 'electron';
+import { FSWatcher, watch } from 'chokidar';
+import { IpcMainInvokeEvent, dialog, ipcMain } from 'electron';
 import Store from 'electron-store';
+import path from 'path';
 
 export default function setupIPCs(): void {
+  let watchDir = '';
+  let watcher: FSWatcher | undefined;
+
   const store = new Store();
   let dolphinPath = store.has('dolphinPath')
     ? (store.get('dolphinPath') as string)
@@ -38,5 +43,32 @@ export default function setupIPCs(): void {
     [isoPath] = openDialogRes.filePaths;
     store.set('isoPath', isoPath);
     return isoPath;
+  });
+
+  ipcMain.removeHandler('chooseWatchDir');
+  ipcMain.handle('chooseWatchDir', async (): Promise<string> => {
+    const openDialogRes = await dialog.showOpenDialog({
+      properties: ['openDirectory', 'showHiddenFiles'],
+    });
+    if (openDialogRes.canceled) {
+      return '';
+    }
+    [watchDir] = openDialogRes.filePaths;
+    return watchDir;
+  });
+
+  ipcMain.removeHandler('watch');
+  ipcMain.handle('watch', async (event: IpcMainInvokeEvent, start: boolean) => {
+    if (start) {
+      const normalizedDir =
+        process.platform === 'win32'
+          ? watchDir.split(path.win32.sep).join(path.posix.sep)
+          : watchDir;
+      const glob = `${normalizedDir}/*.zip`;
+      watcher = watch(glob);
+      watcher.on('add', console.log); // TODO
+    } else if (watcher) {
+      await watcher.close();
+    }
   });
 }

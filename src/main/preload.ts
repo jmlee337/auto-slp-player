@@ -1,4 +1,5 @@
 import { IpcRendererEvent, contextBridge, ipcRenderer } from 'electron';
+import { AvailableSet } from '../common/types';
 
 const electronHandler = {
   getDolphinPath: (): Promise<string> => ipcRenderer.invoke('getDolphinPath'),
@@ -9,7 +10,7 @@ const electronHandler = {
   chooseWatchDir: (): Promise<string> => ipcRenderer.invoke('chooseWatchDir'),
   watch: (start: boolean): Promise<void> => ipcRenderer.invoke('watch', start),
   onUnzip: (
-    callback: (event: IpcRendererEvent, availableSets: string[]) => void,
+    callback: (event: IpcRendererEvent, availableSets: AvailableSet[]) => void,
   ) => {
     ipcRenderer.removeAllListeners('unzip');
     ipcRenderer.on('unzip', callback);

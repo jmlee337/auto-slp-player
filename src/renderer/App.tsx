@@ -19,6 +19,7 @@ import {
   Visibility,
 } from '@mui/icons-material';
 import { IpcRendererEvent } from 'electron';
+import { AvailableSet } from '../common/types';
 
 function Hello() {
   const [dolphinPath, setDolphinPath] = useState('');
@@ -35,10 +36,10 @@ function Hello() {
 
   const [watchDir, setWatchDir] = useState('');
   const [watching, setWatching] = useState(false);
-  const [availableSets, setAvailableSets] = useState<string[]>([]);
+  const [availableSets, setAvailableSets] = useState<AvailableSet[]>([]);
   useEffect(() => {
     window.electron.onUnzip(
-      (event: IpcRendererEvent, newAvailableSets: string[]) => {
+      (event: IpcRendererEvent, newAvailableSets: AvailableSet[]) => {
         setAvailableSets(newAvailableSets);
       },
     );
@@ -114,8 +115,8 @@ function Hello() {
       {availableSets && (
         <List>
           {availableSets.map((availableSet) => (
-            <ListItem>
-              <ListItemText>{availableSet}</ListItemText>
+            <ListItem key={availableSet.fullPath}>
+              <ListItemText>{availableSet.dirName}</ListItemText>
             </ListItem>
           ))}
         </List>

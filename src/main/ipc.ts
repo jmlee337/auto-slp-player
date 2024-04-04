@@ -10,6 +10,7 @@ import Store from 'electron-store';
 import { access, mkdir } from 'fs/promises';
 import path from 'path';
 import unzip from './unzip';
+import { AvailableSet } from '../common/types';
 
 export default async function setupIPCs(
   mainWindow: BrowserWindow,
@@ -76,12 +77,15 @@ export default async function setupIPCs(
   try {
     await access(tempPath).catch(() => mkdir(tempPath));
   } catch (e: any) {
-    throw new Error(`Could not make temp dir: ${e}`);
+    if (e instanceof Error) {
+      throw new Error(`Could not make temp dir: ${e.message}`);
+    }
   }
-  const availableSets: string[] = [];
+  const availableSets: AvailableSet[] = [];
   ipcMain.removeHandler('watch');
   ipcMain.handle('watch', async (event: IpcMainInvokeEvent, start: boolean) => {
     if (start) {
+      availableSets.length = 0;
       const normalizedDir =
         process.platform === 'win32'
           ? watchDir.split(path.win32.sep).join(path.posix.sep)
@@ -90,8 +94,7 @@ export default async function setupIPCs(
       watcher = watch(glob);
       watcher.on('add', async (newZipPath) => {
         try {
-          const unzipped = await unzip(newZipPath, tempPath);
-          availableSets.push(unzipped);
+          availableSets.push(await unzip(newZipPath, tempPath));
           mainWindow.webContents.send('unzip', availableSets);
         } catch (e: any) {
           if (e instanceof Error) {
@@ -101,7 +104,6 @@ export default async function setupIPCs(
       });
     } else if (watcher) {
       await watcher.close();
-      availableSets.length = 0;
     }
   });
 }

@@ -95,6 +95,7 @@ export default async function setupIPCs(
       watcher.on('add', async (newZipPath) => {
         try {
           availableSets.push(await unzip(newZipPath, tempPath));
+          availableSets.sort((a, b) => a.dirName.localeCompare(b.dirName));
           mainWindow.webContents.send('unzip', availableSets);
         } catch (e: any) {
           if (e instanceof Error) {

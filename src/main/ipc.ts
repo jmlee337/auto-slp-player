@@ -11,7 +11,7 @@ import { access, mkdir } from 'fs/promises';
 import path from 'path';
 import unzip from './unzip';
 import { AvailableSet } from '../common/types';
-import Dolphin from './dolphin';
+import { Dolphin, DolphinEvent } from './dolphin';
 
 export default async function setupIPCs(
   mainWindow: BrowserWindow,
@@ -83,6 +83,40 @@ export default async function setupIPCs(
     }
   }
   const availableSets: AvailableSet[] = [];
+  let playingSet: AvailableSet | null = null;
+  let dolphin: Dolphin | null = null;
+  const playDolphin = (set: AvailableSet) => {
+    if (!dolphin) {
+      dolphin = new Dolphin(dolphinPath, isoPath, tempPath);
+      dolphin.on(DolphinEvent.CLOSE, () => {
+        if (dolphin) {
+          dolphin.removeAllListeners();
+          dolphin = null;
+        }
+      });
+      dolphin.on(DolphinEvent.ENDED, () => {
+        if (playingSet === null) {
+          return;
+        }
+        const index = availableSets.findIndex(
+          (value) => value.dirName === playingSet!.dirName,
+        );
+        if (index === -1 || index + 1 >= availableSets.length) {
+          playingSet = null;
+          return;
+        }
+        playDolphin(availableSets[index + 1]);
+      });
+      dolphin.on(DolphinEvent.START_FAILED, () => {
+        if (dolphin) {
+          dolphin.close();
+        }
+      });
+    }
+
+    dolphin.play(set.replayPaths);
+    playingSet = set;
+  };
   ipcMain.removeHandler('watch');
   ipcMain.handle('watch', async (event: IpcMainInvokeEvent, start: boolean) => {
     if (start) {
@@ -95,9 +129,13 @@ export default async function setupIPCs(
       watcher = watch(glob);
       watcher.on('add', async (newZipPath) => {
         try {
-          availableSets.push(await unzip(newZipPath, tempPath));
+          const newSet = await unzip(newZipPath, tempPath);
+          availableSets.push(newSet);
           availableSets.sort((a, b) => a.dirName.localeCompare(b.dirName));
           mainWindow.webContents.send('unzip', availableSets);
+          if (!playingSet) {
+            playDolphin(newSet);
+          }
         } catch (e: any) {
           if (e instanceof Error) {
             console.log(e.message);
@@ -109,15 +147,11 @@ export default async function setupIPCs(
     }
   });
 
-  let dolphin: Dolphin | null = null;
   ipcMain.removeHandler('play');
   ipcMain.handle(
     'play',
     async (event: IpcMainInvokeEvent, set: AvailableSet) => {
-      if (!dolphin) {
-        dolphin = new Dolphin(dolphinPath, isoPath, tempPath);
-      }
-      dolphin.play(set.replayPaths);
+      playDolphin(set);
     },
   );
 }

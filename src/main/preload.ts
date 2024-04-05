@@ -10,6 +10,11 @@ const electronHandler = {
   chooseWatchDir: (): Promise<string> => ipcRenderer.invoke('chooseWatchDir'),
   watch: (start: boolean): Promise<void> => ipcRenderer.invoke('watch', start),
   play: (set: AvailableSet): Promise<void> => ipcRenderer.invoke('play', set),
+  queue: (set: AvailableSet): Promise<void> => ipcRenderer.invoke('queue', set),
+  onPlaying: (callback: (event: IpcRendererEvent, dirName: string) => void) => {
+    ipcRenderer.removeAllListeners('playing');
+    ipcRenderer.on('playing', callback);
+  },
   onUnzip: (
     callback: (event: IpcRendererEvent, availableSets: AvailableSet[]) => void,
   ) => {

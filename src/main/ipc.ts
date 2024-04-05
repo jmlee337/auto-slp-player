@@ -84,18 +84,29 @@ export default async function setupIPCs(
   }
   const availableSets: AvailableSet[] = [];
   let playingSet: AvailableSet | null = null;
+  let queuedSet: AvailableSet | null = null;
   let dolphin: Dolphin | null = null;
   const playDolphin = (set: AvailableSet) => {
     if (!dolphin) {
       dolphin = new Dolphin(dolphinPath, isoPath, tempPath);
       dolphin.on(DolphinEvent.CLOSE, () => {
+        playingSet = null;
+        queuedSet = null;
+        mainWindow.webContents.send('playing', '');
         if (dolphin) {
           dolphin.removeAllListeners();
           dolphin = null;
         }
       });
       dolphin.on(DolphinEvent.ENDED, () => {
+        if (queuedSet) {
+          playDolphin(queuedSet);
+          queuedSet = null;
+          return;
+        }
+
         if (playingSet === null) {
+          mainWindow.webContents.send('playing', '');
           return;
         }
         const index = availableSets.findIndex(
@@ -103,6 +114,7 @@ export default async function setupIPCs(
         );
         if (index === -1 || index + 1 >= availableSets.length) {
           playingSet = null;
+          mainWindow.webContents.send('playing', '');
           return;
         }
         playDolphin(availableSets[index + 1]);
@@ -116,6 +128,7 @@ export default async function setupIPCs(
 
     dolphin.play(set.replayPaths);
     playingSet = set;
+    mainWindow.webContents.send('playing', set.dirName);
   };
   ipcMain.removeHandler('watch');
   ipcMain.handle('watch', async (event: IpcMainInvokeEvent, start: boolean) => {
@@ -148,10 +161,12 @@ export default async function setupIPCs(
   });
 
   ipcMain.removeHandler('play');
-  ipcMain.handle(
-    'play',
-    async (event: IpcMainInvokeEvent, set: AvailableSet) => {
-      playDolphin(set);
-    },
-  );
+  ipcMain.handle('play', (event: IpcMainInvokeEvent, set: AvailableSet) => {
+    playDolphin(set);
+  });
+
+  ipcMain.removeHandler('queue');
+  ipcMain.handle('queue', (event: IpcMainInvokeEvent, set: AvailableSet) => {
+    queuedSet = set;
+  });
 }

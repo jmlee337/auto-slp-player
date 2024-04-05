@@ -2,7 +2,9 @@ import { MemoryRouter as Router, Routes, Route } from 'react-router-dom';
 import { useEffect, useState } from 'react';
 import './App.css';
 import {
+  Box,
   Button,
+  CircularProgress,
   IconButton,
   InputBase,
   List,
@@ -12,9 +14,12 @@ import {
   Tooltip,
 } from '@mui/material';
 import {
+  PlayArrow,
   PlayCircle,
+  PlaylistAddCheck,
   SdCard,
   StopCircle,
+  SubdirectoryArrowRight,
   Terminal,
   Visibility,
 } from '@mui/icons-material';
@@ -36,8 +41,14 @@ function Hello() {
 
   const [watchDir, setWatchDir] = useState('');
   const [watching, setWatching] = useState(false);
+  const [playingSetDirName, setPlayingSetDirName] = useState('');
+  const [queuedSetDirName, setQueuedSetDirName] = useState('');
   const [availableSets, setAvailableSets] = useState<AvailableSet[]>([]);
   useEffect(() => {
+    window.electron.onPlaying((event: IpcRendererEvent, dirName: string) => {
+      setPlayingSetDirName(dirName);
+      setQueuedSetDirName('');
+    });
     window.electron.onUnzip(
       (event: IpcRendererEvent, newAvailableSets: AvailableSet[]) => {
         setAvailableSets(newAvailableSets);
@@ -116,14 +127,36 @@ function Hello() {
         <List>
           {availableSets.map((availableSet) => (
             <ListItem disableGutters key={availableSet.dirName}>
+              <Box padding="8px" height="24px" width="24px">
+                {availableSet.dirName === playingSetDirName && (
+                  <Tooltip arrow title="Playing...">
+                    <CircularProgress size="24px" />
+                  </Tooltip>
+                )}
+                {availableSet.dirName === queuedSetDirName && (
+                  <Tooltip arrow title="Next...">
+                    <PlaylistAddCheck />
+                  </Tooltip>
+                )}
+              </Box>
               <ListItemText>{availableSet.dirName}</ListItemText>
-              <Tooltip arrow title="Play">
+              <Tooltip arrow title="Play next">
+                <IconButton
+                  onClick={async () => {
+                    window.electron.queue(availableSet);
+                    setQueuedSetDirName(availableSet.dirName);
+                  }}
+                >
+                  <SubdirectoryArrowRight />
+                </IconButton>
+              </Tooltip>
+              <Tooltip arrow title="Play now">
                 <IconButton
                   onClick={() => {
                     window.electron.play(availableSet);
                   }}
                 >
-                  <PlayCircle />
+                  <PlayArrow />
                 </IconButton>
               </Tooltip>
             </ListItem>

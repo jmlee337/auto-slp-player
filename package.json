@@ -1,5 +1,5 @@
 {
-  "description": "A foundation for scalable desktop apps",
+  "description": "An app for playing Slippi replays",
   "keywords": [
     "electron",
     "boilerplate",
@@ -11,13 +11,13 @@
     "hot",
     "reload"
   ],
-  "homepage": "https://github.com/electron-react-boilerplate/electron-react-boilerplate#readme",
+  "homepage": "https://github.com/jmlee337/auto-slp-player",
   "bugs": {
-    "url": "https://github.com/electron-react-boilerplate/electron-react-boilerplate/issues"
+    "url": "https://github.com/jmlee337/auto-slp-player/issues"
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/electron-react-boilerplate/electron-react-boilerplate.git"
+    "url": "git+https://github.com/jmlee337/auto-slp-player.git"
   },
   "license": "MIT",
   "author": {
@@ -180,8 +180,8 @@
     "webpack-merge": "^5.9.0"
   },
   "build": {
-    "productName": "ElectronReact",
-    "appId": "org.erb.ElectronReact",
+    "productName": "AutoSLPPlayer",
+    "appId": "org.jmlee337.AutoSLPPlayer",
     "asar": true,
     "asarUnpack": "**\\*.{node,dll}",
     "files": [
@@ -256,5 +256,6 @@
       "src/main/**"
     ],
     "logLevel": "quiet"
-  }
+  },
+  "version": "0.0.0"
 }

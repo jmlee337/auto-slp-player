@@ -126,7 +126,7 @@ function Hello() {
       {availableSets && (
         <List>
           {availableSets.map((availableSet) => (
-            <ListItem disableGutters key={availableSet.dirName}>
+            <ListItem disablePadding key={availableSet.dirName}>
               <Box padding="8px" height="24px" width="24px">
                 {availableSet.dirName === playingSetDirName && (
                   <Tooltip arrow title="Playing...">

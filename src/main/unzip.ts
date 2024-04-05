@@ -1,5 +1,5 @@
 import { createWriteStream } from 'fs';
-import { access, mkdir, readFile, rmdir } from 'fs/promises';
+import { access, mkdir, readFile, readdir, rmdir } from 'fs/promises';
 import path from 'path';
 import yauzl from 'yauzl';
 import { AvailableSet, AvailableSetContext } from '../common/types';
@@ -54,11 +54,17 @@ export default async function unzip(zipPath: string, tempPath: string) {
         const unzipDir = path.join(tempPath, path.basename(zipPath, '.zip'));
         try {
           await access(unzipDir);
-          const context = await getContext(path.join(unzipDir, 'context.json'));
+          const contextPromise = getContext(
+            path.join(unzipDir, 'context.json'),
+          );
+          const replayPaths = (await readdir(unzipDir))
+            .filter((existingPath) => existingPath.endsWith('.slp'))
+            .map((slpPath) => path.join(unzipDir, slpPath));
+          replayPaths.sort();
           resolve({
             dirName: path.basename(unzipDir),
-            fullPath: unzipDir,
-            context,
+            replayPaths,
+            context: await contextPromise,
           });
         } catch (accessE: any) {
           try {
@@ -71,6 +77,7 @@ export default async function unzip(zipPath: string, tempPath: string) {
 
         let contextPath = '';
         let failureReason = '';
+        const replayPaths: string[] = [];
         zipFile.on('close', async () => {
           if (failureReason) {
             reject(new Error(failureReason));
@@ -78,9 +85,10 @@ export default async function unzip(zipPath: string, tempPath: string) {
             const context = contextPath
               ? await getContext(contextPath)
               : undefined;
+            replayPaths.sort();
             resolve({
               dirName: path.basename(unzipDir),
-              fullPath: unzipDir,
+              replayPaths,
               context,
             });
           }
@@ -104,6 +112,8 @@ export default async function unzip(zipPath: string, tempPath: string) {
                 readStream.on('end', () => {
                   if (entry.fileName === 'context.json') {
                     contextPath = unzipPath;
+                  } else {
+                    replayPaths.push(unzipPath);
                   }
                   zipFile.readEntry();
                 });

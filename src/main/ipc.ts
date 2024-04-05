@@ -11,6 +11,7 @@ import { access, mkdir } from 'fs/promises';
 import path from 'path';
 import unzip from './unzip';
 import { AvailableSet } from '../common/types';
+import Dolphin from './dolphin';
 
 export default async function setupIPCs(
   mainWindow: BrowserWindow,
@@ -107,4 +108,16 @@ export default async function setupIPCs(
       await watcher.close();
     }
   });
+
+  let dolphin: Dolphin | null = null;
+  ipcMain.removeHandler('play');
+  ipcMain.handle(
+    'play',
+    async (event: IpcMainInvokeEvent, set: AvailableSet) => {
+      if (!dolphin) {
+        dolphin = new Dolphin(dolphinPath, isoPath, tempPath);
+      }
+      dolphin.play(set.replayPaths);
+    },
+  );
 }

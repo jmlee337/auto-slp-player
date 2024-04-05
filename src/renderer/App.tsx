@@ -115,8 +115,17 @@ function Hello() {
       {availableSets && (
         <List>
           {availableSets.map((availableSet) => (
-            <ListItem key={availableSet.fullPath}>
+            <ListItem disableGutters key={availableSet.dirName}>
               <ListItemText>{availableSet.dirName}</ListItemText>
+              <Tooltip arrow title="Play">
+                <IconButton
+                  onClick={() => {
+                    window.electron.play(availableSet);
+                  }}
+                >
+                  <PlayCircle />
+                </IconButton>
+              </Tooltip>
             </ListItem>
           ))}
         </List>

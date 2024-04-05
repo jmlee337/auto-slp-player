@@ -6,6 +6,12 @@ export type AvailableSetContext = {
 
 export type AvailableSet = {
   dirName: string;
-  fullPath: string;
+  replayPaths: string[];
   context?: AvailableSetContext;
+};
+
+export type DolphinComm = {
+  mode: 'queue';
+  commandId: string;
+  queue: { path: string }[];
 };

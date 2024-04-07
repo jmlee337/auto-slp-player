@@ -25,16 +25,25 @@ import {
 } from '@mui/icons-material';
 import { IpcRendererEvent } from 'electron';
 import { AvailableSet } from '../common/types';
+import Settings from './Settings';
 
 function Hello() {
+  const [appVersion, setAppVersion] = useState('');
+  const [latestAppVersion, setLatestAppVersion] = useState('');
   const [dolphinPath, setDolphinPath] = useState('');
   const [isoPath, setIsoPath] = useState('');
+  const [gotSettings, setGotSettings] = useState(false);
   useEffect(() => {
     const inner = async () => {
+      const appVersionPromise = window.electron.getVersion();
+      const latestAppVersionPromise = window.electron.getLatestVersion();
       const dolphinPathPromise = window.electron.getDolphinPath();
       const isoPathPromise = window.electron.getIsoPath();
+      setAppVersion(await appVersionPromise);
+      setLatestAppVersion(await latestAppVersionPromise);
       setDolphinPath(await dolphinPathPromise);
       setIsoPath(await isoPathPromise);
+      setGotSettings(true);
     };
     inner();
   }, []);
@@ -109,7 +118,12 @@ function Hello() {
           </IconButton>
         </Tooltip>
       </Stack>
-      <Stack direction="row" justifyContent="flex-end">
+      <Stack direction="row" justifyContent="flex-end" spacing="8px">
+        <Settings
+          appVersion={appVersion}
+          latestAppVersion={latestAppVersion}
+          gotSettings={gotSettings}
+        />
         <Button
           disabled={!dolphinPath || !isoPath || !watchDir}
           endIcon={watching ? <StopCircle /> : <PlayCircle />}

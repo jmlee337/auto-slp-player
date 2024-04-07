@@ -11,6 +11,9 @@ const electronHandler = {
   watch: (start: boolean): Promise<void> => ipcRenderer.invoke('watch', start),
   play: (set: AvailableSet): Promise<void> => ipcRenderer.invoke('play', set),
   queue: (set: AvailableSet): Promise<void> => ipcRenderer.invoke('queue', set),
+  getVersion: (): Promise<string> => ipcRenderer.invoke('getVersion'),
+  getLatestVersion: (): Promise<string> =>
+    ipcRenderer.invoke('getLatestVersion'),
   onPlaying: (callback: (event: IpcRendererEvent, dirName: string) => void) => {
     ipcRenderer.removeAllListeners('playing');
     ipcRenderer.on('playing', callback);

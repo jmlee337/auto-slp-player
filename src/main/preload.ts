@@ -11,6 +11,8 @@ const electronHandler = {
   watch: (start: boolean): Promise<void> => ipcRenderer.invoke('watch', start),
   play: (set: AvailableSet): Promise<void> => ipcRenderer.invoke('play', set),
   queue: (set: AvailableSet): Promise<void> => ipcRenderer.invoke('queue', set),
+  markPlayed: (dirName: string, played: boolean): Promise<AvailableSet[]> =>
+    ipcRenderer.invoke('markPlayed', dirName, played),
   getVersion: (): Promise<string> => ipcRenderer.invoke('getVersion'),
   getLatestVersion: (): Promise<string> =>
     ipcRenderer.invoke('getLatestVersion'),

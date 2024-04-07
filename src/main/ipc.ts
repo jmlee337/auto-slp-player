@@ -82,6 +82,7 @@ export default async function setupIPCs(
       throw new Error(`Could not make temp dir: ${e.message}`);
     }
   }
+  const playedSetDirNames: Set<string> = new Set();
   const availableSets: AvailableSet[] = [];
   let playingSet: AvailableSet | null = null;
   let queuedSet: AvailableSet | null = null;
@@ -112,12 +113,19 @@ export default async function setupIPCs(
         const index = availableSets.findIndex(
           (value) => value.dirName === playingSet!.dirName,
         );
-        if (index === -1 || index + 1 >= availableSets.length) {
+        if (index === -1) {
           playingSet = null;
           mainWindow.webContents.send('playing', '');
           return;
         }
-        playDolphin(availableSets[index + 1]);
+        for (let i = index + 1; i < availableSets.length; i += 1) {
+          if (!playedSetDirNames.has(availableSets[i].dirName)) {
+            playDolphin(availableSets[i]);
+            return;
+          }
+        }
+        playingSet = null;
+        mainWindow.webContents.send('playing', '');
       });
       dolphin.on(DolphinEvent.START_FAILED, () => {
         if (dolphin) {
@@ -128,6 +136,7 @@ export default async function setupIPCs(
 
     dolphin.play(set.replayPaths);
     playingSet = set;
+    playedSetDirNames.add(set.dirName);
     mainWindow.webContents.send('playing', set.dirName);
   };
   ipcMain.removeHandler('watch');
@@ -142,13 +151,14 @@ export default async function setupIPCs(
       watcher = watch(glob);
       watcher.on('add', async (newZipPath) => {
         try {
-          const newSet = await unzip(newZipPath, tempPath);
+          const newSet = await unzip(newZipPath, tempPath, playedSetDirNames);
           availableSets.push(newSet);
           availableSets.sort((a, b) => a.dirName.localeCompare(b.dirName));
-          mainWindow.webContents.send('unzip', availableSets);
-          if (!playingSet) {
+          if (!playingSet && !newSet.played) {
+            newSet.played = true;
             playDolphin(newSet);
           }
+          mainWindow.webContents.send('unzip', availableSets);
         } catch (e: any) {
           if (e instanceof Error) {
             console.log(e.message);
@@ -159,6 +169,21 @@ export default async function setupIPCs(
       await watcher.close();
     }
   });
+
+  ipcMain.removeHandler('markPlayed');
+  ipcMain.handle(
+    'markPlayed',
+    (event: IpcMainInvokeEvent, dirName: string, played: boolean) => {
+      const set = availableSets.find(
+        (availableSet) => availableSet.dirName === dirName,
+      );
+      if (!set) {
+        throw new Error(`set does not exist: ${dirName}`);
+      }
+      set.played = played;
+      return availableSets;
+    },
+  );
 
   ipcMain.removeHandler('play');
   ipcMain.handle('play', (event: IpcMainInvokeEvent, set: AvailableSet) => {

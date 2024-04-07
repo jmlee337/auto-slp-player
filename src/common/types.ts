@@ -8,6 +8,7 @@ export type AvailableSet = {
   dirName: string;
   replayPaths: string[];
   context?: AvailableSetContext;
+  played: boolean;
 };
 
 export type DolphinComm = {

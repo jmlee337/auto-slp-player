@@ -43,7 +43,11 @@ async function getContext(
   }
 }
 
-export default async function unzip(zipPath: string, tempPath: string) {
+export default async function unzip(
+  zipPath: string,
+  tempPath: string,
+  playedSetDirNames: Set<string>,
+) {
   return new Promise<AvailableSet>((resolve, reject) => {
     setTimeout(() => {
       yauzl.open(zipPath, { lazyEntries: true }, async (openErr, zipFile) => {
@@ -61,10 +65,12 @@ export default async function unzip(zipPath: string, tempPath: string) {
             .filter((existingPath) => existingPath.endsWith('.slp'))
             .map((slpPath) => path.join(unzipDir, slpPath));
           replayPaths.sort();
+          const dirName = path.basename(unzipDir);
           resolve({
-            dirName: path.basename(unzipDir),
+            dirName,
             replayPaths,
             context: await contextPromise,
+            played: playedSetDirNames.has(dirName),
           });
         } catch (accessE: any) {
           try {
@@ -86,10 +92,12 @@ export default async function unzip(zipPath: string, tempPath: string) {
               ? await getContext(contextPath)
               : undefined;
             replayPaths.sort();
+            const dirName = path.basename(unzipDir);
             resolve({
-              dirName: path.basename(unzipDir),
+              dirName,
               replayPaths,
               context,
+              played: playedSetDirNames.has(dirName),
             });
           }
         });

@@ -4,11 +4,14 @@ import './App.css';
 import {
   Box,
   Button,
+  Checkbox,
   CircularProgress,
   IconButton,
   InputBase,
   List,
   ListItem,
+  ListItemButton,
+  ListItemIcon,
   ListItemText,
   Stack,
   Tooltip,
@@ -57,6 +60,17 @@ function Hello() {
     window.electron.onPlaying((event: IpcRendererEvent, dirName: string) => {
       setPlayingSetDirName(dirName);
       setQueuedSetDirName('');
+      setAvailableSets((arr) => {
+        if (dirName) {
+          const playingSet = arr.find(
+            (availableSet) => availableSet.dirName === dirName,
+          );
+          if (playingSet) {
+            playingSet.played = true;
+          }
+        }
+        return arr;
+      });
     });
     window.electron.onUnzip(
       (event: IpcRendererEvent, newAvailableSets: AvailableSet[]) => {
@@ -140,39 +154,62 @@ function Hello() {
       {availableSets && (
         <List>
           {availableSets.map((availableSet) => (
-            <ListItem disablePadding key={availableSet.dirName}>
-              <Box padding="8px" height="24px" width="24px">
-                {availableSet.dirName === playingSetDirName && (
-                  <Tooltip arrow title="Playing...">
-                    <CircularProgress size="24px" />
-                  </Tooltip>
-                )}
-                {availableSet.dirName === queuedSetDirName && (
-                  <Tooltip arrow title="Next...">
-                    <PlaylistAddCheck />
-                  </Tooltip>
-                )}
-              </Box>
-              <ListItemText>{availableSet.dirName}</ListItemText>
-              <Tooltip arrow title="Play next">
-                <IconButton
-                  onClick={async () => {
-                    window.electron.queue(availableSet);
-                    setQueuedSetDirName(availableSet.dirName);
-                  }}
-                >
-                  <SubdirectoryArrowRight />
-                </IconButton>
-              </Tooltip>
-              <Tooltip arrow title="Play now">
-                <IconButton
-                  onClick={() => {
-                    window.electron.play(availableSet);
-                  }}
-                >
-                  <PlayArrow />
-                </IconButton>
-              </Tooltip>
+            <ListItem
+              disablePadding
+              key={availableSet.dirName}
+              style={availableSet.played ? { opacity: '50%' } : {}}
+            >
+              <ListItemButton
+                dense
+                onClick={async () => {
+                  setAvailableSets(
+                    await window.electron.markPlayed(
+                      availableSet.dirName,
+                      !availableSet.played,
+                    ),
+                  );
+                }}
+              >
+                <ListItemIcon>
+                  <Checkbox
+                    checked={!availableSet.played}
+                    disableRipple
+                    edge="start"
+                  />
+                </ListItemIcon>
+                <ListItemText>{availableSet.dirName}</ListItemText>
+                <Tooltip arrow title="Play next">
+                  <IconButton
+                    onClick={async () => {
+                      window.electron.queue(availableSet);
+                      setQueuedSetDirName(availableSet.dirName);
+                    }}
+                  >
+                    <SubdirectoryArrowRight />
+                  </IconButton>
+                </Tooltip>
+                <Tooltip arrow title="Play now">
+                  <IconButton
+                    onClick={() => {
+                      window.electron.play(availableSet);
+                    }}
+                  >
+                    <PlayArrow />
+                  </IconButton>
+                </Tooltip>
+                <Box padding="8px" height="24px" width="24px">
+                  {availableSet.dirName === playingSetDirName && (
+                    <Tooltip arrow title="Playing...">
+                      <CircularProgress size="24px" />
+                    </Tooltip>
+                  )}
+                  {availableSet.dirName === queuedSetDirName && (
+                    <Tooltip arrow title="Next...">
+                      <PlaylistAddCheck />
+                    </Tooltip>
+                  )}
+                </Box>
+              </ListItemButton>
             </ListItem>
           ))}
         </List>

@@ -5,6 +5,7 @@ import {
   app,
   dialog,
   ipcMain,
+  shell,
 } from 'electron';
 import Store from 'electron-store';
 import { access, mkdir } from 'fs/promises';
@@ -74,9 +75,9 @@ export default async function setupIPCs(
   });
 
   let watcher: FSWatcher | undefined;
-  const tempPath = path.join(app.getPath('temp'), 'auto-slp-player');
+  const tempDir = path.join(app.getPath('temp'), 'auto-slp-player');
   try {
-    await access(tempPath).catch(() => mkdir(tempPath));
+    await access(tempDir).catch(() => mkdir(tempDir));
   } catch (e: any) {
     if (e instanceof Error) {
       throw new Error(`Could not make temp dir: ${e.message}`);
@@ -89,7 +90,7 @@ export default async function setupIPCs(
   let dolphin: Dolphin | null = null;
   const playDolphin = (set: AvailableSet) => {
     if (!dolphin) {
-      dolphin = new Dolphin(dolphinPath, isoPath, tempPath);
+      dolphin = new Dolphin(dolphinPath, isoPath, tempDir);
       dolphin.on(DolphinEvent.CLOSE, () => {
         playingSet = null;
         queuedSet = null;
@@ -152,7 +153,7 @@ export default async function setupIPCs(
       watcher = watch(glob);
       watcher.on('add', async (newZipPath) => {
         try {
-          const newSet = await unzip(newZipPath, tempPath, playedSetDirNames);
+          const newSet = await unzip(newZipPath, tempDir, playedSetDirNames);
           availableSets.push(newSet);
           availableSets.sort((a, b) => a.dirName.localeCompare(b.dirName));
           if (!playingSet && !newSet.played) {
@@ -199,6 +200,11 @@ export default async function setupIPCs(
   ipcMain.removeHandler('queue');
   ipcMain.handle('queue', (event: IpcMainInvokeEvent, set: AvailableSet) => {
     queuedSet = set;
+  });
+
+  ipcMain.removeHandler('openTempDir');
+  ipcMain.handle('openTempDir', () => {
+    shell.openPath(tempDir);
   });
 
   ipcMain.removeHandler('getVersion');

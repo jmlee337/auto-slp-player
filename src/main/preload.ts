@@ -13,6 +13,7 @@ const electronHandler = {
   queue: (set: AvailableSet): Promise<void> => ipcRenderer.invoke('queue', set),
   markPlayed: (dirName: string, played: boolean): Promise<AvailableSet[]> =>
     ipcRenderer.invoke('markPlayed', dirName, played),
+  openTempDir: (): Promise<void> => ipcRenderer.invoke('openTempDir'),
   getVersion: (): Promise<string> => ipcRenderer.invoke('getVersion'),
   getLatestVersion: (): Promise<string> =>
     ipcRenderer.invoke('getLatestVersion'),

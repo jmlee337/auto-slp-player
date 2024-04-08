@@ -45,7 +45,7 @@ async function getContext(
 
 export default async function unzip(
   zipPath: string,
-  tempPath: string,
+  tempDir: string,
   playedSetDirNames: Set<string>,
 ) {
   return new Promise<AvailableSet>((resolve, reject) => {
@@ -55,7 +55,7 @@ export default async function unzip(
           reject(new Error(`failed to open zip file ${openErr.message}`));
           return;
         }
-        const unzipDir = path.join(tempPath, path.basename(zipPath, '.zip'));
+        const unzipDir = path.join(tempDir, path.basename(zipPath, '.zip'));
         try {
           await access(unzipDir);
           const contextPromise = getContext(

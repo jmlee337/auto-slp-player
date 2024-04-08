@@ -34,7 +34,7 @@ export class Dolphin extends EventEmitter {
 
   private replaysLeft: number;
 
-  constructor(dolphinPath: string, isoPath: string, tempPath: string) {
+  constructor(dolphinPath: string, isoPath: string, tempDir: string) {
     super();
     this.commNum = 0;
     this.dolphinPath = dolphinPath;
@@ -42,7 +42,7 @@ export class Dolphin extends EventEmitter {
     this.process = null;
     this.replaysLeft = 0;
 
-    this.commPath = path.join(tempPath, 'comm.json');
+    this.commPath = path.join(tempDir, 'comm.json');
     this.dolphinConnection = new DolphinConnection();
     this.dolphinConnection.on(ConnectionEvent.MESSAGE, (messageEvent) => {
       switch (messageEvent.type) {

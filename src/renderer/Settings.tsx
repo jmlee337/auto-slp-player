@@ -2,6 +2,7 @@ import {
   Alert,
   Button,
   Dialog,
+  DialogActions,
   DialogContent,
   DialogTitle,
   Stack,
@@ -91,6 +92,16 @@ export default function Settings({
             </Alert>
           )}
         </DialogContent>
+        <DialogActions>
+          <Button
+            onClick={() => {
+              window.electron.openTempDir();
+            }}
+            variant="contained"
+          >
+            Open Temp Folder
+          </Button>
+        </DialogActions>
       </Dialog>
     </>
   );

@@ -25,7 +25,7 @@ import {
   Visibility,
 } from '@mui/icons-material';
 import { IpcRendererEvent } from 'electron';
-import { AvailableSet } from '../common/types';
+import { AvailableSet, TwitchSettings } from '../common/types';
 import Settings from './Settings';
 
 function Hello() {
@@ -33,6 +33,14 @@ function Hello() {
   const [latestAppVersion, setLatestAppVersion] = useState('');
   const [dolphinPath, setDolphinPath] = useState('');
   const [isoPath, setIsoPath] = useState('');
+  const [twitchSettings, setTwitchSettings] = useState<TwitchSettings>({
+    enabled: false,
+    channelName: '',
+    accessToken: '',
+    refreshToken: '',
+    clientId: '',
+    clientSecret: '',
+  });
   const [gotSettings, setGotSettings] = useState(false);
   useEffect(() => {
     const inner = async () => {
@@ -40,10 +48,12 @@ function Hello() {
       const latestAppVersionPromise = window.electron.getLatestVersion();
       const dolphinPathPromise = window.electron.getDolphinPath();
       const isoPathPromise = window.electron.getIsoPath();
+      const twitchSettingsPromise = window.electron.getTwitchSettings();
       setAppVersion(await appVersionPromise);
       setLatestAppVersion(await latestAppVersionPromise);
       setDolphinPath(await dolphinPathPromise);
       setIsoPath(await isoPathPromise);
+      setTwitchSettings(await twitchSettingsPromise);
       setGotSettings(true);
     };
     inner();
@@ -102,6 +112,8 @@ function Hello() {
           setDolphinPath={setDolphinPath}
           isoPath={isoPath}
           setIsoPath={setIsoPath}
+          twitchSettings={twitchSettings}
+          setTwitchSettings={setTwitchSettings}
           appVersion={appVersion}
           latestAppVersion={latestAppVersion}
           gotSettings={gotSettings}

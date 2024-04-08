@@ -16,3 +16,12 @@ export type DolphinComm = {
   commandId: string;
   queue: { path: string }[];
 };
+
+export type TwitchSettings = {
+  enabled: boolean;
+  channelName: string;
+  clientId: string;
+  clientSecret: string;
+  accessToken: string;
+  refreshToken: string;
+};

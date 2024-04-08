@@ -10,8 +10,10 @@ import {
 import Store from 'electron-store';
 import { access, mkdir } from 'fs/promises';
 import path from 'path';
+import { RefreshingAuthProvider } from '@twurple/auth';
+import { Bot, createBotCommand } from '@twurple/easy-bot';
 import unzip from './unzip';
-import { AvailableSet } from '../common/types';
+import { AvailableSet, TwitchSettings } from '../common/types';
 import { Dolphin, DolphinEvent } from './dolphin';
 
 export default async function setupIPCs(
@@ -22,6 +24,16 @@ export default async function setupIPCs(
     ? (store.get('dolphinPath') as string)
     : '';
   let isoPath = store.has('isoPath') ? (store.get('isoPath') as string) : '';
+  let twitchSettings: TwitchSettings = store.has('twitchSettings')
+    ? (store.get('twitchSettings') as TwitchSettings)
+    : {
+        enabled: false,
+        channelName: '',
+        accessToken: '',
+        refreshToken: '',
+        clientId: '',
+        clientSecret: '',
+      };
 
   ipcMain.removeHandler('getDolphinPath');
   ipcMain.handle('getDolphinPath', (): string => dolphinPath);
@@ -201,6 +213,136 @@ export default async function setupIPCs(
   ipcMain.handle('queue', (event: IpcMainInvokeEvent, set: AvailableSet) => {
     queuedSet = set;
   });
+
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  let twitchBot: Bot | null;
+  const maybeStartTwitchBot = async (newTwitchSettings: TwitchSettings) => {
+    if (
+      !newTwitchSettings.enabled ||
+      !newTwitchSettings.channelName ||
+      !newTwitchSettings.clientId ||
+      !newTwitchSettings.clientSecret ||
+      !newTwitchSettings.accessToken ||
+      !newTwitchSettings.refreshToken
+    ) {
+      return;
+    }
+
+    const authProvider = new RefreshingAuthProvider({
+      clientId: newTwitchSettings.clientId,
+      clientSecret: newTwitchSettings.clientSecret,
+    });
+    authProvider.onRefresh((userId, token) => {
+      twitchSettings.accessToken = token.accessToken;
+      twitchSettings.refreshToken = token.refreshToken!;
+      store.set('twitchSettings', newTwitchSettings);
+    });
+    await authProvider.addUserForToken(
+      {
+        accessToken: newTwitchSettings.accessToken,
+        refreshToken: newTwitchSettings.refreshToken,
+        expiresIn: 0,
+        obtainmentTimestamp: 0,
+      },
+      ['chat'],
+    );
+
+    twitchBot = new Bot({
+      authProvider,
+      channel: twitchSettings.channelName,
+      commands: [
+        createBotCommand('help', (params, { say }) => {
+          say('!help, !bracket, !score, !set');
+        }),
+        createBotCommand('bracket', (params, { say }) => {
+          say('TODO');
+        }),
+        createBotCommand('score', (params, { say }) => {
+          say('TODO');
+        }),
+        createBotCommand('set', (params, { say }) => {
+          say('TODO');
+        }),
+      ],
+    });
+  };
+
+  ipcMain.removeHandler('getTwitchSettings');
+  ipcMain.handle('getTwitchSettings', () => {
+    return twitchSettings;
+  });
+
+  ipcMain.removeHandler('setTwitchSettings');
+  ipcMain.handle(
+    'setTwitchSettings',
+    async (event: IpcMainInvokeEvent, newTwitchSettings: TwitchSettings) => {
+      const channelDiff =
+        twitchSettings.channelName !== newTwitchSettings.channelName;
+      const clientIdDiff =
+        twitchSettings.clientId !== newTwitchSettings.clientId;
+      const clientSecretDiff =
+        twitchSettings.clientSecret !== newTwitchSettings.clientSecret;
+      if (
+        channelDiff ||
+        clientIdDiff ||
+        clientSecretDiff ||
+        twitchSettings.enabled !== newTwitchSettings.enabled
+      ) {
+        const actualNewTwitchSettings: TwitchSettings = {
+          enabled: newTwitchSettings.enabled,
+          channelName: newTwitchSettings.channelName,
+          clientId: newTwitchSettings.clientId,
+          clientSecret: newTwitchSettings.clientSecret,
+          accessToken: twitchSettings.accessToken,
+          refreshToken: twitchSettings.refreshToken,
+        };
+        if (!newTwitchSettings.enabled || clientIdDiff || clientSecretDiff) {
+          twitchBot = null;
+          if (clientIdDiff || clientSecretDiff) {
+            actualNewTwitchSettings.accessToken = '';
+            actualNewTwitchSettings.refreshToken = '';
+            if (clientIdDiff) {
+              actualNewTwitchSettings.clientSecret = '';
+            }
+          }
+        } else {
+          // channelDiff || twitchSettings.enabled
+          await maybeStartTwitchBot(actualNewTwitchSettings);
+        }
+        store.set('twitchSettings', actualNewTwitchSettings);
+        twitchSettings = actualNewTwitchSettings;
+        return twitchSettings;
+      }
+      return twitchSettings;
+    },
+  );
+
+  ipcMain.removeHandler('getTwitchTokens');
+  ipcMain.handle(
+    'getTwitchTokens',
+    async (event: IpcMainInvokeEvent, code: string) => {
+      const response = await fetch(
+        `https://id.twitch.tv/oauth2/token?client_id=${twitchSettings.clientId}&client_secret=${twitchSettings.clientSecret}&code=${code}&grant_type=authorization_code&redirect_uri=http://localhost`,
+        { method: 'post' },
+      );
+      const json = await response.json();
+      const accessToken = json.access_token;
+      const refreshToken = json.refresh_token;
+      if (
+        !accessToken ||
+        typeof accessToken !== 'string' ||
+        !refreshToken ||
+        typeof refreshToken !== 'string'
+      ) {
+        throw new Error('failed to get Twitch tokens');
+      }
+      twitchSettings.accessToken = accessToken;
+      twitchSettings.refreshToken = refreshToken;
+      store.set('twitchSettings', twitchSettings);
+      maybeStartTwitchBot(twitchSettings);
+    },
+  );
+  maybeStartTwitchBot(twitchSettings);
 
   ipcMain.removeHandler('openTempDir');
   ipcMain.handle('openTempDir', () => {

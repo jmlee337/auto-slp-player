@@ -1,5 +1,5 @@
 import { IpcRendererEvent, contextBridge, ipcRenderer } from 'electron';
-import { AvailableSet } from '../common/types';
+import { AvailableSet, TwitchSettings } from '../common/types';
 
 const electronHandler = {
   getDolphinPath: (): Promise<string> => ipcRenderer.invoke('getDolphinPath'),
@@ -13,6 +13,14 @@ const electronHandler = {
   queue: (set: AvailableSet): Promise<void> => ipcRenderer.invoke('queue', set),
   markPlayed: (dirName: string, played: boolean): Promise<AvailableSet[]> =>
     ipcRenderer.invoke('markPlayed', dirName, played),
+  getTwitchSettings: (): Promise<TwitchSettings> =>
+    ipcRenderer.invoke('getTwitchSettings'),
+  setTwitchSettings: (
+    newTwitchSettings: TwitchSettings,
+  ): Promise<TwitchSettings> =>
+    ipcRenderer.invoke('setTwitchSettings', newTwitchSettings),
+  getTwitchTokens: (code: string): Promise<void> =>
+    ipcRenderer.invoke('getTwitchTokens', code),
   openTempDir: (): Promise<void> => ipcRenderer.invoke('openTempDir'),
   getVersion: (): Promise<string> => ipcRenderer.invoke('getVersion'),
   getLatestVersion: (): Promise<string> =>

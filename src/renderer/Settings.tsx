@@ -5,17 +5,32 @@ import {
   DialogActions,
   DialogContent,
   DialogTitle,
+  IconButton,
+  InputBase,
   Stack,
+  Tooltip,
   Typography,
 } from '@mui/material';
 import { useMemo, useState } from 'react';
-import { Settings as SettingsIcon } from '@mui/icons-material';
+import {
+  SdCard,
+  Settings as SettingsIcon,
+  Terminal,
+} from '@mui/icons-material';
 
 export default function Settings({
+  dolphinPath,
+  setDolphinPath,
+  isoPath,
+  setIsoPath,
   appVersion,
   latestAppVersion,
   gotSettings,
 }: {
+  dolphinPath: string;
+  setDolphinPath: (dolphinPath: string) => void;
+  isoPath: string;
+  setIsoPath: (isoPath: string) => void;
   appVersion: string;
   latestAppVersion: string;
   gotSettings: boolean;
@@ -45,7 +60,11 @@ export default function Settings({
     }
     return false;
   }, [appVersion, latestAppVersion]);
-  if (gotSettings && !hasAutoOpened && needUpdate) {
+  if (
+    gotSettings &&
+    !hasAutoOpened &&
+    (!dolphinPath || !isoPath || needUpdate)
+  ) {
     setOpen(true);
     setHasAutoOpened(true);
   }
@@ -66,6 +85,8 @@ export default function Settings({
         onClose={() => {
           setOpen(false);
         }}
+        fullWidth
+        maxWidth="md"
       >
         <Stack
           alignItems="center"
@@ -79,6 +100,40 @@ export default function Settings({
           </Typography>
         </Stack>
         <DialogContent sx={{ pt: 0 }}>
+          <Stack direction="row">
+            <InputBase
+              disabled
+              size="small"
+              value={dolphinPath || 'Set dolphin path...'}
+              style={{ flexGrow: 1 }}
+            />
+            <Tooltip arrow title="Set dolphin path">
+              <IconButton
+                onClick={async () => {
+                  setDolphinPath(await window.electron.chooseDolphinPath());
+                }}
+              >
+                <Terminal />
+              </IconButton>
+            </Tooltip>
+          </Stack>
+          <Stack direction="row">
+            <InputBase
+              disabled
+              size="small"
+              value={isoPath || 'Set ISO path...'}
+              style={{ flexGrow: 1 }}
+            />
+            <Tooltip arrow title="Set ISO path">
+              <IconButton
+                onClick={async () => {
+                  setIsoPath(await window.electron.chooseIsoPath());
+                }}
+              >
+                <SdCard />
+              </IconButton>
+            </Tooltip>
+          </Stack>
           {needUpdate && (
             <Alert severity="warning">
               Update available!{' '}

@@ -20,10 +20,8 @@ import {
   PlayArrow,
   PlayCircle,
   PlaylistAddCheck,
-  SdCard,
   StopCircle,
   SubdirectoryArrowRight,
-  Terminal,
   Visibility,
 } from '@mui/icons-material';
 import { IpcRendererEvent } from 'electron';
@@ -85,40 +83,6 @@ function Hello() {
         <InputBase
           disabled
           size="small"
-          value={dolphinPath || 'Set dolphin path...'}
-          style={{ flexGrow: 1 }}
-        />
-        <Tooltip arrow title="Set dolphin path">
-          <IconButton
-            onClick={async () => {
-              setDolphinPath(await window.electron.chooseDolphinPath());
-            }}
-          >
-            <Terminal />
-          </IconButton>
-        </Tooltip>
-      </Stack>
-      <Stack direction="row">
-        <InputBase
-          disabled
-          size="small"
-          value={isoPath || 'Set ISO path...'}
-          style={{ flexGrow: 1 }}
-        />
-        <Tooltip arrow title="Set ISO path">
-          <IconButton
-            onClick={async () => {
-              setIsoPath(await window.electron.chooseIsoPath());
-            }}
-          >
-            <SdCard />
-          </IconButton>
-        </Tooltip>
-      </Stack>
-      <Stack direction="row">
-        <InputBase
-          disabled
-          size="small"
           value={watchDir || 'Set watch directory...'}
           style={{ flexGrow: 1 }}
         />
@@ -134,6 +98,10 @@ function Hello() {
       </Stack>
       <Stack direction="row" justifyContent="flex-end" spacing="8px">
         <Settings
+          dolphinPath={dolphinPath}
+          setDolphinPath={setDolphinPath}
+          isoPath={isoPath}
+          setIsoPath={setIsoPath}
           appVersion={appVersion}
           latestAppVersion={latestAppVersion}
           gotSettings={gotSettings}

@@ -134,9 +134,10 @@ export default async function setupIPCs(
       });
     }
 
-    dolphin.play(set.replayPaths);
     playingSet = set;
+    set.played = true;
     playedSetDirNames.add(set.dirName);
+    dolphin.play(set.replayPaths);
     mainWindow.webContents.send('playing', set.dirName);
   };
   ipcMain.removeHandler('watch');
@@ -181,6 +182,11 @@ export default async function setupIPCs(
         throw new Error(`set does not exist: ${dirName}`);
       }
       set.played = played;
+      if (played) {
+        playedSetDirNames.add(set.dirName);
+      } else {
+        playedSetDirNames.delete(set.dirName);
+      }
       return availableSets;
     },
   );

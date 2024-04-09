@@ -32,7 +32,11 @@ export class Dolphin extends EventEmitter {
 
   private process: ChildProcess | null;
 
-  private replaysLeft: number;
+  private gameIndex: number;
+
+  private gamesLength: number;
+
+  private ignoreEndGame: boolean;
 
   constructor(dolphinPath: string, isoPath: string, tempDir: string) {
     super();
@@ -40,20 +44,25 @@ export class Dolphin extends EventEmitter {
     this.dolphinPath = dolphinPath;
     this.isoPath = isoPath;
     this.process = null;
-    this.replaysLeft = 0;
+    this.gameIndex = 0;
+    this.gamesLength = 0;
+    this.ignoreEndGame = false;
 
     this.commPath = path.join(tempDir, 'comm.json');
     this.dolphinConnection = new DolphinConnection();
     this.dolphinConnection.on(ConnectionEvent.MESSAGE, (messageEvent) => {
       switch (messageEvent.type) {
         case DolphinMessageType.END_GAME:
-          this.replaysLeft -= 1;
-          if (this.replaysLeft === 0) {
+          if (this.ignoreEndGame) {
+            break;
+          }
+          this.gameIndex += 1;
+          if (this.gameIndex >= this.gamesLength) {
             this.emit(DolphinEvent.ENDED);
           }
           break;
         case DolphinMessageType.START_GAME:
-          this.emit(DolphinEvent.PLAYING);
+          this.emit(DolphinEvent.PLAYING, this.gameIndex);
           break;
         default:
       }
@@ -67,8 +76,16 @@ export class Dolphin extends EventEmitter {
       queue: replayPaths.map((replayPath) => ({ path: replayPath })),
     };
     this.commNum += 1;
+    this.gameIndex = 0;
+    this.gamesLength = replayPaths.length;
     await writeFile(this.commPath, JSON.stringify(comm));
-    this.replaysLeft = replayPaths.length;
+    // If we interrupt a replay in progress Dolphin will emit an END_GAME event
+    // before starting our new replay. This would cause us to miscount so
+    // ignore that.
+    this.ignoreEndGame = true;
+    setTimeout(() => {
+      this.ignoreEndGame = false;
+    }, 5000);
   }
 
   private async connectToDolphin(): Promise<void> {

@@ -98,6 +98,7 @@ export default async function setupIPCs(
   const playedSetDirNames: Set<string> = new Set();
   const availableSets: AvailableSet[] = [];
   let playingSet: AvailableSet | null = null;
+  let gameIndex = 0;
   let queuedSet: AvailableSet | null = null;
   let dolphin: Dolphin | null = null;
   const playDolphin = (set: AvailableSet) => {
@@ -105,12 +106,16 @@ export default async function setupIPCs(
       dolphin = new Dolphin(dolphinPath, isoPath, tempDir);
       dolphin.on(DolphinEvent.CLOSE, () => {
         playingSet = null;
+        gameIndex = 0;
         queuedSet = null;
         mainWindow.webContents.send('playing', '');
         if (dolphin) {
           dolphin.removeAllListeners();
           dolphin = null;
         }
+      });
+      dolphin.on(DolphinEvent.PLAYING, (newGameIndex: number) => {
+        gameIndex = newGameIndex;
       });
       dolphin.on(DolphinEvent.ENDED, () => {
         if (queuedSet) {
@@ -128,6 +133,7 @@ export default async function setupIPCs(
         );
         if (index === -1) {
           playingSet = null;
+          gameIndex = 0;
           mainWindow.webContents.send('playing', '');
           return;
         }
@@ -138,6 +144,7 @@ export default async function setupIPCs(
           }
         }
         playingSet = null;
+        gameIndex = 0;
         mainWindow.webContents.send('playing', '');
       });
       dolphin.on(DolphinEvent.START_FAILED, () => {
@@ -148,6 +155,7 @@ export default async function setupIPCs(
     }
 
     playingSet = set;
+    gameIndex = 0;
     set.played = true;
     playedSetDirNames.add(set.dirName);
     dolphin.play(set.replayPaths);
@@ -255,13 +263,133 @@ export default async function setupIPCs(
           say('!help, !bracket, !score, !set');
         }),
         createBotCommand('bracket', (params, { say }) => {
-          say('TODO');
+          if (!playingSet) {
+            return;
+          }
+          const eventSlug = playingSet.context.event?.slug;
+          const phaseId = playingSet.context.phase?.id;
+          const phaseGroupId = playingSet.context.phaseGroup?.id;
+          if (eventSlug && phaseId && phaseGroupId) {
+            say(
+              `SPOILERS: https://www.start.gg/${eventSlug}/brackets/${phaseId}/${phaseGroupId}`,
+            );
+          } else {
+            say('unknown');
+          }
         }),
         createBotCommand('score', (params, { say }) => {
-          say('TODO');
+          if (!playingSet) {
+            return;
+          }
+          const bestOf = playingSet.context.set?.bestOf;
+          const scores = playingSet.context.set?.scores;
+          if (!bestOf || !Array.isArray(scores)) {
+            say('unknown');
+            return;
+          }
+          const { slots } = scores[gameIndex];
+          if (!Array.isArray(slots) || slots.length !== 2) {
+            say('unknown');
+            return;
+          }
+          const scoreLeft = slots[0].score;
+          const scoreRight = slots[1].score;
+          if (Number.isInteger(scoreLeft) && Number.isInteger(scoreRight)) {
+            say(`${scoreLeft} - ${scoreRight} (BO${bestOf})`);
+          } else {
+            say('unknown');
+          }
         }),
         createBotCommand('set', (params, { say }) => {
-          say('TODO');
+          if (!playingSet) {
+            return;
+          }
+          const tournamentName = playingSet.context.tournament?.name;
+          const eventName = playingSet.context.event?.name;
+          const phaseName = playingSet.context.phase?.name;
+          const phaseGroupName = playingSet.context.phaseGroup?.name;
+          const roundName = playingSet.context.set?.fullRoundText;
+          if (
+            !tournamentName ||
+            !eventName ||
+            !phaseName ||
+            !phaseGroupName ||
+            !roundName
+          ) {
+            say('unknown');
+            return;
+          }
+          const bestOf = playingSet.context.set?.bestOf;
+          const round = playingSet.context.set?.round;
+          const scores = playingSet.context.set?.scores;
+          if (!bestOf || !round || !Array.isArray(scores)) {
+            say('unknown');
+            return;
+          }
+          const { slots } = scores[gameIndex];
+          if (!Array.isArray(slots) || slots.length !== 2) {
+            say('unknown');
+            return;
+          }
+          const leftPrefixes = slots[0].prefixes;
+          const leftNames = slots[0].displayNames;
+          const leftPronouns = slots[0].pronouns;
+          if (
+            !Array.isArray(leftPrefixes) ||
+            !Array.isArray(leftNames) ||
+            !Array.isArray(leftPronouns) ||
+            leftPrefixes.length !== leftNames.length ||
+            leftNames.length !== leftPronouns.length
+          ) {
+            say('unknown');
+            return;
+          }
+          const rightPrefixes = slots[1].prefixes;
+          const rightNames = slots[1].displayNames;
+          const rightPronouns = slots[1].pronouns;
+          if (
+            !Array.isArray(rightPrefixes) ||
+            !Array.isArray(rightNames) ||
+            !Array.isArray(rightPronouns) ||
+            rightPrefixes.length !== rightNames.length ||
+            rightNames.length !== rightPronouns.length
+          ) {
+            say('unknown');
+            return;
+          }
+          const leftFullNames: string[] = [];
+          for (let i = 0; i < leftPrefixes.length; i += 1) {
+            let fullName = '';
+            if (leftPrefixes[i]) {
+              fullName += `${leftPrefixes[i]} | `;
+            }
+            fullName += leftNames[i];
+            if (leftPronouns[i]) {
+              fullName += ` (${leftPronouns[i]})`;
+            }
+            leftFullNames.push(fullName);
+          }
+          const rightFullNames: string[] = [];
+          for (let i = 0; i < rightPrefixes.length; i += 1) {
+            let fullName = '';
+            if (rightPrefixes[i]) {
+              fullName += `${rightPrefixes[i]} | `;
+            }
+            fullName += rightNames[i];
+            if (rightPronouns[i]) {
+              fullName += ` (${rightPronouns[i]})`;
+            }
+            rightFullNames.push(fullName);
+          }
+          const bracketContext = `${tournamentName} ${eventName}, ${phaseName} (pool ${phaseGroupName})`;
+          const fullRoundInfo = `${roundName} (BO${bestOf})`;
+          const versus = `${leftFullNames.join(', ')} vs ${rightFullNames.join(
+            ', ',
+          )}`;
+          const separator = round > 0 ? '🟩' : '🟥';
+          say(
+            `${bracketContext} ${separator} ${fullRoundInfo} ${separator} ${versus}`,
+          );
         }),
       ],
     });

@@ -1,13 +1,46 @@
-export type AvailableSetContext = {
-  bestOf: number;
-  gameCount: number;
-  slots: string[][];
+export type ContextSlot = {
+  displayNames?: string[];
+  ports?: number[];
+  prefixes?: string[];
+  pronouns?: string[];
+  score?: number;
+};
+
+export type ContextScore = {
+  game?: number;
+  slots?: ContextSlot[];
+};
+
+export type Context = {
+  tournament?: {
+    name?: string;
+  };
+  event?: {
+    id?: number;
+    name?: string;
+    slug?: string;
+  };
+  phase?: {
+    id?: number;
+    name?: string;
+  };
+  phaseGroup?: {
+    id?: number;
+    name?: string;
+  };
+  set?: {
+    id: number;
+    bestOf?: number;
+    fullRoundText?: string;
+    round?: number;
+    scores?: ContextScore[];
+  };
 };
 
 export type AvailableSet = {
   dirName: string;
   replayPaths: string[];
-  context?: AvailableSetContext;
+  context: Context;
   played: boolean;
 };
 

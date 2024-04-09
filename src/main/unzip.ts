@@ -2,44 +2,13 @@ import { createWriteStream } from 'fs';
 import { access, mkdir, readFile, readdir, rmdir } from 'fs/promises';
 import path from 'path';
 import yauzl from 'yauzl';
-import { AvailableSet, AvailableSetContext } from '../common/types';
+import { AvailableSet, Context } from '../common/types';
 
-async function getContext(
-  contextPath: string,
-): Promise<AvailableSetContext | undefined> {
+async function getContext(contextPath: string): Promise<Context> {
   try {
-    const context = JSON.parse(
-      await readFile(contextPath, { encoding: 'utf8' }),
-    );
-    const { set } = context;
-    if (!set || !set.bestOf || typeof set.bestOf !== 'number') {
-      return undefined;
-    }
-    const { scores } = set;
-    if (!scores || !Array.isArray(scores) || scores.length === 0) {
-      return undefined;
-    }
-    const { slots } = scores[0];
-    if (!slots || !Array.isArray(slots) || slots.length !== 2) {
-      return undefined;
-    }
-    const retSlots: string[][] = [];
-    for (let i = 0; i < 2; i += 1) {
-      const { displayNames } = slots[i];
-      if (
-        !displayNames ||
-        !Array.isArray(displayNames) ||
-        displayNames.length < 1 ||
-        displayNames.length > 2 ||
-        !displayNames.every((displayName) => typeof displayName === 'string')
-      ) {
-        return undefined;
-      }
-      retSlots[i] = displayNames as string[];
-    }
-    return { bestOf: set.bestOf, gameCount: scores.length, slots: retSlots };
+    return JSON.parse(await readFile(contextPath, { encoding: 'utf8' }));
   } catch (e: any) {
-    return undefined;
+    return {};
   }
 }
 
@@ -88,9 +57,7 @@ export default async function unzip(
           if (failureReason) {
             reject(new Error(failureReason));
           } else {
-            const context = contextPath
-              ? await getContext(contextPath)
-              : undefined;
+            const context = contextPath ? await getContext(contextPath) : {};
             replayPaths.sort();
             const dirName = path.basename(unzipDir);
             resolve({

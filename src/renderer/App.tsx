@@ -25,7 +25,7 @@ import {
   Visibility,
 } from '@mui/icons-material';
 import { IpcRendererEvent } from 'electron';
-import { AvailableSet, TwitchSettings } from '../common/types';
+import { RenderSet, TwitchSettings } from '../common/types';
 import Settings from './Settings';
 
 function Hello() {
@@ -63,15 +63,15 @@ function Hello() {
   const [watching, setWatching] = useState(false);
   const [playingSetDirName, setPlayingSetDirName] = useState('');
   const [queuedSetDirName, setQueuedSetDirName] = useState('');
-  const [availableSets, setAvailableSets] = useState<AvailableSet[]>([]);
+  const [renderSets, setRenderSets] = useState<RenderSet[]>([]);
   useEffect(() => {
     window.electron.onPlaying((event: IpcRendererEvent, dirName: string) => {
       setPlayingSetDirName(dirName);
       setQueuedSetDirName('');
-      setAvailableSets((arr) => {
+      setRenderSets((arr) => {
         if (dirName) {
           const playingSet = arr.find(
-            (availableSet) => availableSet.dirName === dirName,
+            (renderSet) => renderSet.dirName === dirName,
           );
           if (playingSet) {
             playingSet.played = true;
@@ -81,8 +81,8 @@ function Hello() {
       });
     });
     window.electron.onUnzip(
-      (event: IpcRendererEvent, newAvailableSets: AvailableSet[]) => {
-        setAvailableSets(newAvailableSets);
+      (event: IpcRendererEvent, newRenderSets: RenderSet[]) => {
+        setRenderSets(newRenderSets);
       },
     );
   }, []);
@@ -131,38 +131,55 @@ function Hello() {
           {watching ? 'Stop' : 'Start'}
         </Button>
       </Stack>
-      {availableSets && (
+      {renderSets && (
         <List>
-          {availableSets.map((availableSet) => (
+          {renderSets.map((renderSet) => (
             <ListItem
               disablePadding
-              key={availableSet.dirName}
-              style={availableSet.played ? { opacity: '50%' } : {}}
+              key={renderSet.dirName}
+              style={renderSet.played ? { opacity: '50%' } : {}}
             >
               <ListItemButton
                 dense
                 onClick={async () => {
-                  setAvailableSets(
+                  setRenderSets(
                     await window.electron.markPlayed(
-                      availableSet.dirName,
-                      !availableSet.played,
+                      renderSet.dirName,
+                      !renderSet.played,
                     ),
                   );
                 }}
               >
                 <ListItemIcon>
                   <Checkbox
-                    checked={!availableSet.played}
+                    checked={!renderSet.played}
                     disableRipple
                     edge="start"
                   />
                 </ListItemIcon>
-                <ListItemText>{availableSet.dirName}</ListItemText>
+                {renderSet.context ? (
+                  <Stack direction="row" flexGrow={1} spacing="8px">
+                    <ListItemText>
+                      {renderSet.context.namesLeft} vs{' '}
+                      {renderSet.context.namesRight}
+                    </ListItemText>
+                    <ListItemText sx={{ flexGrow: 0 }}>
+                      {renderSet.context.fullRoundText} (BO
+                      {renderSet.context.bestOf})
+                    </ListItemText>
+                    <ListItemText sx={{ flexGrow: 0 }}>
+                      {renderSet.context.eventName},{' '}
+                      {renderSet.context.phaseName}
+                    </ListItemText>
+                  </Stack>
+                ) : (
+                  <ListItemText>{renderSet.dirName}</ListItemText>
+                )}
                 <Tooltip arrow title="Play next">
                   <IconButton
                     onClick={async () => {
-                      window.electron.queue(availableSet);
-                      setQueuedSetDirName(availableSet.dirName);
+                      window.electron.queue(renderSet.dirName);
+                      setQueuedSetDirName(renderSet.dirName);
                     }}
                   >
                     <SubdirectoryArrowRight />
@@ -171,19 +188,19 @@ function Hello() {
                 <Tooltip arrow title="Play now">
                   <IconButton
                     onClick={() => {
-                      window.electron.play(availableSet);
+                      window.electron.play(renderSet.dirName);
                     }}
                   >
                     <PlayArrow />
                   </IconButton>
                 </Tooltip>
                 <Box padding="8px" height="24px" width="24px">
-                  {availableSet.dirName === playingSetDirName && (
+                  {renderSet.dirName === playingSetDirName && (
                     <Tooltip arrow title="Playing...">
                       <CircularProgress size="24px" />
                     </Tooltip>
                   )}
-                  {availableSet.dirName === queuedSetDirName && (
+                  {renderSet.dirName === queuedSetDirName && (
                     <Tooltip arrow title="Next...">
                       <PlaylistAddCheck />
                     </Tooltip>

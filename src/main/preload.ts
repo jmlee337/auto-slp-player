@@ -1,5 +1,5 @@
 import { IpcRendererEvent, contextBridge, ipcRenderer } from 'electron';
-import { AvailableSet, TwitchSettings } from '../common/types';
+import { RenderSet, TwitchSettings } from '../common/types';
 
 const electronHandler = {
   getDolphinPath: (): Promise<string> => ipcRenderer.invoke('getDolphinPath'),
@@ -9,9 +9,10 @@ const electronHandler = {
   chooseIsoPath: (): Promise<string> => ipcRenderer.invoke('chooseIsoPath'),
   chooseWatchDir: (): Promise<string> => ipcRenderer.invoke('chooseWatchDir'),
   watch: (start: boolean): Promise<void> => ipcRenderer.invoke('watch', start),
-  play: (set: AvailableSet): Promise<void> => ipcRenderer.invoke('play', set),
-  queue: (set: AvailableSet): Promise<void> => ipcRenderer.invoke('queue', set),
-  markPlayed: (dirName: string, played: boolean): Promise<AvailableSet[]> =>
+  play: (dirName: string): Promise<void> => ipcRenderer.invoke('play', dirName),
+  queue: (dirName: string): Promise<void> =>
+    ipcRenderer.invoke('queue', dirName),
+  markPlayed: (dirName: string, played: boolean): Promise<RenderSet[]> =>
     ipcRenderer.invoke('markPlayed', dirName, played),
   getTwitchSettings: (): Promise<TwitchSettings> =>
     ipcRenderer.invoke('getTwitchSettings'),
@@ -30,7 +31,7 @@ const electronHandler = {
     ipcRenderer.on('playing', callback);
   },
   onUnzip: (
-    callback: (event: IpcRendererEvent, availableSets: AvailableSet[]) => void,
+    callback: (event: IpcRendererEvent, renderSets: RenderSet[]) => void,
   ) => {
     ipcRenderer.removeAllListeners('unzip');
     ipcRenderer.on('unzip', callback);

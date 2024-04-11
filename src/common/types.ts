@@ -44,6 +44,22 @@ export type AvailableSet = {
   played: boolean;
 };
 
+export type RenderContext = {
+  namesLeft: string;
+  namesRight: string;
+  fullRoundText: string;
+  bestOf: number;
+  eventName: string;
+  phaseName: string;
+  phaseGroupName: string;
+};
+
+export type RenderSet = {
+  context?: RenderContext;
+  dirName: string;
+  played: boolean;
+};
+
 export type DolphinComm = {
   mode: 'queue';
   commandId: string;

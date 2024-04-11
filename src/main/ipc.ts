@@ -15,6 +15,7 @@ import { Bot, createBotCommand } from '@twurple/easy-bot';
 import unzip from './unzip';
 import { AvailableSet, TwitchSettings } from '../common/types';
 import { Dolphin, DolphinEvent } from './dolphin';
+import toRenderSet from './set';
 
 export default async function setupIPCs(
   mainWindow: BrowserWindow,
@@ -180,7 +181,7 @@ export default async function setupIPCs(
             newSet.played = true;
             playDolphin(newSet);
           }
-          mainWindow.webContents.send('unzip', availableSets);
+          mainWindow.webContents.send('unzip', availableSets.map(toRenderSet));
         } catch (e: any) {
           if (e instanceof Error) {
             console.log(e.message);
@@ -208,18 +209,26 @@ export default async function setupIPCs(
       } else {
         playedSetDirNames.delete(set.dirName);
       }
-      return availableSets;
+      return availableSets.map(toRenderSet);
     },
   );
 
   ipcMain.removeHandler('play');
-  ipcMain.handle('play', (event: IpcMainInvokeEvent, set: AvailableSet) => {
-    playDolphin(set);
+  ipcMain.handle('play', (event: IpcMainInvokeEvent, dirName: string) => {
+    const setToPlay = availableSets.find((set) => set.dirName === dirName);
+    if (!setToPlay) {
+      throw new Error(`no such set to play: ${dirName}`);
+    }
+    playDolphin(setToPlay);
   });
 
   ipcMain.removeHandler('queue');
-  ipcMain.handle('queue', (event: IpcMainInvokeEvent, set: AvailableSet) => {
-    queuedSet = set;
+  ipcMain.handle('queue', (event: IpcMainInvokeEvent, dirName: string) => {
+    const setToQueue = availableSets.find((set) => set.dirName === dirName);
+    if (!setToQueue) {
+      throw new Error(`no such set to queue: ${dirName}`);
+    }
+    queuedSet = setToQueue;
   });
 
   // eslint-disable-next-line @typescript-eslint/no-unused-vars

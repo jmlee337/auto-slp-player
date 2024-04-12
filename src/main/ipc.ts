@@ -162,6 +162,7 @@ export default async function setupIPCs(
     dolphin.play(set.replayPaths);
     mainWindow.webContents.send('playing', set.dirName);
   };
+  const earliestForRound = new Map<number, string>();
   ipcMain.removeHandler('watch');
   ipcMain.handle('watch', async (event: IpcMainInvokeEvent, start: boolean) => {
     if (start) {
@@ -175,8 +176,47 @@ export default async function setupIPCs(
       watcher.on('add', async (newZipPath) => {
         try {
           const newSet = await unzip(newZipPath, tempDir, playedSetDirNames);
+          if (newSet.context) {
+            const { round } = newSet.context.set;
+            if (earliestForRound.has(round)) {
+              if (
+                newSet.dirName.localeCompare(earliestForRound.get(round)!) < 0
+              ) {
+                earliestForRound.set(round, newSet.dirName);
+              }
+            } else {
+              earliestForRound.set(round, newSet.dirName);
+            }
+          }
           availableSets.push(newSet);
-          availableSets.sort((a, b) => a.dirName.localeCompare(b.dirName));
+          availableSets.sort((a, b) => {
+            if (a.context && b.context) {
+              const aSet = a.context.set;
+              const bSet = b.context.set;
+              const roundCompare = earliestForRound
+                .get(aSet.round)!
+                .localeCompare(earliestForRound.get(bSet.round)!);
+              if (roundCompare) {
+                return roundCompare;
+              }
+              if (
+                aSet.scores.length !== bSet.scores.length ||
+                aSet.bestOf !== bSet.bestOf
+              ) {
+                const ratioCompare =
+                  bSet.scores.length / bSet.bestOf -
+                  aSet.scores.length / aSet.bestOf;
+                if (ratioCompare) {
+                  return ratioCompare;
+                }
+              }
+            } else if (!a.context && b.context) {
+              return -1;
+            } else if (a.context && !b.context) {
+              return 1;
+            }
+            return a.dirName.localeCompare(b.dirName);
+          });
           if (!playingSet && !newSet.played) {
             newSet.played = true;
             playDolphin(newSet);

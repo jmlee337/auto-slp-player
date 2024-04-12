@@ -3,6 +3,7 @@ import { access, mkdir, readFile, readdir, rmdir } from 'fs/promises';
 import path from 'path';
 import yauzl from 'yauzl';
 import { AvailableSet, Context } from '../common/types';
+import { toMainContext } from './set';
 
 async function getContext(contextPath: string): Promise<Context> {
   try {
@@ -38,7 +39,7 @@ export default async function unzip(
           resolve({
             dirName,
             replayPaths,
-            context: await contextPromise,
+            context: toMainContext(await contextPromise),
             played: playedSetDirNames.has(dirName),
           });
         } catch (accessE: any) {
@@ -57,7 +58,9 @@ export default async function unzip(
           if (failureReason) {
             reject(new Error(failureReason));
           } else {
-            const context = contextPath ? await getContext(contextPath) : {};
+            const context = contextPath
+              ? toMainContext(await getContext(contextPath))
+              : undefined;
             replayPaths.sort();
             const dirName = path.basename(unzipDir);
             resolve({

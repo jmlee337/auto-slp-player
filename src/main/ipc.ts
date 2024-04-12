@@ -15,7 +15,7 @@ import { Bot, createBotCommand } from '@twurple/easy-bot';
 import unzip from './unzip';
 import { AvailableSet, TwitchSettings } from '../common/types';
 import { Dolphin, DolphinEvent } from './dolphin';
-import toRenderSet from './set';
+import { toRenderSet } from './set';
 
 export default async function setupIPCs(
   mainWindow: BrowserWindow,
@@ -275,97 +275,56 @@ export default async function setupIPCs(
           if (!playingSet) {
             return;
           }
-          const eventSlug = playingSet.context.event?.slug;
-          const phaseId = playingSet.context.phase?.id;
-          const phaseGroupId = playingSet.context.phaseGroup?.id;
-          if (eventSlug && phaseId && phaseGroupId) {
-            say(
-              `SPOILERS: https://www.start.gg/${eventSlug}/brackets/${phaseId}/${phaseGroupId}`,
-            );
-          } else {
+          if (!playingSet.context) {
             say('unknown');
+            return;
           }
+
+          const eventSlug = playingSet.context.event.slug;
+          const phaseId = playingSet.context.phase.id;
+          const phaseGroupId = playingSet.context.phaseGroup.id;
+          say(
+            `SPOILERS: https://www.start.gg/${eventSlug}/brackets/${phaseId}/${phaseGroupId}`,
+          );
         }),
         createBotCommand('score', (params, { say }) => {
           if (!playingSet) {
             return;
           }
-          const bestOf = playingSet.context.set?.bestOf;
-          const scores = playingSet.context.set?.scores;
-          if (!bestOf || !Array.isArray(scores)) {
+          if (!playingSet.context) {
             say('unknown');
             return;
           }
-          const { slots } = scores[gameIndex];
-          if (!Array.isArray(slots) || slots.length !== 2) {
-            say('unknown');
-            return;
-          }
-          const scoreLeft = slots[0].score;
-          const scoreRight = slots[1].score;
-          if (Number.isInteger(scoreLeft) && Number.isInteger(scoreRight)) {
-            say(`${scoreLeft} - ${scoreRight} (BO${bestOf})`);
-          } else {
-            say('unknown');
-          }
+
+          const { bestOf, scores } = playingSet.context.set;
+          const scoreLeft = scores[gameIndex].slots[0].score;
+          const scoreRight = scores[gameIndex].slots[1].score;
+          say(`${scoreLeft} - ${scoreRight} (BO${bestOf})`);
         }),
         createBotCommand('set', (params, { say }) => {
           if (!playingSet) {
             return;
           }
-          const tournamentName = playingSet.context.tournament?.name;
-          const eventName = playingSet.context.event?.name;
-          const phaseName = playingSet.context.phase?.name;
-          const phaseGroupName = playingSet.context.phaseGroup?.name;
-          const roundName = playingSet.context.set?.fullRoundText;
-          if (
-            !tournamentName ||
-            !eventName ||
-            !phaseName ||
-            !phaseGroupName ||
-            !roundName
-          ) {
+          if (!playingSet.context) {
             say('unknown');
             return;
           }
-          const bestOf = playingSet.context.set?.bestOf;
-          const round = playingSet.context.set?.round;
-          const scores = playingSet.context.set?.scores;
-          if (!bestOf || !round || !Array.isArray(scores)) {
-            say('unknown');
-            return;
-          }
+
+          const tournamentName = playingSet.context.tournament.name;
+          const eventName = playingSet.context.event.name;
+          const phaseName = playingSet.context.phase.name;
+          const phaseGroupName = playingSet.context.phaseGroup.name;
+          const bracketContext = `${tournamentName} ${eventName}, ${phaseName} (pool ${phaseGroupName})`;
+
+          const roundName = playingSet.context.set.fullRoundText;
+          const { bestOf, round, scores } = playingSet.context.set;
+          const fullRoundInfo = `${roundName} (BO${bestOf})`;
+          const separator = round > 0 ? '🟩' : '🟥';
+
           const { slots } = scores[gameIndex];
-          if (!Array.isArray(slots) || slots.length !== 2) {
-            say('unknown');
-            return;
-          }
           const leftPrefixes = slots[0].prefixes;
           const leftNames = slots[0].displayNames;
           const leftPronouns = slots[0].pronouns;
-          if (
-            !Array.isArray(leftPrefixes) ||
-            !Array.isArray(leftNames) ||
-            !Array.isArray(leftPronouns) ||
-            leftPrefixes.length !== leftNames.length ||
-            leftNames.length !== leftPronouns.length
-          ) {
-            say('unknown');
-            return;
-          }
-          const rightPrefixes = slots[1].prefixes;
-          const rightNames = slots[1].displayNames;
-          const rightPronouns = slots[1].pronouns;
-          if (
-            !Array.isArray(rightPrefixes) ||
-            !Array.isArray(rightNames) ||
-            !Array.isArray(rightPronouns) ||
-            rightPrefixes.length !== rightNames.length ||
-            rightNames.length !== rightPronouns.length
-          ) {
-            say('unknown');
-            return;
-          }
           const leftFullNames: string[] = [];
           for (let i = 0; i < leftPrefixes.length; i += 1) {
             let fullName = '';
@@ -378,6 +337,9 @@ export default async function setupIPCs(
             }
             leftFullNames.push(fullName);
           }
+          const rightPrefixes = slots[1].prefixes;
+          const rightNames = slots[1].displayNames;
+          const rightPronouns = slots[1].pronouns;
           const rightFullNames: string[] = [];
           for (let i = 0; i < rightPrefixes.length; i += 1) {
             let fullName = '';
@@ -390,12 +352,10 @@ export default async function setupIPCs(
             }
             rightFullNames.push(fullName);
           }
-          const bracketContext = `${tournamentName} ${eventName}, ${phaseName} (pool ${phaseGroupName})`;
-          const fullRoundInfo = `${roundName} (BO${bestOf})`;
           const versus = `${leftFullNames.join(', ')} vs ${rightFullNames.join(
             ', ',
           )}`;
-          const separator = round > 0 ? '🟩' : '🟥';
+
           say(
             `${bracketContext} ${separator} ${fullRoundInfo} ${separator} ${versus}`,
           );

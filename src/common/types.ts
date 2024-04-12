@@ -37,11 +37,46 @@ export type Context = {
   };
 };
 
+export type MainContextSlot = {
+  displayNames: string[];
+  prefixes: string[];
+  pronouns: string[];
+  score: number;
+};
+
+export type MainContextScore = {
+  slots: MainContextSlot[];
+};
+
+export type MainContext = {
+  tournament: {
+    name: string;
+  };
+  event: {
+    name: string;
+    slug: string;
+  };
+  phase: {
+    id: number;
+    name: string;
+  };
+  phaseGroup: {
+    id: number;
+    name: string;
+  };
+  set: {
+    bestOf: number;
+    fullRoundText: string;
+    round: number;
+    scores: MainContextScore[];
+  };
+};
+
 export type AvailableSet = {
+  context?: MainContext;
   dirName: string;
-  replayPaths: string[];
-  context: Context;
   played: boolean;
+  replayPaths: string[];
 };
 
 export type RenderContext = {

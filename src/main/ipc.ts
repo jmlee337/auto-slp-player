@@ -147,14 +147,13 @@ export default async function setupIPCs(
     if (!dolphin) {
       dolphin = new Dolphin(dolphinPath, isoPath, tempDir);
       dolphin.on(DolphinEvent.CLOSE, () => {
-        playingSet = null;
+        if (playingSet) {
+          playingSet.playing = false;
+          playingSet = null;
+        }
         gameIndex = 0;
         queuedSet = null;
-        mainWindow.webContents.send(
-          'playing',
-          '',
-          availableSets.map(toRenderSet),
-        );
+        mainWindow.webContents.send('playing', availableSets.map(toRenderSet));
         if (dolphin) {
           dolphin.removeAllListeners();
           dolphin = null;
@@ -174,11 +173,12 @@ export default async function setupIPCs(
           gameIndex = 0;
           mainWindow.webContents.send(
             'playing',
-            '',
             availableSets.map(toRenderSet),
           );
           return;
         }
+
+        playingSet.playing = false;
         const index = availableSets.findIndex(
           (value) => value.dirName === playingSet!.dirName,
         );
@@ -187,7 +187,6 @@ export default async function setupIPCs(
           gameIndex = 0;
           mainWindow.webContents.send(
             'playing',
-            '',
             availableSets.map(toRenderSet),
           );
           return;
@@ -200,11 +199,7 @@ export default async function setupIPCs(
         }
         playingSet = null;
         gameIndex = 0;
-        mainWindow.webContents.send(
-          'playing',
-          '',
-          availableSets.map(toRenderSet),
-        );
+        mainWindow.webContents.send('playing', availableSets.map(toRenderSet));
       });
       dolphin.on(DolphinEvent.START_FAILED, () => {
         if (dolphin) {
@@ -216,6 +211,7 @@ export default async function setupIPCs(
     playingSet = set;
     gameIndex = 0;
     set.playedMs = Date.now();
+    set.playing = true;
     dirNameToPlayedMs.set(set.dirName, set.playedMs);
 
     const playPromise = dolphin.play(set.replayPaths);
@@ -224,7 +220,6 @@ export default async function setupIPCs(
       .then(() => {
         return mainWindow.webContents.send(
           'playing',
-          set.dirName,
           availableSets.map(toRenderSet),
         );
       })
@@ -243,6 +238,9 @@ export default async function setupIPCs(
       watcher.on('add', async (newZipPath) => {
         try {
           const newSet = await unzip(newZipPath, tempDir, dirNameToPlayedMs);
+          if (newSet.dirName === playingSet?.dirName) {
+            newSet.playing = true;
+          }
           if (newSet.context) {
             const { round } = newSet.context.set;
             if (earliestForRound.has(round)) {
@@ -298,6 +296,10 @@ export default async function setupIPCs(
     const setToPlay = availableSets.find((set) => set.dirName === dirName);
     if (!setToPlay) {
       throw new Error(`no such set to play: ${dirName}`);
+    }
+
+    if (playingSet) {
+      playingSet.playing = false;
     }
     playDolphin(setToPlay);
   });

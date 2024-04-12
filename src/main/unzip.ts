@@ -40,6 +40,7 @@ export default async function unzip(
             context: toMainContext(await contextPromise),
             dirName,
             playedMs: dirNameToPlayedMs.get(dirName) ?? 0,
+            playing: false,
             replayPaths,
           });
         } catch (accessE: any) {
@@ -67,6 +68,7 @@ export default async function unzip(
               context,
               dirName,
               playedMs: dirNameToPlayedMs.get(dirName) ?? 0,
+              playing: false,
               replayPaths,
             });
           }

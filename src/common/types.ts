@@ -76,6 +76,7 @@ export type AvailableSet = {
   context?: MainContext;
   dirName: string;
   playedMs: number;
+  playing: boolean;
   replayPaths: string[];
 };
 
@@ -93,6 +94,7 @@ export type RenderSet = {
   context?: RenderContext;
   dirName: string;
   played: boolean;
+  playing: boolean;
 };
 
 export type DolphinComm = {

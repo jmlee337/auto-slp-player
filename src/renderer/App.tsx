@@ -59,17 +59,11 @@ function Hello() {
 
   const [watchDir, setWatchDir] = useState('');
   const [watching, setWatching] = useState(false);
-  const [playingSetDirName, setPlayingSetDirName] = useState('');
   const [queuedSetDirName, setQueuedSetDirName] = useState('');
   const [renderSets, setRenderSets] = useState<RenderSet[]>([]);
   useEffect(() => {
     window.electron.onPlaying(
-      (
-        event: IpcRendererEvent,
-        dirName: string,
-        newRenderSets: RenderSet[],
-      ) => {
-        setPlayingSetDirName(dirName);
+      (event: IpcRendererEvent, newRenderSets: RenderSet[]) => {
         setQueuedSetDirName('');
         setRenderSets(newRenderSets);
       },
@@ -183,7 +177,7 @@ function Hello() {
                 </IconButton>
               </Tooltip>
               <Box padding="8px" height="24px" width="24px">
-                {renderSet.dirName === playingSetDirName && (
+                {renderSet.playing && (
                   <Tooltip arrow title="Playing...">
                     <CircularProgress size="24px" />
                   </Tooltip>

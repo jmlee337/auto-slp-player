@@ -94,7 +94,12 @@ function Hello() {
           </IconButton>
         </Tooltip>
       </Stack>
-      <Stack direction="row" justifyContent="flex-end" spacing="8px">
+      <Stack
+        direction="row"
+        marginTop="8px"
+        justifyContent="flex-end"
+        spacing="8px"
+      >
         <Settings
           dolphinPath={dolphinPath}
           setDolphinPath={setDolphinPath}

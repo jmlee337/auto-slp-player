@@ -10,8 +10,6 @@ import {
   InputBase,
   List,
   ListItem,
-  ListItemButton,
-  ListItemIcon,
   ListItemText,
   Stack,
   Tooltip,
@@ -131,12 +129,14 @@ function Hello() {
         <List>
           {renderSets.map((renderSet) => (
             <ListItem
+              dense
               disablePadding
               key={renderSet.dirName}
-              style={renderSet.played ? { opacity: '50%' } : {}}
+              style={{ gap: '8px', opacity: renderSet.played ? '50%' : '100%' }}
             >
-              <ListItemButton
-                dense
+              <Checkbox
+                checked={!renderSet.played}
+                disableRipple
                 onClick={async () => {
                   setRenderSets(
                     await window.electron.markPlayed(
@@ -145,64 +145,55 @@ function Hello() {
                     ),
                   );
                 }}
-              >
-                <ListItemIcon>
-                  <Checkbox
-                    checked={!renderSet.played}
-                    disableRipple
-                    edge="start"
-                  />
-                </ListItemIcon>
-                {renderSet.context ? (
-                  <Stack direction="row" flexGrow={1} spacing="8px">
-                    <ListItemText>
-                      {renderSet.context.namesLeft} vs{' '}
-                      {renderSet.context.namesRight}
-                    </ListItemText>
-                    <ListItemText sx={{ flexGrow: 0 }}>
-                      {renderSet.context.fullRoundText} (BO
-                      {renderSet.context.bestOf})
-                    </ListItemText>
-                    <ListItemText sx={{ flexGrow: 0 }}>
-                      {renderSet.context.eventName},{' '}
-                      {renderSet.context.phaseName}
-                    </ListItemText>
-                  </Stack>
-                ) : (
-                  <ListItemText>{renderSet.dirName}</ListItemText>
+              />
+              {renderSet.context ? (
+                <Stack direction="row" flexGrow={1} spacing="8px">
+                  <ListItemText primaryTypographyProps={{ noWrap: true }}>
+                    {renderSet.context.namesLeft} vs{' '}
+                    {renderSet.context.namesRight}
+                  </ListItemText>
+                  <ListItemText sx={{ flexGrow: 0, flexShrink: 0 }}>
+                    {renderSet.context.fullRoundText} (BO
+                    {renderSet.context.bestOf})
+                  </ListItemText>
+                  <ListItemText sx={{ flexGrow: 0, flexShrink: 0 }}>
+                    {renderSet.context.eventName}, {renderSet.context.phaseName}
+                  </ListItemText>
+                </Stack>
+              ) : (
+                <ListItemText>{renderSet.dirName}</ListItemText>
+              )}
+              <Tooltip arrow title="Play next">
+                <IconButton
+                  onClick={async () => {
+                    window.electron.queue(renderSet.dirName);
+                    setQueuedSetDirName(renderSet.dirName);
+                  }}
+                >
+                  <SubdirectoryArrowRight />
+                </IconButton>
+              </Tooltip>
+              <Tooltip arrow title="Play now">
+                <IconButton
+                  onClick={() => {
+                    window.electron.play(renderSet.dirName);
+                  }}
+                >
+                  <PlayArrow />
+                </IconButton>
+              </Tooltip>
+              <Box padding="8px" height="24px" width="24px">
+                {renderSet.dirName === playingSetDirName && (
+                  <Tooltip arrow title="Playing...">
+                    <CircularProgress size="24px" />
+                  </Tooltip>
                 )}
-                <Tooltip arrow title="Play next">
-                  <IconButton
-                    onClick={async () => {
-                      window.electron.queue(renderSet.dirName);
-                      setQueuedSetDirName(renderSet.dirName);
-                    }}
-                  >
-                    <SubdirectoryArrowRight />
-                  </IconButton>
-                </Tooltip>
-                <Tooltip arrow title="Play now">
-                  <IconButton
-                    onClick={() => {
-                      window.electron.play(renderSet.dirName);
-                    }}
-                  >
-                    <PlayArrow />
-                  </IconButton>
-                </Tooltip>
-                <Box padding="8px" height="24px" width="24px">
-                  {renderSet.dirName === playingSetDirName && (
-                    <Tooltip arrow title="Playing...">
-                      <CircularProgress size="24px" />
-                    </Tooltip>
-                  )}
-                  {renderSet.dirName === queuedSetDirName && (
-                    <Tooltip arrow title="Next...">
-                      <PlaylistAddCheck />
-                    </Tooltip>
-                  )}
-                </Box>
-              </ListItemButton>
+                {renderSet.dirName === queuedSetDirName && (
+                  <Tooltip arrow title="Next...">
+                    <PlaylistAddCheck />
+                  </Tooltip>
+                )}
+              </Box>
             </ListItem>
           ))}
         </List>

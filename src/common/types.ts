@@ -75,7 +75,7 @@ export type MainContext = {
 export type AvailableSet = {
   context?: MainContext;
   dirName: string;
-  played: boolean;
+  playedMs: number;
   replayPaths: string[];
 };
 

@@ -65,21 +65,17 @@ function Hello() {
   const [queuedSetDirName, setQueuedSetDirName] = useState('');
   const [renderSets, setRenderSets] = useState<RenderSet[]>([]);
   useEffect(() => {
-    window.electron.onPlaying((event: IpcRendererEvent, dirName: string) => {
-      setPlayingSetDirName(dirName);
-      setQueuedSetDirName('');
-      setRenderSets((arr) => {
-        if (dirName) {
-          const playingSet = arr.find(
-            (renderSet) => renderSet.dirName === dirName,
-          );
-          if (playingSet) {
-            playingSet.played = true;
-          }
-        }
-        return arr;
-      });
-    });
+    window.electron.onPlaying(
+      (
+        event: IpcRendererEvent,
+        dirName: string,
+        newRenderSets: RenderSet[],
+      ) => {
+        setPlayingSetDirName(dirName);
+        setQueuedSetDirName('');
+        setRenderSets(newRenderSets);
+      },
+    );
     window.electron.onUnzip(
       (event: IpcRendererEvent, newRenderSets: RenderSet[]) => {
         setRenderSets(newRenderSets);

@@ -16,7 +16,7 @@ async function getContext(contextPath: string): Promise<Context> {
 export default async function unzip(
   zipPath: string,
   tempDir: string,
-  playedSetDirNames: Set<string>,
+  dirNameToPlayedMs: Map<string, number>,
 ) {
   return new Promise<AvailableSet>((resolve, reject) => {
     setTimeout(() => {
@@ -37,10 +37,10 @@ export default async function unzip(
           replayPaths.sort();
           const dirName = path.basename(unzipDir);
           resolve({
-            dirName,
-            replayPaths,
             context: toMainContext(await contextPromise),
-            played: playedSetDirNames.has(dirName),
+            dirName,
+            playedMs: dirNameToPlayedMs.get(dirName) ?? 0,
+            replayPaths,
           });
         } catch (accessE: any) {
           try {
@@ -64,10 +64,10 @@ export default async function unzip(
             replayPaths.sort();
             const dirName = path.basename(unzipDir);
             resolve({
-              dirName,
-              replayPaths,
               context,
-              played: playedSetDirNames.has(dirName),
+              dirName,
+              playedMs: dirNameToPlayedMs.get(dirName) ?? 0,
+              replayPaths,
             });
           }
         });

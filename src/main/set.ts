@@ -96,7 +96,7 @@ export function toMainContext(context: Context): MainContext | undefined {
 export function toRenderSet(set: AvailableSet): RenderSet {
   const renderSet: RenderSet = {
     dirName: set.dirName,
-    played: set.played,
+    played: set.playedMs !== 0,
   };
   if (set.context) {
     renderSet.context = {

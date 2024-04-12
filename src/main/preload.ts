@@ -26,7 +26,13 @@ const electronHandler = {
   getVersion: (): Promise<string> => ipcRenderer.invoke('getVersion'),
   getLatestVersion: (): Promise<string> =>
     ipcRenderer.invoke('getLatestVersion'),
-  onPlaying: (callback: (event: IpcRendererEvent, dirName: string) => void) => {
+  onPlaying: (
+    callback: (
+      event: IpcRendererEvent,
+      dirName: string,
+      renderSets: RenderSet[],
+    ) => void,
+  ) => {
     ipcRenderer.removeAllListeners('playing');
     ipcRenderer.on('playing', callback);
   },

@@ -96,8 +96,49 @@ export default async function setupIPCs(
       throw new Error(`Could not make temp dir: ${e.message}`);
     }
   }
-  const playedSetDirNames: Set<string> = new Set();
+
+  const dirNameToPlayedMs = new Map<string, number>();
   const availableSets: AvailableSet[] = [];
+  const earliestForRound = new Map<number, string>();
+  const sortAvailableSets = () => {
+    availableSets.sort((a, b) => {
+      if (a.context && b.context) {
+        const aSet = a.context.set;
+        const bSet = b.context.set;
+        const roundCompare = earliestForRound
+          .get(aSet.round)!
+          .localeCompare(earliestForRound.get(bSet.round)!);
+        if (roundCompare) {
+          return roundCompare;
+        }
+        if (a.playedMs && b.playedMs) {
+          return a.playedMs - b.playedMs;
+        }
+        if (a.playedMs && !b.playedMs) {
+          return -1;
+        }
+        if (!a.playedMs && b.playedMs) {
+          return 1;
+        }
+        if (
+          aSet.scores.length !== bSet.scores.length ||
+          aSet.bestOf !== bSet.bestOf
+        ) {
+          const ratioCompare =
+            bSet.scores.length / bSet.bestOf - aSet.scores.length / aSet.bestOf;
+          if (ratioCompare) {
+            return ratioCompare;
+          }
+        }
+      } else if (!a.context && b.context) {
+        return -1;
+      } else if (a.context && !b.context) {
+        return 1;
+      }
+      return a.dirName.localeCompare(b.dirName);
+    });
+  };
+
   let playingSet: AvailableSet | null = null;
   let gameIndex = 0;
   let queuedSet: AvailableSet | null = null;
@@ -109,7 +150,11 @@ export default async function setupIPCs(
         playingSet = null;
         gameIndex = 0;
         queuedSet = null;
-        mainWindow.webContents.send('playing', '');
+        mainWindow.webContents.send(
+          'playing',
+          '',
+          availableSets.map(toRenderSet),
+        );
         if (dolphin) {
           dolphin.removeAllListeners();
           dolphin = null;
@@ -126,7 +171,12 @@ export default async function setupIPCs(
         }
 
         if (playingSet === null) {
-          mainWindow.webContents.send('playing', '');
+          gameIndex = 0;
+          mainWindow.webContents.send(
+            'playing',
+            '',
+            availableSets.map(toRenderSet),
+          );
           return;
         }
         const index = availableSets.findIndex(
@@ -135,18 +185,26 @@ export default async function setupIPCs(
         if (index === -1) {
           playingSet = null;
           gameIndex = 0;
-          mainWindow.webContents.send('playing', '');
+          mainWindow.webContents.send(
+            'playing',
+            '',
+            availableSets.map(toRenderSet),
+          );
           return;
         }
         for (let i = index + 1; i < availableSets.length; i += 1) {
-          if (!playedSetDirNames.has(availableSets[i].dirName)) {
+          if (!dirNameToPlayedMs.get(availableSets[i].dirName)) {
             playDolphin(availableSets[i]);
             return;
           }
         }
         playingSet = null;
         gameIndex = 0;
-        mainWindow.webContents.send('playing', '');
+        mainWindow.webContents.send(
+          'playing',
+          '',
+          availableSets.map(toRenderSet),
+        );
       });
       dolphin.on(DolphinEvent.START_FAILED, () => {
         if (dolphin) {
@@ -157,12 +215,21 @@ export default async function setupIPCs(
 
     playingSet = set;
     gameIndex = 0;
-    set.played = true;
-    playedSetDirNames.add(set.dirName);
-    dolphin.play(set.replayPaths);
-    mainWindow.webContents.send('playing', set.dirName);
+    set.playedMs = Date.now();
+    dirNameToPlayedMs.set(set.dirName, set.playedMs);
+
+    const playPromise = dolphin.play(set.replayPaths);
+    sortAvailableSets();
+    playPromise
+      .then(() => {
+        return mainWindow.webContents.send(
+          'playing',
+          set.dirName,
+          availableSets.map(toRenderSet),
+        );
+      })
+      .catch(() => {});
   };
-  const earliestForRound = new Map<number, string>();
   ipcMain.removeHandler('watch');
   ipcMain.handle('watch', async (event: IpcMainInvokeEvent, start: boolean) => {
     if (start) {
@@ -175,7 +242,7 @@ export default async function setupIPCs(
       watcher = watch(glob);
       watcher.on('add', async (newZipPath) => {
         try {
-          const newSet = await unzip(newZipPath, tempDir, playedSetDirNames);
+          const newSet = await unzip(newZipPath, tempDir, dirNameToPlayedMs);
           if (newSet.context) {
             const { round } = newSet.context.set;
             if (earliestForRound.has(round)) {
@@ -189,39 +256,15 @@ export default async function setupIPCs(
             }
           }
           availableSets.push(newSet);
-          availableSets.sort((a, b) => {
-            if (a.context && b.context) {
-              const aSet = a.context.set;
-              const bSet = b.context.set;
-              const roundCompare = earliestForRound
-                .get(aSet.round)!
-                .localeCompare(earliestForRound.get(bSet.round)!);
-              if (roundCompare) {
-                return roundCompare;
-              }
-              if (
-                aSet.scores.length !== bSet.scores.length ||
-                aSet.bestOf !== bSet.bestOf
-              ) {
-                const ratioCompare =
-                  bSet.scores.length / bSet.bestOf -
-                  aSet.scores.length / aSet.bestOf;
-                if (ratioCompare) {
-                  return ratioCompare;
-                }
-              }
-            } else if (!a.context && b.context) {
-              return -1;
-            } else if (a.context && !b.context) {
-              return 1;
-            }
-            return a.dirName.localeCompare(b.dirName);
-          });
-          if (!playingSet && !newSet.played) {
-            newSet.played = true;
+          if (!playingSet && newSet.playedMs === 0) {
             playDolphin(newSet);
+          } else {
+            sortAvailableSets();
+            mainWindow.webContents.send(
+              'unzip',
+              availableSets.map(toRenderSet),
+            );
           }
-          mainWindow.webContents.send('unzip', availableSets.map(toRenderSet));
         } catch (e: any) {
           if (e instanceof Error) {
             console.log(e.message);
@@ -243,12 +286,9 @@ export default async function setupIPCs(
       if (!set) {
         throw new Error(`set does not exist: ${dirName}`);
       }
-      set.played = played;
-      if (played) {
-        playedSetDirNames.add(set.dirName);
-      } else {
-        playedSetDirNames.delete(set.dirName);
-      }
+      set.playedMs = played ? Date.now() : 0;
+      dirNameToPlayedMs.set(set.dirName, set.playedMs);
+      sortAvailableSets();
       return availableSets.map(toRenderSet);
     },
   );

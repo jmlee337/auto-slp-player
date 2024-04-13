@@ -161,6 +161,7 @@ export default async function setupIPCs(
       });
       dolphin.on(DolphinEvent.PLAYING, (newGameIndex: number) => {
         gameIndex = newGameIndex;
+        // TODO update overlay
       });
       dolphin.on(DolphinEvent.ENDED, () => {
         if (queuedSet) {
@@ -312,6 +313,24 @@ export default async function setupIPCs(
     }
     queuedSet = setToQueue;
   });
+
+  ipcMain.removeHandler('getGenerateOverlay');
+  ipcMain.handle('getGenerateOverlay', () => {
+    if (store.has('generateOverlay')) {
+      return store.get('generateOverlay');
+    }
+
+    store.set('generateOverlay', false);
+    return false;
+  });
+
+  ipcMain.removeHandler('setGenerateOverlay');
+  ipcMain.handle(
+    'setGenerateOverlay',
+    (event: IpcMainInvokeEvent, newGenerateOverlay: boolean) => {
+      store.set('generateOverlay', newGenerateOverlay);
+    },
+  );
 
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   let twitchBot: Bot | null;

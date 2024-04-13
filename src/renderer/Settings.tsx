@@ -129,6 +129,8 @@ export default function Settings({
   setDolphinPath,
   isoPath,
   setIsoPath,
+  generateOverlay,
+  setGenerateOverlay,
   twitchSettings,
   setTwitchSettings,
   appVersion,
@@ -139,6 +141,8 @@ export default function Settings({
   setDolphinPath: (dolphinPath: string) => void;
   isoPath: string;
   setIsoPath: (isoPath: string) => void;
+  generateOverlay: boolean;
+  setGenerateOverlay: (generateOverlay: boolean) => void;
   twitchSettings: TwitchSettings;
   setTwitchSettings: (twitchSettings: TwitchSettings) => void;
   appVersion: string;
@@ -245,6 +249,19 @@ export default function Settings({
               </IconButton>
             </Tooltip>
           </Stack>
+          <FormControlLabel
+            control={
+              <Checkbox
+                checked={generateOverlay}
+                onChange={async (event) => {
+                  const newGenerateOverlay = event.target.checked;
+                  await window.electron.setGenerateOverlay(newGenerateOverlay);
+                  setGenerateOverlay(newGenerateOverlay);
+                }}
+              />
+            }
+            label="Generate Overlay"
+          />
           <Stack>
             <FormControlLabel
               control={

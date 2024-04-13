@@ -31,6 +31,7 @@ function Hello() {
   const [latestAppVersion, setLatestAppVersion] = useState('');
   const [dolphinPath, setDolphinPath] = useState('');
   const [isoPath, setIsoPath] = useState('');
+  const [generateOverlay, setGenerateOverlay] = useState(false);
   const [twitchSettings, setTwitchSettings] = useState<TwitchSettings>({
     enabled: false,
     channelName: '',
@@ -46,11 +47,13 @@ function Hello() {
       const latestAppVersionPromise = window.electron.getLatestVersion();
       const dolphinPathPromise = window.electron.getDolphinPath();
       const isoPathPromise = window.electron.getIsoPath();
+      const generateOverlayPromise = window.electron.getGenerateOverlay();
       const twitchSettingsPromise = window.electron.getTwitchSettings();
       setAppVersion(await appVersionPromise);
       setLatestAppVersion(await latestAppVersionPromise);
       setDolphinPath(await dolphinPathPromise);
       setIsoPath(await isoPathPromise);
+      setGenerateOverlay(await generateOverlayPromise);
       setTwitchSettings(await twitchSettingsPromise);
       setGotSettings(true);
     };
@@ -105,6 +108,8 @@ function Hello() {
           setDolphinPath={setDolphinPath}
           isoPath={isoPath}
           setIsoPath={setIsoPath}
+          generateOverlay={generateOverlay}
+          setGenerateOverlay={setGenerateOverlay}
           twitchSettings={twitchSettings}
           setTwitchSettings={setTwitchSettings}
           appVersion={appVersion}

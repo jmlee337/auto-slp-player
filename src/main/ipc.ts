@@ -8,12 +8,12 @@ import {
   shell,
 } from 'electron';
 import Store from 'electron-store';
-import { access, mkdir } from 'fs/promises';
+import { access, mkdir, writeFile } from 'fs/promises';
 import path from 'path';
 import { RefreshingAuthProvider } from '@twurple/auth';
 import { Bot, createBotCommand } from '@twurple/easy-bot';
 import unzip from './unzip';
-import { AvailableSet, TwitchSettings } from '../common/types';
+import { AvailableSet, OverlayContext, TwitchSettings } from '../common/types';
 import { Dolphin, DolphinEvent } from './dolphin';
 import { toRenderSet } from './set';
 
@@ -25,6 +25,9 @@ export default async function setupIPCs(
     ? (store.get('dolphinPath') as string)
     : '';
   let isoPath = store.has('isoPath') ? (store.get('isoPath') as string) : '';
+  let generateOverlay = store.has('generateOverlay')
+    ? (store.get('generateOverlay') as boolean)
+    : false;
   let twitchSettings: TwitchSettings = store.has('twitchSettings')
     ? (store.get('twitchSettings') as TwitchSettings)
     : {
@@ -141,6 +144,65 @@ export default async function setupIPCs(
 
   let playingSet: AvailableSet | null = null;
   let gameIndex = 0;
+  let lastKnownTournamentName = '';
+  const writeOverlayJson = async () => {
+    const overlayDir = path.join(app.getPath('userData'), 'overlay');
+    await access(overlayDir).catch(() =>
+      mkdir(overlayDir, { recursive: true }),
+    );
+    const overlayPath = path.join(overlayDir, 'overlay.json');
+
+    let tournamentName = lastKnownTournamentName;
+    let eventName = '';
+    let phaseName = '';
+    let roundName = '';
+    let bestOf = 0;
+    let leftPrefixes: string[] = [];
+    let leftNames: string[] = [];
+    let leftPronouns: string[] = [];
+    let leftScore = 0;
+    let rightPrefixes: string[] = [];
+    let rightNames: string[] = [];
+    let rightPronouns: string[] = [];
+    let rightScore = 0;
+    if (playingSet && playingSet.context) {
+      const { context } = playingSet;
+      tournamentName = context.tournament.name;
+      lastKnownTournamentName = tournamentName;
+      eventName = context.event.name;
+      phaseName = context.event.name;
+
+      const { set } = context;
+      roundName = context.set.fullRoundText;
+      bestOf = context.set.bestOf;
+
+      const { slots } = set.scores[gameIndex];
+      leftPrefixes = slots[0].prefixes;
+      leftNames = slots[0].displayNames;
+      leftPronouns = slots[0].pronouns;
+      leftScore = slots[0].score;
+      rightPrefixes = slots[1].prefixes;
+      rightNames = slots[1].displayNames;
+      rightPronouns = slots[1].pronouns;
+      rightScore = slots[1].score;
+    }
+    const overlayContext: OverlayContext = {
+      tournamentName,
+      eventName,
+      phaseName,
+      roundName,
+      bestOf,
+      leftPrefixes,
+      leftNames,
+      leftPronouns,
+      leftScore,
+      rightPrefixes,
+      rightNames,
+      rightPronouns,
+      rightScore,
+    };
+    return writeFile(overlayPath, JSON.stringify(overlayContext));
+  };
   let queuedSet: AvailableSet | null = null;
   let dolphin: Dolphin | null = null;
   const playDolphin = (set: AvailableSet) => {
@@ -159,9 +221,11 @@ export default async function setupIPCs(
           dolphin = null;
         }
       });
-      dolphin.on(DolphinEvent.PLAYING, (newGameIndex: number) => {
+      dolphin.on(DolphinEvent.PLAYING, async (newGameIndex: number) => {
         gameIndex = newGameIndex;
-        // TODO update overlay
+        if (generateOverlay) {
+          await writeOverlayJson();
+        }
       });
       dolphin.on(DolphinEvent.ENDED, () => {
         if (queuedSet) {
@@ -316,12 +380,7 @@ export default async function setupIPCs(
 
   ipcMain.removeHandler('getGenerateOverlay');
   ipcMain.handle('getGenerateOverlay', () => {
-    if (store.has('generateOverlay')) {
-      return store.get('generateOverlay');
-    }
-
-    store.set('generateOverlay', false);
-    return false;
+    return generateOverlay;
   });
 
   ipcMain.removeHandler('setGenerateOverlay');
@@ -329,6 +388,10 @@ export default async function setupIPCs(
     'setGenerateOverlay',
     (event: IpcMainInvokeEvent, newGenerateOverlay: boolean) => {
       store.set('generateOverlay', newGenerateOverlay);
+      generateOverlay = newGenerateOverlay;
+      if (generateOverlay) {
+        writeOverlayJson();
+      }
     },
   );
 

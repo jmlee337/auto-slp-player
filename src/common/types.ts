@@ -111,3 +111,19 @@ export type TwitchSettings = {
   accessToken: string;
   refreshToken: string;
 };
+
+export type OverlayContext = {
+  tournamentName: string;
+  eventName: string;
+  phaseName: string;
+  roundName: string;
+  bestOf: number;
+  leftPrefixes: string[];
+  leftNames: string[];
+  leftPronouns: string[];
+  leftScore: number;
+  rightPrefixes: string[];
+  rightNames: string[];
+  rightPronouns: string[];
+  rightScore: number;
+};

@@ -146,7 +146,6 @@ export default async function setupIPCs(
   let playingSet: AvailableSet | null = null;
   let queuedSet: AvailableSet | null = null;
   let gameIndex = 0;
-  let lastKnownTournamentName = '';
   const writeOverlayJson = async () => {
     if (!generateOverlay) {
       return null;
@@ -154,7 +153,7 @@ export default async function setupIPCs(
 
     const overlayPath = path.join(resourcesPath, 'overlay', 'overlay.json');
 
-    let tournamentName = lastKnownTournamentName;
+    let tournamentName = '';
     let eventName = '';
     let phaseName = '';
     let roundName = '';
@@ -172,7 +171,6 @@ export default async function setupIPCs(
     if (playingSet && playingSet.context) {
       const { context } = playingSet;
       tournamentName = context.tournament.name;
-      lastKnownTournamentName = tournamentName;
       eventName = context.event.name;
       phaseName = context.phase.name;
 

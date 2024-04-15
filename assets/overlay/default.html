@@ -10,6 +10,7 @@
       body {
         color: white;
         font-family: robotocjksc, Arial;
+        overflow: hidden;
       }
       .round-bo, .event-phase-name, .upcoming-title {
         font-size: 16px;
@@ -22,6 +23,9 @@
       }
       .left-full-names, .right-full-names {
         flex-grow: 1;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
       }
       .round-bo, .upcoming {
         margin-top: 28px;
@@ -81,10 +85,8 @@
         const newContext = await response.json();
         if (JSON.stringify(context) !== JSON.stringify(newContext)) {
           replace('tournament-name', newContext.tournamentName);
-          replace('event-phase-name', `${newContext.eventName}, ${newContext.phaseName}`);
-
-          const bestOf = newContext.roundName ? newContext.bestOf.toString() : '';
-          replace('round-bo', `${newContext.roundName} (BO${bestOf})`);
+          replace('event-phase-name', newContext.eventName && newContext.phaseName ? `${newContext.eventName}, ${newContext.phaseName}` : '');
+          replace('round-bo', newContext.roundName && newContext.bestOf ? `${newContext.roundName} (BO${newContext.bestOf})` : '');
 
           const leftFullNames = [];
           for (let i = 0; i < newContext.leftPrefixes.length; i += 1) {

@@ -45,7 +45,7 @@
       <div class="right-score">0</div>
     </div>
     <div class="upcoming">
-      <div class="upcoming-title">Next in round...</div>
+      <div class="upcoming-title">Next in round:</div>
       <div class="upcoming-set">slurms vs Tyku</div>
     </div>
     <script>
@@ -119,22 +119,23 @@
           replace('right-score', rightScore);
 
           const upcoming = getElementByClassName('upcoming');
-          const upcomingTitle = getElementByClassName('upcoming-title');
-            for (const child of upcoming.children) {
-              if (child.className === 'upcoming-set') {
-                upcoming.removeChild(child);
-              }
-            }
-          if (newContext.upcoming.length === 0) {
-            upcomingTitle.style.display = 'none';
-          } else {
-            upcomingTitle.style.display = 'block';
+          upcoming.innerText = '';
+          if (newContext.upcoming.length > 0) {
+            const newUpcomingTitle = document.createElement('div');
+            newUpcomingTitle.className = 'upcoming-title';
+            newUpcomingTitle.innerText = 'Next in round:';
+            upcoming.appendChild(newUpcomingTitle);
             for (const upcomingSet of newContext.upcoming) {
               const newSet = document.createElement('div');
               newSet.className = 'upcoming-set';
               newSet.innerText = `${upcomingSet.leftNames.join(', ')} vs ${upcomingSet.rightNames.join(', ')}`;
               upcoming.appendChild(newSet);
             }
+          } else if (newContext.upcomingRoundName) {
+            const newUpcomingTitle = document.createElement('div');
+            newUpcomingTitle.className = 'upcoming-title';
+            newUpcomingTitle.innerText = `Next round: ${newContext.upcomingRoundName}`;
+            upcoming.appendChild(newUpcomingTitle);
           }
 
           context = newContext;

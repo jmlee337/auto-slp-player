@@ -144,9 +144,14 @@ export default async function setupIPCs(
   };
 
   let playingSet: AvailableSet | null = null;
+  let queuedSet: AvailableSet | null = null;
   let gameIndex = 0;
   let lastKnownTournamentName = '';
   const writeOverlayJson = async () => {
+    if (!generateOverlay) {
+      return null;
+    }
+
     const overlayPath = path.join(resourcesPath, 'overlay', 'overlay.json');
 
     let tournamentName = lastKnownTournamentName;
@@ -163,6 +168,7 @@ export default async function setupIPCs(
     let rightPronouns: string[] = [];
     let rightScore = 0;
     const upcoming: { leftNames: string[]; rightNames: string[] }[] = [];
+    let upcomingRoundName = '';
     if (playingSet && playingSet.context) {
       const { context } = playingSet;
       tournamentName = context.tournament.name;
@@ -184,22 +190,75 @@ export default async function setupIPCs(
       rightPronouns = slots[1].pronouns;
       rightScore = slots[1].score;
 
-      const sameRoundSets = availableSets.filter(
-        (availableSet) =>
-          availableSet.context?.set.round === playingSet!.context!.set.round,
-      );
-      const startingIndex = sameRoundSets.findIndex(
-        (availableSet) => availableSet.dirName === playingSet!.dirName,
-      );
-      if (startingIndex >= 0) {
-        for (let i = startingIndex + 1; i < sameRoundSets.length; i += 1) {
-          upcoming.push({
-            leftNames:
-              sameRoundSets[i].context!.set.scores[0].slots[0].displayNames,
-            rightNames:
-              sameRoundSets[i].context!.set.scores[0].slots[1].displayNames,
-          });
+      const setUpcomingSetsOrRound = (
+        round: number,
+        dirName: string,
+        playing: boolean,
+      ) => {
+        const sameRoundSets = availableSets.filter(
+          (availableSet) => availableSet.context?.set.round === round,
+        );
+        const startingIndex = sameRoundSets.findIndex(
+          (availableSet) => availableSet.dirName === dirName,
+        );
+        if (startingIndex >= 0) {
+          if (!playing) {
+            upcoming.push({
+              leftNames:
+                sameRoundSets[0].context!.set.scores[0].slots[0].displayNames,
+              rightNames:
+                sameRoundSets[0].context!.set.scores[0].slots[1].displayNames,
+            });
+          }
+          for (let i = startingIndex + 1; i < sameRoundSets.length; i += 1) {
+            if (sameRoundSets[i].playedMs === 0) {
+              upcoming.push({
+                leftNames:
+                  sameRoundSets[i].context!.set.scores[0].slots[0].displayNames,
+                rightNames:
+                  sameRoundSets[i].context!.set.scores[0].slots[1].displayNames,
+              });
+            }
+          }
         }
+        if (upcoming.length === 0) {
+          const overallStartingIndex = availableSets.findIndex(
+            (availableSet) => availableSet.dirName === dirName,
+          );
+          if (overallStartingIndex >= 0) {
+            for (
+              let i = overallStartingIndex + 1;
+              i < availableSets.length;
+              i += 1
+            ) {
+              if (availableSets[i].playedMs === 0) {
+                const nextRoundName =
+                  availableSets[i].context?.set.fullRoundText;
+                if (nextRoundName) {
+                  upcomingRoundName = nextRoundName;
+                }
+                break;
+              }
+            }
+          }
+        }
+      };
+      if (queuedSet) {
+        if (queuedSet.context?.set.round === playingSet.context.set.round) {
+          setUpcomingSetsOrRound(
+            queuedSet.context.set.round,
+            queuedSet.dirName,
+            false,
+          );
+        } else if (queuedSet.context?.set.fullRoundText) {
+          upcomingRoundName = queuedSet.context.set.fullRoundText;
+        }
+      } else {
+        setUpcomingSetsOrRound(
+          playingSet.context.set.round,
+          playingSet.dirName,
+          true,
+        );
       }
     }
     const overlayContext: OverlayContext = {
@@ -217,10 +276,10 @@ export default async function setupIPCs(
       rightPronouns,
       rightScore,
       upcoming,
+      upcomingRoundName,
     };
     return writeFile(overlayPath, JSON.stringify(overlayContext));
   };
-  let queuedSet: AvailableSet | null = null;
   let dolphin: Dolphin | null = null;
   const playDolphin = (set: AvailableSet) => {
     if (!dolphin) {
@@ -238,11 +297,9 @@ export default async function setupIPCs(
           dolphin = null;
         }
       });
-      dolphin.on(DolphinEvent.PLAYING, async (newGameIndex: number) => {
+      dolphin.on(DolphinEvent.PLAYING, (newGameIndex: number) => {
         gameIndex = newGameIndex;
-        if (generateOverlay) {
-          await writeOverlayJson();
-        }
+        writeOverlayJson();
       });
       dolphin.on(DolphinEvent.ENDED, () => {
         if (queuedSet) {
@@ -340,6 +397,7 @@ export default async function setupIPCs(
             playDolphin(newSet);
           } else {
             sortAvailableSets();
+            writeOverlayJson();
             mainWindow.webContents.send(
               'unzip',
               availableSets.map(toRenderSet),
@@ -369,6 +427,7 @@ export default async function setupIPCs(
       set.playedMs = played ? Date.now() : 0;
       dirNameToPlayedMs.set(set.dirName, set.playedMs);
       sortAvailableSets();
+      writeOverlayJson();
       return availableSets.map(toRenderSet);
     },
   );
@@ -383,6 +442,7 @@ export default async function setupIPCs(
     if (playingSet) {
       playingSet.playing = false;
     }
+    queuedSet = null;
     playDolphin(setToPlay);
   });
 
@@ -393,6 +453,7 @@ export default async function setupIPCs(
       throw new Error(`no such set to queue: ${dirName}`);
     }
     queuedSet = setToQueue;
+    writeOverlayJson();
   });
 
   ipcMain.removeHandler('getGenerateOverlay');

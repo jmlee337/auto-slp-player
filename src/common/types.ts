@@ -126,4 +126,5 @@ export type OverlayContext = {
   rightNames: string[];
   rightPronouns: string[];
   rightScore: number;
+  upcoming: { leftNames: string[]; rightNames: string[] }[];
 };

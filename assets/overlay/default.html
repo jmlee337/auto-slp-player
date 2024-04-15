@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <style>
+      @font-face {
+        font-family: robotocjksc;
+        src: url(RobotoCJKSC-Regular.ttf);
+      }
+      body {
+        color: white;
+        font-family: robotocjksc, Arial;
+      }
+      .round-bo, .event-phase-name, .upcoming-title {
+        font-size: 16px;
+        line-height: 20px;
+      }
+      .left, .right {
+        display: flex;
+        flex-direction: row;
+        width: 100%;
+      }
+      .left-full-names, .right-full-names {
+        flex-grow: 1;
+      }
+      .round-bo, .upcoming {
+        margin-top: 28px;
+      }
+      .tournament-name, .left, .right, .upcoming-set {
+        font-size: 20px;
+        line-height: 28px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="event-phase-name">Melee Singles, Bracket</div>
+    <div class="tournament-name">Shuuten Tokyo 終点東京 #7</div>
+    <div class="round-bo">Losers Quarter-Final (BO3)</div>
+    <div class="left">
+      <div class="left-full-names">Dojo | Sourdough</div>
+      <div class="left-score">1</div>
+    </div>
+    <div class="right">
+      <div class="right-full-names">DaN</div>
+      <div class="right-score">0</div>
+    </div>
+    <div class="upcoming">
+      <div class="upcoming-title">Next in round...</div>
+      <div class="upcoming-set">slurms vs Tyku</div>
+    </div>
+    <script>
+      let context = {
+        tournamentName: '',
+        eventName: '',
+        phaseName: '',
+        roundName: '',
+        bestOf: 0,
+        leftPrefixes: [],
+        leftNames: [],
+        leftPronouns: [],
+        leftScore: 0,
+        rightPrefixes: [],
+        rightNames: [],
+        rightPronouns: [],
+        rightScore: 0,
+        upcoming: [],
+      }
+      function getElementByClassName(className) {
+        const elements = document.getElementsByClassName(className);
+        if (elements.length !== 1) {
+          throw new Error(`${elements.length} elements with className ${className}`);
+        }
+        return elements[0];
+      }
+      function replace(className, innerText) {
+        const element = getElementByClassName(className);
+        element.innerText = innerText;
+      }
+      async function update() {
+        const response = await fetch('./overlay.json');
+        const newContext = await response.json();
+        if (JSON.stringify(context) !== JSON.stringify(newContext)) {
+          replace('tournament-name', newContext.tournamentName);
+          replace('event-phase-name', `${newContext.eventName}, ${newContext.phaseName}`);
+
+          const bestOf = newContext.roundName ? newContext.bestOf.toString() : '';
+          replace('round-bo', `${newContext.roundName} (BO${bestOf})`);
+
+          const leftFullNames = [];
+          for (let i = 0; i < newContext.leftPrefixes.length; i += 1) {
+            let fullName = '';
+            if (newContext.leftPrefixes[i]) {
+              fullName += `${newContext.leftPrefixes[i]} | `;
+            }
+            fullName += newContext.leftNames[i];
+            if (newContext.leftPronouns[i]) {
+              fullName += ` (${newContext.leftPronouns[i]})`;
+            }
+            leftFullNames.push(fullName);
+          }
+          const leftScore = leftFullNames.length > 0 ? newContext.leftScore.toString() : '';
+          replace('left-full-names', leftFullNames.join(', '));
+          replace('left-score', leftScore);
+
+          const rightFullNames = [];
+          for (let i = 0; i < newContext.rightPrefixes.length; i += 1) {
+            let fullName = '';
+            if (newContext.rightPrefixes[i]) {
+              fullName += `${newContext.rightPrefixes[i]} | `;
+            }
+            fullName += newContext.rightNames[i];
+            if (newContext.rightPronouns[i]) {
+              fullName += ` (${newContext.rightPronouns[i]})`;
+            }
+            rightFullNames.push(fullName);
+          }
+          const rightScore = rightFullNames.length > 0 ? newContext.rightScore.toString() : '';
+          replace('right-full-names', rightFullNames.join(', '));
+          replace('right-score', rightScore);
+
+          const upcoming = getElementByClassName('upcoming');
+          const upcomingTitle = getElementByClassName('upcoming-title');
+            for (const child of upcoming.children) {
+              if (child.className === 'upcoming-set') {
+                upcoming.removeChild(child);
+              }
+            }
+          if (newContext.upcoming.length === 0) {
+            upcomingTitle.style.display = 'none';
+          } else {
+            upcomingTitle.style.display = 'block';
+            for (const upcomingSet of newContext.upcoming) {
+              const newSet = document.createElement('div');
+              newSet.className = 'upcoming-set';
+              newSet.innerText = `${upcomingSet.leftNames.join(', ')} vs ${upcomingSet.rightNames.join(', ')}`;
+              upcoming.appendChild(newSet);
+            }
+          }
+
+          context = newContext;
+        }
+      }
+      setInterval(() => { update(); }, 1000);
+    </script>
+  </body>
+</html>

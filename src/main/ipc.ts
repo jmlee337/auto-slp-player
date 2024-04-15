@@ -19,6 +19,7 @@ import { toRenderSet } from './set';
 
 export default async function setupIPCs(
   mainWindow: BrowserWindow,
+  resourcesPath: string,
 ): Promise<void> {
   const store = new Store();
   let dolphinPath = store.has('dolphinPath')
@@ -146,11 +147,7 @@ export default async function setupIPCs(
   let gameIndex = 0;
   let lastKnownTournamentName = '';
   const writeOverlayJson = async () => {
-    const overlayDir = path.join(app.getPath('userData'), 'overlay');
-    await access(overlayDir).catch(() =>
-      mkdir(overlayDir, { recursive: true }),
-    );
-    const overlayPath = path.join(overlayDir, 'overlay.json');
+    const overlayPath = path.join(resourcesPath, 'overlay', 'overlay.json');
 
     let tournamentName = lastKnownTournamentName;
     let eventName = '';
@@ -165,12 +162,13 @@ export default async function setupIPCs(
     let rightNames: string[] = [];
     let rightPronouns: string[] = [];
     let rightScore = 0;
+    const upcoming: { leftNames: string[]; rightNames: string[] }[] = [];
     if (playingSet && playingSet.context) {
       const { context } = playingSet;
       tournamentName = context.tournament.name;
       lastKnownTournamentName = tournamentName;
       eventName = context.event.name;
-      phaseName = context.event.name;
+      phaseName = context.phase.name;
 
       const { set } = context;
       roundName = context.set.fullRoundText;
@@ -185,6 +183,24 @@ export default async function setupIPCs(
       rightNames = slots[1].displayNames;
       rightPronouns = slots[1].pronouns;
       rightScore = slots[1].score;
+
+      const sameRoundSets = availableSets.filter(
+        (availableSet) =>
+          availableSet.context?.set.round === playingSet!.context!.set.round,
+      );
+      const startingIndex = sameRoundSets.findIndex(
+        (availableSet) => availableSet.dirName === playingSet!.dirName,
+      );
+      if (startingIndex >= 0) {
+        for (let i = startingIndex + 1; i < sameRoundSets.length; i += 1) {
+          upcoming.push({
+            leftNames:
+              sameRoundSets[i].context!.set.scores[0].slots[0].displayNames,
+            rightNames:
+              sameRoundSets[i].context!.set.scores[0].slots[1].displayNames,
+          });
+        }
+      }
     }
     const overlayContext: OverlayContext = {
       tournamentName,
@@ -200,6 +216,7 @@ export default async function setupIPCs(
       rightNames,
       rightPronouns,
       rightScore,
+      upcoming,
     };
     return writeFile(overlayPath, JSON.stringify(overlayContext));
   };

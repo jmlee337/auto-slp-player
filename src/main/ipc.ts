@@ -681,6 +681,11 @@ export default async function setupIPCs(
   );
   maybeStartTwitchBot(twitchSettings);
 
+  ipcMain.removeHandler('openOverlayDir');
+  ipcMain.handle('openOverlayDir', () => {
+    shell.openPath(path.join(resourcesPath, 'overlay'));
+  });
+
   ipcMain.removeHandler('openTempDir');
   ipcMain.handle('openTempDir', () => {
     shell.openPath(tempDir);

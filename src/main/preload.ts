@@ -26,6 +26,7 @@ const electronHandler = {
     ipcRenderer.invoke('setTwitchSettings', newTwitchSettings),
   getTwitchTokens: (code: string): Promise<void> =>
     ipcRenderer.invoke('getTwitchTokens', code),
+  openOverlayDir: (): Promise<void> => ipcRenderer.invoke('openOverlayDir'),
   openTempDir: (): Promise<void> => ipcRenderer.invoke('openTempDir'),
   getVersion: (): Promise<string> => ipcRenderer.invoke('getVersion'),
   getLatestVersion: (): Promise<string> =>

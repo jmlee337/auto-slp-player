@@ -351,6 +351,14 @@ export default function Settings({
         <DialogActions>
           <Button
             onClick={() => {
+              window.electron.openOverlayDir();
+            }}
+            variant="contained"
+          >
+            Open Overlay Folder
+          </Button>
+          <Button
+            onClick={() => {
               window.electron.openTempDir();
             }}
             variant="contained"

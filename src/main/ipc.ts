@@ -103,15 +103,27 @@ export default async function setupIPCs(
 
   const dirNameToPlayedMs = new Map<string, number>();
   const availableSets: AvailableSet[] = [];
-  const earliestForRound = new Map<number, string>();
+  const earliestForPhaseRound = new Map<string, string>();
   const sortAvailableSets = () => {
     availableSets.sort((a, b) => {
       if (a.context && b.context) {
         const aSet = a.context.set;
         const bSet = b.context.set;
-        const roundCompare = earliestForRound
-          .get(aSet.round)!
-          .localeCompare(earliestForRound.get(bSet.round)!);
+        const eventNameCompare = a.context.event.name.localeCompare(
+          b.context.event.name,
+        );
+        if (eventNameCompare) {
+          return eventNameCompare;
+        }
+        const phaseIdCompare = a.context.phase.id - b.context.phase.id;
+        if (phaseIdCompare) {
+          return phaseIdCompare;
+        }
+        const roundCompare = earliestForPhaseRound
+          .get(`${a.context.phase.id}${aSet.round}`)!
+          .localeCompare(
+            earliestForPhaseRound.get(`${b.context.phase.id}${bSet.round}`)!,
+          );
         if (roundCompare) {
           return roundCompare;
         }
@@ -379,15 +391,17 @@ export default async function setupIPCs(
             newSet.playing = true;
           }
           if (newSet.context) {
-            const { round } = newSet.context.set;
-            if (earliestForRound.has(round)) {
+            const phaseRoundKey = `${newSet.context.phase.id}${newSet.context.set.round}`;
+            if (earliestForPhaseRound.has(phaseRoundKey)) {
               if (
-                newSet.dirName.localeCompare(earliestForRound.get(round)!) < 0
+                newSet.dirName.localeCompare(
+                  earliestForPhaseRound.get(phaseRoundKey)!,
+                ) < 0
               ) {
-                earliestForRound.set(round, newSet.dirName);
+                earliestForPhaseRound.set(phaseRoundKey, newSet.dirName);
               }
             } else {
-              earliestForRound.set(round, newSet.dirName);
+              earliestForPhaseRound.set(phaseRoundKey, newSet.dirName);
             }
           }
           availableSets.push(newSet);

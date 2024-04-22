@@ -1,5 +1,5 @@
 import { createWriteStream } from 'fs';
-import { access, mkdir, readFile, readdir, rmdir } from 'fs/promises';
+import { access, mkdir, readFile, readdir, rmdir, stat } from 'fs/promises';
 import path from 'path';
 import yauzl from 'yauzl';
 import { AvailableSet, Context } from '../common/types';
@@ -13,102 +13,155 @@ async function getContext(contextPath: string): Promise<Context> {
   }
 }
 
-export default async function unzip(
+async function unzipInner(
   zipPath: string,
   tempDir: string,
   dirNameToPlayedMs: Map<string, number>,
-) {
-  return new Promise<AvailableSet>((resolve, reject) => {
-    setTimeout(() => {
-      yauzl.open(zipPath, { lazyEntries: true }, async (openErr, zipFile) => {
-        if (openErr) {
-          reject(new Error(`failed to open zip file ${openErr.message}`));
+): Promise<AvailableSet> {
+  return new Promise((resolve, reject) => {
+    yauzl.open(zipPath, { lazyEntries: true }, async (openErr, zipFile) => {
+      if (openErr) {
+        reject(new Error(`failed to open zip file ${openErr.message}`));
+        return;
+      }
+      const unzipDir = path.join(tempDir, path.basename(zipPath, '.zip'));
+      try {
+        await access(unzipDir);
+        const contextPromise = getContext(path.join(unzipDir, 'context.json'));
+        const replayPaths = (await readdir(unzipDir))
+          .filter((existingPath) => existingPath.endsWith('.slp'))
+          .map((slpPath) => path.join(unzipDir, slpPath));
+        replayPaths.sort();
+        const dirName = path.basename(unzipDir);
+        resolve({
+          context: toMainContext(await contextPromise),
+          dirName,
+          playedMs: dirNameToPlayedMs.get(dirName) ?? 0,
+          playing: false,
+          replayPaths,
+        });
+      } catch (accessE: any) {
+        try {
+          await mkdir(unzipDir);
+        } catch (mkdirE: any) {
+          reject(new Error(`failed to make unzip dir: ${mkdirE}`));
           return;
         }
-        const unzipDir = path.join(tempDir, path.basename(zipPath, '.zip'));
-        try {
-          await access(unzipDir);
-          const contextPromise = getContext(
-            path.join(unzipDir, 'context.json'),
-          );
-          const replayPaths = (await readdir(unzipDir))
-            .filter((existingPath) => existingPath.endsWith('.slp'))
-            .map((slpPath) => path.join(unzipDir, slpPath));
+      }
+
+      let contextPath = '';
+      let failureReason = '';
+      const replayPaths: string[] = [];
+      zipFile.on('close', async () => {
+        if (failureReason) {
+          reject(new Error(failureReason));
+        } else {
+          const context = contextPath
+            ? toMainContext(await getContext(contextPath))
+            : undefined;
           replayPaths.sort();
           const dirName = path.basename(unzipDir);
           resolve({
-            context: toMainContext(await contextPromise),
+            context,
             dirName,
             playedMs: dirNameToPlayedMs.get(dirName) ?? 0,
             playing: false,
             replayPaths,
           });
-        } catch (accessE: any) {
-          try {
-            await mkdir(unzipDir);
-          } catch (mkdirE: any) {
-            reject(new Error(`failed to make unzip dir: ${mkdirE}`));
-            return;
-          }
         }
-
-        let contextPath = '';
-        let failureReason = '';
-        const replayPaths: string[] = [];
-        zipFile.on('close', async () => {
-          if (failureReason) {
-            reject(new Error(failureReason));
-          } else {
-            const context = contextPath
-              ? toMainContext(await getContext(contextPath))
-              : undefined;
-            replayPaths.sort();
-            const dirName = path.basename(unzipDir);
-            resolve({
-              context,
-              dirName,
-              playedMs: dirNameToPlayedMs.get(dirName) ?? 0,
-              playing: false,
-              replayPaths,
-            });
-          }
-        });
-        zipFile.on('entry', async (entry) => {
-          if (
-            entry.fileName === 'context.json' ||
-            entry.fileName.endsWith('.slp')
-          ) {
-            zipFile.openReadStream(
-              entry,
-              async (openReadStreamErr, readStream) => {
-                if (openReadStreamErr) {
-                  failureReason = `failed to unzip file: ${entry.fileName}, ${openReadStreamErr.message}`;
-                  await rmdir(unzipDir);
-                  zipFile.close();
-                  return;
-                }
-
-                const unzipPath = path.join(unzipDir, entry.fileName);
-                readStream.on('end', () => {
-                  if (entry.fileName === 'context.json') {
-                    contextPath = unzipPath;
-                  } else {
-                    replayPaths.push(unzipPath);
-                  }
-                  zipFile.readEntry();
-                });
-                const writeStream = createWriteStream(unzipPath);
-                readStream.pipe(writeStream);
-              },
-            );
-          } else {
-            failureReason = `invalid zip contents: ${entry.fileName}`;
-            await rmdir(unzipDir);
-            zipFile.close();
-          }
-        });
-        zipFile.readEntry();
       });
-    }, 1000);
+      zipFile.on('entry', async (entry) => {
+        if (
+          entry.fileName === 'context.json' ||
+          entry.fileName.endsWith('.slp')
+        ) {
+          zipFile.openReadStream(
+            entry,
+            async (openReadStreamErr, readStream) => {
+              if (openReadStreamErr) {
+                failureReason = `failed to unzip file: ${entry.fileName}, ${openReadStreamErr.message}`;
+                await rmdir(unzipDir);
+                zipFile.close();
+                return;
+              }
+
+              const unzipPath = path.join(unzipDir, entry.fileName);
+              readStream.on('end', () => {
+                if (entry.fileName === 'context.json') {
+                  contextPath = unzipPath;
+                } else {
+                  replayPaths.push(unzipPath);
+                }
+                zipFile.readEntry();
+              });
+              const writeStream = createWriteStream(unzipPath);
+              readStream.pipe(writeStream);
+            },
+          );
+        } else {
+          failureReason = `invalid zip contents: ${entry.fileName}`;
+          await rmdir(unzipDir);
+          zipFile.close();
+        }
+      });
+      zipFile.readEntry();
+    });
+  });
+}
+
+async function unzipIfSettled(
+  zipPath: string,
+  tempDir: string,
+  dirNameToPlayedMs: Map<string, number>,
+  lastSize: number,
+  timeout: number,
+  resolve: (availableSet: AvailableSet) => void,
+  reject: (reason?: any) => void,
+) {
+  setTimeout(async () => {
+    const stats = await stat(zipPath);
+    const { size } = stats;
+    if (size === lastSize) {
+      try {
+        const availableSet = await unzipInner(
+          zipPath,
+          tempDir,
+          dirNameToPlayedMs,
+        );
+        resolve(availableSet);
+      } catch (e: any) {
+        reject(e);
+      }
+    } else {
+      unzipIfSettled(
+        zipPath,
+        tempDir,
+        dirNameToPlayedMs,
+        size,
+        timeout * 2,
+        resolve,
+        reject,
+      );
+    }
+  }, timeout);
+}
+
+export default async function unzip(
+  zipPath: string,
+  tempDir: string,
+  dirNameToPlayedMs: Map<string, number>,
+) {
+  const stats = await stat(zipPath);
+  const lastSize = stats.size;
+  return new Promise<AvailableSet>((resolve, reject) => {
+    unzipIfSettled(
+      zipPath,
+      tempDir,
+      dirNameToPlayedMs,
+      lastSize,
+      1000,
+      resolve,
+      reject,
+    );
   });
 }

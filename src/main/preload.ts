@@ -8,6 +8,7 @@ const electronHandler = {
   getIsoPath: (): Promise<string> => ipcRenderer.invoke('getIsoPath'),
   chooseIsoPath: (): Promise<string> => ipcRenderer.invoke('chooseIsoPath'),
   chooseWatchDir: (): Promise<string> => ipcRenderer.invoke('chooseWatchDir'),
+  openDolphin: (): Promise<void> => ipcRenderer.invoke('openDolphin'),
   watch: (start: boolean): Promise<void> => ipcRenderer.invoke('watch', start),
   play: (dirName: string): Promise<void> => ipcRenderer.invoke('play', dirName),
   queue: (dirName: string): Promise<void> =>
@@ -31,6 +32,12 @@ const electronHandler = {
   getVersion: (): Promise<string> => ipcRenderer.invoke('getVersion'),
   getLatestVersion: (): Promise<string> =>
     ipcRenderer.invoke('getLatestVersion'),
+  onDolphin: (
+    callback: (event: IpcRendererEvent, dolphinOpen: boolean) => void,
+  ) => {
+    ipcRenderer.removeAllListeners('dolphin');
+    ipcRenderer.on('dolphin', callback);
+  },
   onPlaying: (
     callback: (event: IpcRendererEvent, renderSets: RenderSet[]) => void,
   ) => {

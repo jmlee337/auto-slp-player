@@ -291,73 +291,10 @@ export default async function setupIPCs(
     return writeFile(overlayPath, JSON.stringify(overlayContext));
   };
   let dolphin: Dolphin | null = null;
+  let newDolphin: () => void;
   const playDolphin = (set: AvailableSet) => {
     if (!dolphin) {
-      dolphin = new Dolphin(dolphinPath, isoPath, tempDir);
-      dolphin.on(DolphinEvent.CLOSE, () => {
-        if (playingSet) {
-          playingSet.playing = false;
-          playingSet = null;
-        }
-        gameIndex = 0;
-        queuedSet = null;
-        mainWindow.webContents.send('playing', availableSets.map(toRenderSet));
-        if (dolphin) {
-          dolphin.removeAllListeners();
-          dolphin = null;
-        }
-      });
-      dolphin.on(DolphinEvent.PLAYING, (newGameIndex: number) => {
-        gameIndex = newGameIndex;
-        writeOverlayJson();
-      });
-      dolphin.on(DolphinEvent.ENDED, () => {
-        if (playingSet) {
-          playingSet.playing = false;
-        }
-
-        if (queuedSet) {
-          playDolphin(queuedSet);
-          queuedSet = null;
-          return;
-        }
-
-        if (playingSet === null) {
-          gameIndex = 0;
-          mainWindow.webContents.send(
-            'playing',
-            availableSets.map(toRenderSet),
-          );
-          return;
-        }
-
-        const index = availableSets.findIndex(
-          (value) => value.dirName === playingSet!.dirName,
-        );
-        if (index === -1) {
-          playingSet = null;
-          gameIndex = 0;
-          mainWindow.webContents.send(
-            'playing',
-            availableSets.map(toRenderSet),
-          );
-          return;
-        }
-        for (let i = index + 1; i < availableSets.length; i += 1) {
-          if (!dirNameToPlayedMs.get(availableSets[i].dirName)) {
-            playDolphin(availableSets[i]);
-            return;
-          }
-        }
-        playingSet = null;
-        gameIndex = 0;
-        mainWindow.webContents.send('playing', availableSets.map(toRenderSet));
-      });
-      dolphin.on(DolphinEvent.START_FAILED, () => {
-        if (dolphin) {
-          dolphin.close();
-        }
-      });
+      newDolphin();
     }
 
     playingSet = set;
@@ -366,7 +303,7 @@ export default async function setupIPCs(
     set.playing = true;
     dirNameToPlayedMs.set(set.dirName, set.playedMs);
 
-    const playPromise = dolphin.play(set.replayPaths);
+    const playPromise = dolphin!.play(set.replayPaths);
     sortAvailableSets();
     playPromise
       .then(() => {
@@ -377,6 +314,81 @@ export default async function setupIPCs(
       })
       .catch(() => {});
   };
+  newDolphin = () => {
+    dolphin = new Dolphin(dolphinPath, isoPath, tempDir);
+    dolphin.on(DolphinEvent.CLOSE, () => {
+      if (playingSet) {
+        playingSet.playing = false;
+        playingSet = null;
+      }
+      gameIndex = 0;
+      queuedSet = null;
+      mainWindow.webContents.send('playing', availableSets.map(toRenderSet));
+      if (dolphin) {
+        dolphin.removeAllListeners();
+        dolphin = null;
+        mainWindow.webContents.send('dolphin', false);
+      }
+    });
+    dolphin.on(DolphinEvent.PLAYING, (newGameIndex: number) => {
+      gameIndex = newGameIndex;
+      writeOverlayJson();
+    });
+    dolphin.on(DolphinEvent.ENDED, () => {
+      if (playingSet) {
+        playingSet.playing = false;
+      }
+
+      if (queuedSet) {
+        playDolphin(queuedSet);
+        queuedSet = null;
+        return;
+      }
+
+      if (playingSet === null) {
+        gameIndex = 0;
+        mainWindow.webContents.send('playing', availableSets.map(toRenderSet));
+        return;
+      }
+
+      const index = availableSets.findIndex(
+        (value) => value.dirName === playingSet!.dirName,
+      );
+      if (index === -1) {
+        playingSet = null;
+        gameIndex = 0;
+        mainWindow.webContents.send('playing', availableSets.map(toRenderSet));
+        return;
+      }
+      for (let i = index + 1; i < availableSets.length; i += 1) {
+        if (!dirNameToPlayedMs.get(availableSets[i].dirName)) {
+          playDolphin(availableSets[i]);
+          return;
+        }
+      }
+      playingSet = null;
+      gameIndex = 0;
+      mainWindow.webContents.send('playing', availableSets.map(toRenderSet));
+    });
+    dolphin.on(DolphinEvent.START_FAILED, () => {
+      if (dolphin) {
+        dolphin.close();
+      }
+    });
+    dolphin.on(DolphinEvent.START_READY, () => {
+      mainWindow.webContents.send('dolphin', true);
+    });
+  };
+  ipcMain.removeHandler('openDolphin');
+  ipcMain.handle('openDolphin', () => {
+    if (dolphin) {
+      mainWindow.webContents.send('dolphin', true);
+      return;
+    }
+
+    newDolphin();
+    dolphin!.open();
+  });
   ipcMain.removeHandler('watch');
   ipcMain.handle('watch', async (event: IpcMainInvokeEvent, start: boolean) => {
     if (start) {

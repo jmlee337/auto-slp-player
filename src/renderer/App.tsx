@@ -21,6 +21,7 @@ import {
   StopCircle,
   SubdirectoryArrowRight,
   Visibility,
+  WebAsset,
 } from '@mui/icons-material';
 import { IpcRendererEvent } from 'electron';
 import { RenderSet, TwitchSettings } from '../common/types';
@@ -62,9 +63,17 @@ function Hello() {
 
   const [watchDir, setWatchDir] = useState('');
   const [watching, setWatching] = useState(false);
+  const [dolphinOpen, setDolphinOpen] = useState(false);
+  const [dolphinOpening, setDolphinOpening] = useState(false);
   const [queuedSetDirName, setQueuedSetDirName] = useState('');
   const [renderSets, setRenderSets] = useState<RenderSet[]>([]);
   useEffect(() => {
+    window.electron.onDolphin(
+      (event: IpcRendererEvent, newDolphinOpen: boolean) => {
+        setDolphinOpen(newDolphinOpen);
+        setDolphinOpening(false);
+      },
+    );
     window.electron.onPlaying(
       (event: IpcRendererEvent, newRenderSets: RenderSet[]) => {
         setQueuedSetDirName('');
@@ -84,10 +93,10 @@ function Hello() {
         <InputBase
           disabled
           size="small"
-          value={watchDir || 'Set watch directory...'}
+          value={watchDir || 'Set watch folder...'}
           style={{ flexGrow: 1 }}
         />
-        <Tooltip arrow title="Set watch directory">
+        <Tooltip arrow title="Set watch folder">
           <IconButton
             onClick={async () => {
               setWatchDir(await window.electron.chooseWatchDir());
@@ -117,6 +126,23 @@ function Hello() {
           gotSettings={gotSettings}
         />
         <Button
+          disabled={dolphinOpen || dolphinOpening}
+          endIcon={
+            dolphinOpening ? <CircularProgress size="24px" /> : <WebAsset />
+          }
+          onClick={async () => {
+            setDolphinOpening(true);
+            try {
+              await window.electron.openDolphin();
+            } catch (e: any) {
+              setDolphinOpening(false);
+            }
+          }}
+          variant="contained"
+        >
+          {dolphinOpen ? 'Dolphin Open' : 'Open Dolphin'}
+        </Button>
+        <Button
           disabled={!dolphinPath || !isoPath || !watchDir}
           endIcon={watching ? <StopCircle /> : <PlayCircle />}
           onClick={async () => {
@@ -126,7 +152,7 @@ function Hello() {
           }}
           variant="contained"
         >
-          {watching ? 'Stop' : 'Start'}
+          {watching ? 'Stop Folder Watch' : 'Start Folder Watch'}
         </Button>
       </Stack>
       {renderSets && (

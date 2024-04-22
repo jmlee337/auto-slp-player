@@ -312,6 +312,10 @@ export default async function setupIPCs(
         writeOverlayJson();
       });
       dolphin.on(DolphinEvent.ENDED, () => {
+        if (playingSet) {
+          playingSet.playing = false;
+        }
+
         if (queuedSet) {
           playDolphin(queuedSet);
           queuedSet = null;
@@ -327,7 +331,6 @@ export default async function setupIPCs(
           return;
         }
 
-        playingSet.playing = false;
         const index = availableSets.findIndex(
           (value) => value.dirName === playingSet!.dirName,
         );

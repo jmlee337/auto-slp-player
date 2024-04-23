@@ -8,29 +8,9 @@ import {
 } from '../common/types';
 
 export function toMainContext(context: Context): MainContext | undefined {
-  const tournamentName = context.tournament?.name;
-  const eventName = context.event?.name;
-  const eventSlug = context.event?.slug;
-  const phaseId = context.phase?.id;
-  const phaseName = context.phase?.name;
-  const phaseGroupId = context.phaseGroup?.id;
-  const phaseGroupName = context.phaseGroup?.name;
-
-  const bestOf = context.set?.bestOf;
-  const fullRoundText = context.set?.fullRoundText;
-  const round = context.set?.round;
-  const scores = context.set?.scores;
+  const { bestOf, scores } = context;
   if (
-    !tournamentName ||
-    !eventName ||
-    !eventSlug ||
-    !phaseId ||
-    !phaseName ||
-    !phaseGroupId ||
-    !phaseGroupName ||
-    !bestOf ||
-    !fullRoundText ||
-    !round ||
+    !Number.isInteger(bestOf) ||
     !scores ||
     !Array.isArray(scores) ||
     scores.length === 0
@@ -68,7 +48,35 @@ export function toMainContext(context: Context): MainContext | undefined {
     mainScores.push({ slots: mainSlots });
   }
 
-  return {
+  const mainContext: MainContext = {
+    bestOf: bestOf!,
+    scores: mainScores,
+  };
+
+  const tournamentName = context.startgg?.tournament?.name;
+  const eventName = context.startgg?.event?.name;
+  const eventSlug = context.startgg?.event?.slug;
+  const phaseId = context.startgg?.phase?.id;
+  const phaseName = context.startgg?.phase?.name;
+  const phaseGroupId = context.startgg?.phaseGroup?.id;
+  const phaseGroupName = context.startgg?.phaseGroup?.name;
+  const fullRoundText = context.startgg?.set?.fullRoundText;
+  const round = context.startgg?.set?.round;
+  if (
+    typeof tournamentName !== 'string' ||
+    typeof eventName !== 'string' ||
+    typeof eventSlug !== 'string' ||
+    !Number.isInteger(phaseId) ||
+    typeof phaseName !== 'string' ||
+    !Number.isInteger(phaseGroupId) ||
+    typeof phaseGroupName !== 'string' ||
+    typeof fullRoundText !== 'string' ||
+    !Number.isInteger(round)
+  ) {
+    return mainContext;
+  }
+
+  mainContext.startgg = {
     tournament: {
       name: tournamentName,
     },
@@ -77,20 +85,19 @@ export function toMainContext(context: Context): MainContext | undefined {
       slug: eventSlug,
     },
     phase: {
-      id: phaseId,
+      id: phaseId!,
       name: phaseName,
     },
     phaseGroup: {
-      id: phaseGroupId,
+      id: phaseGroupId!,
       name: phaseGroupName,
     },
     set: {
-      bestOf,
       fullRoundText,
-      round,
-      scores: mainScores,
+      round: round!,
     },
   };
+  return mainContext;
 }
 
 export function toRenderSet(set: AvailableSet): RenderSet {
@@ -99,15 +106,15 @@ export function toRenderSet(set: AvailableSet): RenderSet {
     played: set.playedMs !== 0,
     playing: set.playing,
   };
-  if (set.context) {
+  if (set.context && set.context.startgg) {
     renderSet.context = {
-      namesLeft: set.context.set.scores[0].slots[0].displayNames.join(' / '),
-      namesRight: set.context.set.scores[0].slots[1].displayNames.join(' / '),
-      fullRoundText: set.context.set.fullRoundText,
-      bestOf: set.context.set.bestOf,
-      eventName: set.context.event.name,
-      phaseName: set.context.phase.name,
-      phaseGroupName: set.context.phaseGroup.name,
+      bestOf: set.context.bestOf,
+      namesLeft: set.context.scores[0].slots[0].displayNames.join(' / '),
+      namesRight: set.context.scores[0].slots[1].displayNames.join(' / '),
+      fullRoundText: set.context.startgg.set.fullRoundText,
+      eventName: set.context.startgg.event.name,
+      phaseName: set.context.startgg.phase.name,
+      phaseGroupName: set.context.startgg.phaseGroup.name,
     };
   }
   return renderSet;

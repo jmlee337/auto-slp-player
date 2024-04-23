@@ -106,23 +106,25 @@ export default async function setupIPCs(
   const earliestForPhaseRound = new Map<string, string>();
   const sortAvailableSets = () => {
     availableSets.sort((a, b) => {
-      if (a.context && b.context) {
-        const aSet = a.context.set;
-        const bSet = b.context.set;
-        const eventNameCompare = a.context.event.name.localeCompare(
-          b.context.event.name,
+      if (a.context?.startgg && b.context?.startgg) {
+        const aStartgg = a.context.startgg;
+        const bStartgg = b.context.startgg;
+        const eventNameCompare = aStartgg.event.name.localeCompare(
+          bStartgg.event.name,
         );
         if (eventNameCompare) {
           return eventNameCompare;
         }
-        const phaseIdCompare = a.context.phase.id - b.context.phase.id;
+        const phaseIdCompare = aStartgg.phase.id - bStartgg.phase.id;
         if (phaseIdCompare) {
           return phaseIdCompare;
         }
         const roundCompare = earliestForPhaseRound
-          .get(`${a.context.phase.id}${aSet.round}`)!
+          .get(`${aStartgg.phase.id}${aStartgg.set.round}`)!
           .localeCompare(
-            earliestForPhaseRound.get(`${b.context.phase.id}${bSet.round}`)!,
+            earliestForPhaseRound.get(
+              `${bStartgg.phase.id}${bStartgg.set.round}`,
+            )!,
           );
         if (roundCompare) {
           return roundCompare;
@@ -137,11 +139,12 @@ export default async function setupIPCs(
           return 1;
         }
         if (
-          aSet.scores.length !== bSet.scores.length ||
-          aSet.bestOf !== bSet.bestOf
+          a.context.scores.length !== b.context.scores.length ||
+          a.context.bestOf !== b.context.bestOf
         ) {
           const ratioCompare =
-            bSet.scores.length / bSet.bestOf - aSet.scores.length / aSet.bestOf;
+            b.context.scores.length / b.context.bestOf -
+            a.context.scores.length / a.context.bestOf;
           if (ratioCompare) {
             return ratioCompare;
           }
@@ -182,15 +185,8 @@ export default async function setupIPCs(
     let upcomingRoundName = '';
     if (playingSet && playingSet.context) {
       const { context } = playingSet;
-      tournamentName = context.tournament.name;
-      eventName = context.event.name;
-      phaseName = context.phase.name;
-
-      const { set } = context;
-      roundName = context.set.fullRoundText;
-      bestOf = context.set.bestOf;
-
-      const { slots } = set.scores[gameIndex];
+      bestOf = context.bestOf;
+      const { slots } = context.scores[gameIndex];
       leftPrefixes = slots[0].prefixes;
       leftNames = slots[0].displayNames;
       leftPronouns = slots[0].pronouns;
@@ -200,75 +196,85 @@ export default async function setupIPCs(
       rightPronouns = slots[1].pronouns;
       rightScore = slots[1].score;
 
-      const setUpcomingSetsOrRound = (
-        round: number,
-        dirName: string,
-        playing: boolean,
-      ) => {
-        const sameRoundSets = availableSets.filter(
-          (availableSet) => availableSet.context?.set.round === round,
-        );
-        const startingIndex = sameRoundSets.findIndex(
-          (availableSet) => availableSet.dirName === dirName,
-        );
-        if (startingIndex >= 0) {
-          if (!playing) {
-            upcoming.push({
-              leftNames:
-                sameRoundSets[0].context!.set.scores[0].slots[0].displayNames,
-              rightNames:
-                sameRoundSets[0].context!.set.scores[0].slots[1].displayNames,
-            });
-          }
-          for (let i = startingIndex + 1; i < sameRoundSets.length; i += 1) {
-            if (sameRoundSets[i].playedMs === 0) {
-              upcoming.push({
-                leftNames:
-                  sameRoundSets[i].context!.set.scores[0].slots[0].displayNames,
-                rightNames:
-                  sameRoundSets[i].context!.set.scores[0].slots[1].displayNames,
-              });
-            }
-          }
-        }
-        if (upcoming.length === 0) {
-          const overallStartingIndex = availableSets.findIndex(
+      if (context.startgg) {
+        tournamentName = context.startgg.tournament.name;
+        eventName = context.startgg.event.name;
+        phaseName = context.startgg.phase.name;
+        roundName = context.startgg.set.fullRoundText;
+
+        const setUpcomingSetsOrRound = (
+          round: number,
+          dirName: string,
+          playing: boolean,
+        ) => {
+          const sameRoundSets = availableSets.filter(
+            (availableSet) =>
+              availableSet.context?.startgg?.set.round === round,
+          );
+          const startingIndex = sameRoundSets.findIndex(
             (availableSet) => availableSet.dirName === dirName,
           );
-          if (overallStartingIndex >= 0) {
-            for (
-              let i = overallStartingIndex + 1;
-              i < availableSets.length;
-              i += 1
-            ) {
-              if (availableSets[i].playedMs === 0) {
-                const nextRoundName =
-                  availableSets[i].context?.set.fullRoundText;
-                if (nextRoundName) {
-                  upcomingRoundName = nextRoundName;
-                }
-                break;
+          if (startingIndex >= 0) {
+            if (!playing) {
+              upcoming.push({
+                leftNames:
+                  sameRoundSets[0].context!.scores[0].slots[0].displayNames,
+                rightNames:
+                  sameRoundSets[0].context!.scores[0].slots[1].displayNames,
+              });
+            }
+            for (let i = startingIndex + 1; i < sameRoundSets.length; i += 1) {
+              if (sameRoundSets[i].playedMs === 0) {
+                upcoming.push({
+                  leftNames:
+                    sameRoundSets[i].context!.scores[0].slots[0].displayNames,
+                  rightNames:
+                    sameRoundSets[i].context!.scores[0].slots[1].displayNames,
+                });
               }
             }
           }
-        }
-      };
-      if (queuedSet) {
-        if (queuedSet.context?.set.round === playingSet.context.set.round) {
+          if (upcoming.length === 0) {
+            const overallStartingIndex = availableSets.findIndex(
+              (availableSet) => availableSet.dirName === dirName,
+            );
+            if (overallStartingIndex >= 0) {
+              for (
+                let i = overallStartingIndex + 1;
+                i < availableSets.length;
+                i += 1
+              ) {
+                if (availableSets[i].playedMs === 0) {
+                  const nextRoundName =
+                    availableSets[i].context?.startgg?.set.fullRoundText;
+                  if (nextRoundName) {
+                    upcomingRoundName = nextRoundName;
+                  }
+                  break;
+                }
+              }
+            }
+          }
+        };
+        if (queuedSet) {
+          if (
+            queuedSet.context?.startgg?.set.round === context.startgg.set.round
+          ) {
+            setUpcomingSetsOrRound(
+              queuedSet.context.startgg.set.round,
+              queuedSet.dirName,
+              false,
+            );
+          } else if (queuedSet.context?.startgg?.set.fullRoundText) {
+            upcomingRoundName = queuedSet.context.startgg.set.fullRoundText;
+          }
+        } else {
           setUpcomingSetsOrRound(
-            queuedSet.context.set.round,
-            queuedSet.dirName,
-            false,
+            context.startgg.set.round,
+            playingSet.dirName,
+            true,
           );
-        } else if (queuedSet.context?.set.fullRoundText) {
-          upcomingRoundName = queuedSet.context.set.fullRoundText;
         }
-      } else {
-        setUpcomingSetsOrRound(
-          playingSet.context.set.round,
-          playingSet.dirName,
-          true,
-        );
       }
     }
     const overlayContext: OverlayContext = {
@@ -405,8 +411,8 @@ export default async function setupIPCs(
           if (newSet.dirName === playingSet?.dirName) {
             newSet.playing = true;
           }
-          if (newSet.context) {
-            const phaseRoundKey = `${newSet.context.phase.id}${newSet.context.set.round}`;
+          if (newSet.context && newSet.context.startgg) {
+            const phaseRoundKey = `${newSet.context.startgg.phase.id}${newSet.context.startgg.set.round}`;
             if (earliestForPhaseRound.has(phaseRoundKey)) {
               if (
                 newSet.dirName.localeCompare(
@@ -544,14 +550,14 @@ export default async function setupIPCs(
           if (!playingSet) {
             return;
           }
-          if (!playingSet.context) {
+          if (!playingSet.context?.startgg) {
             say('unknown');
             return;
           }
 
-          const eventSlug = playingSet.context.event.slug;
-          const phaseId = playingSet.context.phase.id;
-          const phaseGroupId = playingSet.context.phaseGroup.id;
+          const eventSlug = playingSet.context.startgg.event.slug;
+          const phaseId = playingSet.context.startgg.phase.id;
+          const phaseGroupId = playingSet.context.startgg.phaseGroup.id;
           say(
             `SPOILERS: https://www.start.gg/${eventSlug}/brackets/${phaseId}/${phaseGroupId}`,
           );
@@ -565,7 +571,7 @@ export default async function setupIPCs(
             return;
           }
 
-          const { bestOf, scores } = playingSet.context.set;
+          const { bestOf, scores } = playingSet.context;
           const scoreLeft = scores[gameIndex].slots[0].score;
           const scoreRight = scores[gameIndex].slots[1].score;
           say(`${scoreLeft} - ${scoreRight} (BO${bestOf})`);
@@ -574,20 +580,20 @@ export default async function setupIPCs(
           if (!playingSet) {
             return;
           }
-          if (!playingSet.context) {
+          if (!playingSet.context?.startgg) {
             say('unknown');
             return;
           }
 
-          const tournamentName = playingSet.context.tournament.name;
-          const eventName = playingSet.context.event.name;
-          const phaseName = playingSet.context.phase.name;
-          const phaseGroupName = playingSet.context.phaseGroup.name;
+          const tournamentName = playingSet.context.startgg.tournament.name;
+          const eventName = playingSet.context.startgg.event.name;
+          const phaseName = playingSet.context.startgg.phase.name;
+          const phaseGroupName = playingSet.context.startgg.phaseGroup.name;
           const bracketContext = `${tournamentName} ${eventName}, ${phaseName} (pool ${phaseGroupName})`;
 
-          const roundName = playingSet.context.set.fullRoundText;
-          const { bestOf, round, scores } = playingSet.context.set;
-          const fullRoundInfo = `${roundName} (BO${bestOf})`;
+          const { fullRoundText, round } = playingSet.context.startgg.set;
+          const { bestOf, scores } = playingSet.context;
+          const fullRoundInfo = `${fullRoundText} (BO${bestOf})`;
           const separator = round > 0 ? '🟩' : '🟥';
 
           const { slots } = scores[gameIndex];

@@ -183,12 +183,16 @@ function Hello() {
                     {renderSet.context.namesRight}
                   </ListItemText>
                   <ListItemText sx={{ flexGrow: 0, flexShrink: 0 }}>
-                    {renderSet.context.fullRoundText} (BO
-                    {renderSet.context.bestOf})
+                    {renderSet.context.startgg &&
+                      renderSet.context.startgg.fullRoundText}{' '}
+                    (BO{renderSet.context.bestOf})
                   </ListItemText>
-                  <ListItemText sx={{ flexGrow: 0, flexShrink: 0 }}>
-                    {renderSet.context.eventName}, {renderSet.context.phaseName}
-                  </ListItemText>
+                  {renderSet.context.startgg && (
+                    <ListItemText sx={{ flexGrow: 0, flexShrink: 0 }}>
+                      {renderSet.context.startgg.eventName},{' '}
+                      {renderSet.context.startgg.phaseName}
+                    </ListItemText>
+                  )}
                   <ListItemText sx={{ flexGrow: 0, flexShrink: 0 }}>
                     {renderSet.context.duration}
                   </ListItemText>

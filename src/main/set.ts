@@ -109,17 +109,21 @@ export function toRenderSet(set: AvailableSet): RenderSet {
     played: set.playedMs !== 0,
     playing: set.playing,
   };
-  if (set.context && set.context.startgg) {
+  if (set.context) {
     renderSet.context = {
       bestOf: set.context.bestOf,
       namesLeft: set.context.scores[0].slots[0].displayNames.join(' / '),
       namesRight: set.context.scores[0].slots[1].displayNames.join(' / '),
       duration: format(new Date(set.context.durationMs), 'm:ss'),
-      fullRoundText: set.context.startgg.set.fullRoundText,
-      eventName: set.context.startgg.event.name,
-      phaseName: set.context.startgg.phase.name,
-      phaseGroupName: set.context.startgg.phaseGroup.name,
     };
+    if (set.context.startgg) {
+      renderSet.context.startgg = {
+        fullRoundText: set.context.startgg.set.fullRoundText,
+        eventName: set.context.startgg.event.name,
+        phaseName: set.context.startgg.phase.name,
+        phaseGroupName: set.context.startgg.phaseGroup.name,
+      };
+    }
   }
   return renderSet;
 }

@@ -88,14 +88,16 @@ export type AvailableSet = {
 };
 
 export type RenderContext = {
+  bestOf: number;
+  duration: string;
   namesLeft: string;
   namesRight: string;
-  fullRoundText: string;
-  bestOf: number;
-  eventName: string;
-  phaseName: string;
-  phaseGroupName: string;
-  duration: string;
+  startgg?: {
+    eventName: string;
+    phaseName: string;
+    phaseGroupName: string;
+    fullRoundText: string;
+  };
 };
 
 export type RenderSet = {

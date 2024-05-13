@@ -189,6 +189,9 @@ function Hello() {
                   <ListItemText sx={{ flexGrow: 0, flexShrink: 0 }}>
                     {renderSet.context.eventName}, {renderSet.context.phaseName}
                   </ListItemText>
+                  <ListItemText sx={{ flexGrow: 0, flexShrink: 0 }}>
+                    {renderSet.context.duration}
+                  </ListItemText>
                 </Stack>
               ) : (
                 <ListItemText>{renderSet.dirName}</ListItemText>

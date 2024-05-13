@@ -1,3 +1,4 @@
+import { format } from 'date-fns';
 import {
   AvailableSet,
   Context,
@@ -8,9 +9,10 @@ import {
 } from '../common/types';
 
 export function toMainContext(context: Context): MainContext | undefined {
-  const { bestOf, scores } = context;
+  const { bestOf, durationMs, scores } = context;
   if (
     !Number.isInteger(bestOf) ||
+    !Number.isInteger(durationMs) ||
     !scores ||
     !Array.isArray(scores) ||
     scores.length === 0
@@ -50,6 +52,7 @@ export function toMainContext(context: Context): MainContext | undefined {
 
   const mainContext: MainContext = {
     bestOf: bestOf!,
+    durationMs: durationMs!,
     scores: mainScores,
   };
 
@@ -111,6 +114,7 @@ export function toRenderSet(set: AvailableSet): RenderSet {
       bestOf: set.context.bestOf,
       namesLeft: set.context.scores[0].slots[0].displayNames.join(' / '),
       namesRight: set.context.scores[0].slots[1].displayNames.join(' / '),
+      duration: format(new Date(set.context.durationMs), 'm:ss'),
       fullRoundText: set.context.startgg.set.fullRoundText,
       eventName: set.context.startgg.event.name,
       phaseName: set.context.startgg.phase.name,

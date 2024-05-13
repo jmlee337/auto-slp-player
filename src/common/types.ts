@@ -13,6 +13,7 @@ export type ContextScore = {
 
 export type Context = {
   bestOf?: number;
+  durationMs?: number;
   scores?: ContextScore[];
   startgg?: {
     tournament?: {
@@ -53,6 +54,7 @@ export type MainContextScore = {
 
 export type MainContext = {
   bestOf: number;
+  durationMs: number;
   scores: MainContextScore[];
   startgg?: {
     tournament: {
@@ -93,6 +95,7 @@ export type RenderContext = {
   eventName: string;
   phaseName: string;
   phaseGroupName: string;
+  duration: string;
 };
 
 export type RenderSet = {

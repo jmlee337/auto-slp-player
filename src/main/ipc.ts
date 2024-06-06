@@ -533,9 +533,6 @@ export default async function setupIPCs(
       authProvider,
       channel: twitchSettings.channelName,
       commands: [
-        createBotCommand('help', (params, { say }) => {
-          say('!help, !bracket, !score, !set');
-        }),
         createBotCommand('bracket', (params, { say }) => {
           if (!playingSet) {
             return;
@@ -550,79 +547,6 @@ export default async function setupIPCs(
           const phaseGroupId = playingSet.context.startgg.phaseGroup.id;
           say(
             `SPOILERS: https://www.start.gg/${eventSlug}/brackets/${phaseId}/${phaseGroupId}`,
-          );
-        }),
-        createBotCommand('score', (params, { say }) => {
-          if (!playingSet) {
-            return;
-          }
-          if (!playingSet.context) {
-            say('unknown');
-            return;
-          }
-
-          const { bestOf, scores } = playingSet.context;
-          const scoreLeft = scores[gameIndex].slots[0].score;
-          const scoreRight = scores[gameIndex].slots[1].score;
-          say(`${scoreLeft} - ${scoreRight} (BO${bestOf})`);
-        }),
-        createBotCommand('set', (params, { say }) => {
-          if (!playingSet) {
-            return;
-          }
-          if (!playingSet.context?.startgg) {
-            say('unknown');
-            return;
-          }
-
-          const tournamentName = playingSet.context.startgg.tournament.name;
-          const eventName = playingSet.context.startgg.event.name;
-          const phaseName = playingSet.context.startgg.phase.name;
-          const phaseGroupName = playingSet.context.startgg.phaseGroup.name;
-          const bracketContext = `${tournamentName} ${eventName}, ${phaseName} (pool ${phaseGroupName})`;
-
-          const { fullRoundText, round } = playingSet.context.startgg.set;
-          const { bestOf, scores } = playingSet.context;
-          const fullRoundInfo = `${fullRoundText} (BO${bestOf})`;
-          const separator = round > 0 ? '🟩' : '🟥';
-
-          const { slots } = scores[gameIndex];
-          const leftPrefixes = slots[0].prefixes;
-          const leftNames = slots[0].displayNames;
-          const leftPronouns = slots[0].pronouns;
-          const leftFullNames: string[] = [];
-          for (let i = 0; i < leftPrefixes.length; i += 1) {
-            let fullName = '';
-            if (leftPrefixes[i]) {
-              fullName += `${leftPrefixes[i]} | `;
-            }
-            fullName += leftNames[i];
-            if (leftPronouns[i]) {
-              fullName += ` (${leftPronouns[i]})`;
-            }
-            leftFullNames.push(fullName);
-          }
-          const rightPrefixes = slots[1].prefixes;
-          const rightNames = slots[1].displayNames;
-          const rightPronouns = slots[1].pronouns;
-          const rightFullNames: string[] = [];
-          for (let i = 0; i < rightPrefixes.length; i += 1) {
-            let fullName = '';
-            if (rightPrefixes[i]) {
-              fullName += `${rightPrefixes[i]} | `;
-            }
-            fullName += rightNames[i];
-            if (rightPronouns[i]) {
-              fullName += ` (${rightPronouns[i]})`;
-            }
-            rightFullNames.push(fullName);
-          }
-          const versus = `${leftFullNames.join(', ')} vs ${rightFullNames.join(
-            ', ',
-          )}`;
-
-          say(
-            `${bracketContext} ${separator} ${fullRoundInfo} ${separator} ${versus}`,
           );
         }),
       ],

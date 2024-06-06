@@ -126,23 +126,6 @@ function Hello() {
           gotSettings={gotSettings}
         />
         <Button
-          disabled={dolphinOpen || dolphinOpening}
-          endIcon={
-            dolphinOpening ? <CircularProgress size="24px" /> : <WebAsset />
-          }
-          onClick={async () => {
-            setDolphinOpening(true);
-            try {
-              await window.electron.openDolphin();
-            } catch (e: any) {
-              setDolphinOpening(false);
-            }
-          }}
-          variant="contained"
-        >
-          {dolphinOpen ? 'Dolphin Open' : 'Open Dolphin'}
-        </Button>
-        <Button
           disabled={!dolphinPath || !isoPath || !watchDir}
           endIcon={watching ? <StopCircle /> : <PlayCircle />}
           onClick={async () => {

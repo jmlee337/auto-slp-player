@@ -385,16 +385,6 @@ export default async function setupIPCs(
       mainWindow.webContents.send('dolphin', true);
     });
   };
-  ipcMain.removeHandler('openDolphin');
-  ipcMain.handle('openDolphin', () => {
-    if (dolphin) {
-      mainWindow.webContents.send('dolphin', true);
-      return;
-    }
-
-    newDolphin();
-    dolphin!.open();
-  });
   ipcMain.removeHandler('watch');
   ipcMain.handle('watch', async (event: IpcMainInvokeEvent, start: boolean) => {
     if (start) {

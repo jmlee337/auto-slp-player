@@ -284,7 +284,7 @@ export default function Settings({
                   }}
                 />
               }
-              label="Use Twitch Bot"
+              label="Twitch Integration"
             />
             {twitchSettings.enabled && (
               <>

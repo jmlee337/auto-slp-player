@@ -31,12 +31,6 @@ const electronHandler = {
   getVersion: (): Promise<string> => ipcRenderer.invoke('getVersion'),
   getLatestVersion: (): Promise<string> =>
     ipcRenderer.invoke('getLatestVersion'),
-  onDolphin: (
-    callback: (event: IpcRendererEvent, dolphinOpen: boolean) => void,
-  ) => {
-    ipcRenderer.removeAllListeners('dolphin');
-    ipcRenderer.on('dolphin', callback);
-  },
   onPlaying: (
     callback: (event: IpcRendererEvent, renderSets: RenderSet[]) => void,
   ) => {

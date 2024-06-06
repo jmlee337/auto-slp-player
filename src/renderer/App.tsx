@@ -63,17 +63,9 @@ function Hello() {
 
   const [watchDir, setWatchDir] = useState('');
   const [watching, setWatching] = useState(false);
-  const [dolphinOpen, setDolphinOpen] = useState(false);
-  const [dolphinOpening, setDolphinOpening] = useState(false);
   const [queuedSetDirName, setQueuedSetDirName] = useState('');
   const [renderSets, setRenderSets] = useState<RenderSet[]>([]);
   useEffect(() => {
-    window.electron.onDolphin(
-      (event: IpcRendererEvent, newDolphinOpen: boolean) => {
-        setDolphinOpen(newDolphinOpen);
-        setDolphinOpening(false);
-      },
-    );
     window.electron.onPlaying(
       (event: IpcRendererEvent, newRenderSets: RenderSet[]) => {
         setQueuedSetDirName('');

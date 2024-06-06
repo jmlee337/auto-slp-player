@@ -333,7 +333,6 @@ export default async function setupIPCs(
       if (dolphin) {
         dolphin.removeAllListeners();
         dolphin = null;
-        mainWindow.webContents.send('dolphin', false);
       }
     });
     dolphin.on(DolphinEvent.PLAYING, (newGameIndex: number) => {
@@ -380,9 +379,6 @@ export default async function setupIPCs(
       if (dolphin) {
         dolphin.close();
       }
-    });
-    dolphin.on(DolphinEvent.START_READY, () => {
-      mainWindow.webContents.send('dolphin', true);
     });
   };
   ipcMain.removeHandler('watch');

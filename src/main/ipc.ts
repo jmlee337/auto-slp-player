@@ -260,10 +260,11 @@ export default async function setupIPCs(
     return writeFile(overlayPath, JSON.stringify(overlayContext));
   };
   const dolphins: Map<number, Dolphin> = new Map();
+  const failedPorts = new Set<number>();
   const getNextPort = () => {
     let tryPort = Ports.DEFAULT;
     const usedPorts = Array.from(dolphins.keys());
-    while (usedPorts.includes(tryPort)) {
+    while (failedPorts.has(tryPort) || usedPorts.includes(tryPort)) {
       tryPort += 1;
     }
     return tryPort;
@@ -362,6 +363,7 @@ export default async function setupIPCs(
       dolphins.get(port)?.close();
     });
     newDolphin.on(DolphinEvent.START_FAILED, () => {
+      failedPorts.add(port);
       dolphins.get(port)?.close();
     });
   };

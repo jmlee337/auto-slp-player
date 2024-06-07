@@ -48,7 +48,6 @@ export default async function setupIPCs(
         clientId: '',
         clientSecret: '',
       };
-  let nextPort = Ports.DEFAULT;
 
   ipcMain.removeHandler('getDolphinPath');
   ipcMain.handle('getDolphinPath', (): string => dolphinPath);
@@ -261,6 +260,14 @@ export default async function setupIPCs(
     return writeFile(overlayPath, JSON.stringify(overlayContext));
   };
   const dolphins: Map<number, Dolphin> = new Map();
+  const getNextPort = () => {
+    let tryPort = Ports.DEFAULT;
+    const usedPorts = Array.from(dolphins.keys());
+    while (usedPorts.includes(tryPort)) {
+      tryPort += 1;
+    }
+    return tryPort;
+  };
   let startDolphin: (port: number) => void;
   const playDolphin = (port: number, set: AvailableSet) => {
     startDolphin(port);
@@ -427,9 +434,7 @@ export default async function setupIPCs(
             canPlay &&
             isNext
           ) {
-            const port = nextPort;
-            nextPort += 1;
-            playDolphin(port, newSet);
+            playDolphin(getNextPort(), newSet);
           } else {
             if (isNext) {
               queuedSet = newSet;
@@ -478,9 +483,7 @@ export default async function setupIPCs(
     }
 
     if (playingSets.size === 0) {
-      const port = nextPort;
-      nextPort += 1;
-      playDolphin(port, setToPlay);
+      playDolphin(getNextPort(), setToPlay);
     }
     if (playingSets.size === 1) {
       const [port, playingSet] = Array.from(playingSets.entries())[0];

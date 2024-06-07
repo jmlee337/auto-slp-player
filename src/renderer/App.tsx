@@ -21,7 +21,6 @@ import {
   StopCircle,
   SubdirectoryArrowRight,
   Visibility,
-  WebAsset,
 } from '@mui/icons-material';
 import { IpcRendererEvent } from 'electron';
 import { RenderSet, TwitchSettings } from '../common/types';
@@ -67,13 +66,22 @@ function Hello() {
   const [renderSets, setRenderSets] = useState<RenderSet[]>([]);
   useEffect(() => {
     window.electron.onPlaying(
-      (event: IpcRendererEvent, newRenderSets: RenderSet[]) => {
-        setQueuedSetDirName('');
+      (
+        event: IpcRendererEvent,
+        newRenderSets: RenderSet[],
+        newQueuedSetDirName: string,
+      ) => {
+        setQueuedSetDirName(newQueuedSetDirName);
         setRenderSets(newRenderSets);
       },
     );
     window.electron.onUnzip(
-      (event: IpcRendererEvent, newRenderSets: RenderSet[]) => {
+      (
+        event: IpcRendererEvent,
+        newRenderSets: RenderSet[],
+        newQueuedSetDirName: string,
+      ) => {
+        setQueuedSetDirName(newQueuedSetDirName);
         setRenderSets(newRenderSets);
       },
     );

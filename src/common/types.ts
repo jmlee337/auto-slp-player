@@ -110,6 +110,7 @@ export type RenderSet = {
 export type DolphinComm = {
   mode: 'queue';
   commandId: string;
+  gameStation: string;
   queue: { path: string }[];
 };
 
@@ -122,11 +123,7 @@ export type TwitchSettings = {
   refreshToken: string;
 };
 
-export type OverlayContext = {
-  tournamentName: string;
-  eventName: string;
-  phaseName: string;
-  roundName: string;
+export type OverlaySet = {
   bestOf: number;
   leftPrefixes: string[];
   leftNames: string[];
@@ -136,6 +133,14 @@ export type OverlayContext = {
   rightNames: string[];
   rightPronouns: string[];
   rightScore: number;
+};
+
+export type OverlayContext = {
+  tournamentName: string;
+  eventName: string;
+  phaseName: string;
+  roundName: string;
+  sets: OverlaySet[];
   upcoming: { leftNames: string[]; rightNames: string[] }[];
   upcomingRoundName: string;
 };

@@ -32,13 +32,21 @@ const electronHandler = {
   getLatestVersion: (): Promise<string> =>
     ipcRenderer.invoke('getLatestVersion'),
   onPlaying: (
-    callback: (event: IpcRendererEvent, renderSets: RenderSet[]) => void,
+    callback: (
+      event: IpcRendererEvent,
+      renderSets: RenderSet[],
+      queuedSetDirName: string,
+    ) => void,
   ) => {
     ipcRenderer.removeAllListeners('playing');
     ipcRenderer.on('playing', callback);
   },
   onUnzip: (
-    callback: (event: IpcRendererEvent, renderSets: RenderSet[]) => void,
+    callback: (
+      event: IpcRendererEvent,
+      renderSets: RenderSet[],
+      queuedSetDirName: string,
+    ) => void,
   ) => {
     ipcRenderer.removeAllListeners('unzip');
     ipcRenderer.on('unzip', callback);

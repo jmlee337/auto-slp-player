@@ -32,6 +32,9 @@ export default async function setupIPCs(
     ? (store.get('dolphinPath') as string)
     : '';
   let isoPath = store.has('isoPath') ? (store.get('isoPath') as string) : '';
+  let maxDolphins = store.has('maxDolphins')
+    ? (store.get('maxDolphins') as number)
+    : 1;
   let generateOverlay = store.has('generateOverlay')
     ? (store.get('generateOverlay') as boolean)
     : false;
@@ -45,7 +48,6 @@ export default async function setupIPCs(
         clientId: '',
         clientSecret: '',
       };
-  const maxDolphins = 4;
   let nextPort = Ports.DEFAULT;
 
   ipcMain.removeHandler('getDolphinPath');
@@ -84,6 +86,15 @@ export default async function setupIPCs(
     [isoPath] = openDialogRes.filePaths;
     store.set('isoPath', isoPath);
     return isoPath;
+  });
+
+  ipcMain.removeHandler('getMaxDolphins');
+  ipcMain.handle('getMaxDolphins', () => maxDolphins);
+
+  ipcMain.removeHandler('setMaxDolphins');
+  ipcMain.handle('setMaxDolphins', (event, newMaxDolphins: number) => {
+    store.set('maxDolphins', newMaxDolphins);
+    maxDolphins = newMaxDolphins;
   });
 
   let watchDir = '';

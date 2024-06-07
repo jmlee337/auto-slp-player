@@ -1,5 +1,6 @@
 import {
   Alert,
+  Box,
   Button,
   Checkbox,
   CircularProgress,
@@ -11,6 +12,8 @@ import {
   FormControlLabel,
   IconButton,
   InputBase,
+  MenuItem,
+  Select,
   Stack,
   TextField,
   Tooltip,
@@ -129,6 +132,8 @@ export default function Settings({
   setDolphinPath,
   isoPath,
   setIsoPath,
+  maxDolphins,
+  setMaxDolphins,
   generateOverlay,
   setGenerateOverlay,
   twitchSettings,
@@ -141,6 +146,8 @@ export default function Settings({
   setDolphinPath: (dolphinPath: string) => void;
   isoPath: string;
   setIsoPath: (isoPath: string) => void;
+  maxDolphins: number;
+  setMaxDolphins: (maxDolphins: number) => void;
   generateOverlay: boolean;
   setGenerateOverlay: (generateOverlay: boolean) => void;
   twitchSettings: TwitchSettings;
@@ -258,19 +265,48 @@ export default function Settings({
               </IconButton>
             </Tooltip>
           </Stack>
-          <FormControlLabel
-            control={
-              <Checkbox
-                checked={generateOverlay}
-                onChange={async (event) => {
-                  const newGenerateOverlay = event.target.checked;
-                  await window.electron.setGenerateOverlay(newGenerateOverlay);
-                  setGenerateOverlay(newGenerateOverlay);
-                }}
-              />
-            }
-            label="Generate Overlay"
-          />
+          <Box>
+            <FormControlLabel
+              control={
+                <Select
+                  value={maxDolphins}
+                  onChange={async (event) => {
+                    const newMaxDolphins = event.target.value;
+                    if (Number.isInteger(newMaxDolphins)) {
+                      await window.electron.setMaxDolphins(
+                        newMaxDolphins as number,
+                      );
+                      setMaxDolphins(newMaxDolphins as number);
+                    }
+                  }}
+                  size="small"
+                >
+                  <MenuItem value={1}>1</MenuItem>
+                  <MenuItem value={2}>2</MenuItem>
+                  <MenuItem value={3}>3</MenuItem>
+                  <MenuItem value={4}>4</MenuItem>
+                </Select>
+              }
+              label="Max Dolphins"
+            />
+          </Box>
+          <Box>
+            <FormControlLabel
+              control={
+                <Checkbox
+                  checked={generateOverlay}
+                  onChange={async (event) => {
+                    const newGenerateOverlay = event.target.checked;
+                    await window.electron.setGenerateOverlay(
+                      newGenerateOverlay,
+                    );
+                    setGenerateOverlay(newGenerateOverlay);
+                  }}
+                />
+              }
+              label="Generate Overlay"
+            />
+          </Box>
           <Stack>
             <FormControlLabel
               control={

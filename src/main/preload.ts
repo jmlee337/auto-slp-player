@@ -7,6 +7,9 @@ const electronHandler = {
     ipcRenderer.invoke('chooseDolphinPath'),
   getIsoPath: (): Promise<string> => ipcRenderer.invoke('getIsoPath'),
   chooseIsoPath: (): Promise<string> => ipcRenderer.invoke('chooseIsoPath'),
+  getMaxDolphins: (): Promise<number> => ipcRenderer.invoke('getMaxDolphins'),
+  setMaxDolphins: (maxDolphins: number): Promise<void> =>
+    ipcRenderer.invoke('setMaxDolphins', maxDolphins),
   chooseWatchDir: (): Promise<string> => ipcRenderer.invoke('chooseWatchDir'),
   watch: (start: boolean): Promise<void> => ipcRenderer.invoke('watch', start),
   play: (dirName: string): Promise<void> => ipcRenderer.invoke('play', dirName),

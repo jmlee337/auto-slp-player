@@ -156,12 +156,15 @@ function Hello() {
                 checked={!renderSet.played}
                 disableRipple
                 onClick={async () => {
-                  setRenderSets(
-                    await window.electron.markPlayed(
-                      renderSet.dirName,
-                      !renderSet.played,
-                    ),
+                  const {
+                    renderSets: newRenderSets,
+                    queuedSetDirName: newQueuedSetDirName,
+                  } = await window.electron.markPlayed(
+                    renderSet.dirName,
+                    !renderSet.played,
                   );
+                  setRenderSets(newRenderSets);
+                  setQueuedSetDirName(newQueuedSetDirName);
                 }}
               />
               {renderSet.context ? (

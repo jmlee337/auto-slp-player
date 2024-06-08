@@ -521,8 +521,23 @@ export default async function setupIPCs(
       set.playedMs = played ? Date.now() : 0;
       dirNameToPlayedMs.set(set.dirName, set.playedMs);
       sortAvailableSets();
+      for (let i = availableSets.length - 2; i >= 0; i -= 1) {
+        if (availableSets[i].playing) {
+          queuedSet = null;
+          for (let j = i + 1; j < availableSets.length; j += 1) {
+            if (availableSets[j].playedMs === 0) {
+              queuedSet = availableSets[j];
+              break;
+            }
+          }
+          break;
+        }
+      }
       writeOverlayJson();
-      return availableSets.map(toRenderSet);
+      return {
+        renderSets: availableSets.map(toRenderSet),
+        queuedSetDirName: queuedSet ? queuedSet.dirName : '',
+      };
     },
   );
 

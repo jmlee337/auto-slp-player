@@ -15,7 +15,10 @@ const electronHandler = {
   play: (dirName: string): Promise<void> => ipcRenderer.invoke('play', dirName),
   queue: (dirName: string): Promise<void> =>
     ipcRenderer.invoke('queue', dirName),
-  markPlayed: (dirName: string, played: boolean): Promise<RenderSet[]> =>
+  markPlayed: (
+    dirName: string,
+    played: boolean,
+  ): Promise<{ renderSets: RenderSet[]; queuedSetDirName: string }> =>
     ipcRenderer.invoke('markPlayed', dirName, played),
   getGenerateOverlay: (): Promise<boolean> =>
     ipcRenderer.invoke('getGenerateOverlay'),

@@ -280,6 +280,16 @@ export default async function setupIPCs(
     let actualPort = 0;
     if (!port) {
       let startedDolphin = false;
+      if (dolphins.size > playingSets.size) {
+        const usableDolphins = new Set(dolphins.keys());
+        Array.from(playingSets.keys()).forEach((usedPort) => {
+          usableDolphins.delete(usedPort);
+        });
+        [actualPort] = Array.from(usableDolphins.values()).sort(
+          (a, b) => a - b,
+        );
+        startedDolphin = true;
+      }
       while (!startedDolphin) {
         try {
           actualPort = getNextPort();
@@ -358,26 +368,36 @@ export default async function setupIPCs(
       gameIndices.set(port, newGameIndex);
       writeOverlayJson();
     });
-    newDolphin.on(DolphinEvent.ENDED, () => {
+    newDolphin.on(DolphinEvent.ENDED, async () => {
       const playingSet = playingSets.get(port);
       if (playingSet) {
         playingSet.playing = false;
         if (queuedSet) {
-          if (dolphins.size === 1) {
-            playDolphin(queuedSet, port);
+          const currentRound = playingSet.context?.startgg?.set.round;
+          const nextRound = queuedSet.context?.startgg?.set.round;
+          if (playingSets.size === 1) {
+            playingSets.delete(port);
+            do {
+              // eslint-disable-next-line no-await-in-loop
+              await playDolphin(queuedSet);
+            } while (
+              playingSets.size + tryingPorts.size < maxDolphins &&
+              nextRound === queuedSet.context?.startgg?.set.round
+            );
             return;
           }
-          const round = playingSet.context?.startgg?.set.round;
-          if (
-            round === undefined ||
-            round === queuedSet.context?.startgg?.set.round
-          ) {
+          if (currentRound === nextRound) {
             playDolphin(queuedSet, port);
             return;
           }
         }
       }
-      dolphins.get(port)?.close();
+      playingSets.delete(port);
+      mainWindow.webContents.send(
+        'playing',
+        availableSets.map(toRenderSet),
+        queuedSet ? queuedSet.dirName : '',
+      );
     });
     return new Promise<void>((resolve, reject) => {
       newDolphin.on(DolphinEvent.START_FAILED, (connectFailed: boolean) => {
@@ -460,7 +480,7 @@ export default async function setupIPCs(
           };
           checkCanPlayIsNext();
           if (
-            dolphins.size + tryingPorts.size < maxDolphins &&
+            playingSets.size + tryingPorts.size < maxDolphins &&
             newSet.playedMs === 0 &&
             canPlay &&
             isNext

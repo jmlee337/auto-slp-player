@@ -142,7 +142,7 @@ export class Dolphin extends EventEmitter {
     });
   }
 
-  public async open(replayPaths: string[] = []) {
+  public async open() {
     if (this.process) {
       return;
     }
@@ -169,9 +169,8 @@ export class Dolphin extends EventEmitter {
       try {
         await this.connectToDolphin();
         this.emit(DolphinEvent.START_READY);
-        await this.writeComm(replayPaths);
       } catch (e: any) {
-        this.emit(DolphinEvent.START_FAILED);
+        this.emit(DolphinEvent.START_FAILED, this.process !== null);
       }
     });
     this.process.on('close', (code) => {
@@ -183,11 +182,11 @@ export class Dolphin extends EventEmitter {
   }
 
   public async play(replayPaths: string[]) {
-    if (this.process) {
-      this.writeComm(replayPaths);
-      return;
+    if (!this.process) {
+      throw new Error('dolphin not open');
     }
-    await this.open(replayPaths);
+
+    return this.writeComm(replayPaths);
   }
 
   public close() {

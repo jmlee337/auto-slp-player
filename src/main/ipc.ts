@@ -261,21 +261,44 @@ export default async function setupIPCs(
   };
   const dolphins: Map<number, Dolphin> = new Map();
   const failedPorts = new Set<number>();
+  const tryingPorts = new Set<number>();
   const getNextPort = () => {
     let tryPort = Ports.DEFAULT;
-    const usedPorts = Array.from(dolphins.keys());
-    while (failedPorts.has(tryPort) || usedPorts.includes(tryPort)) {
+    const usedPorts = new Set(dolphins.keys());
+    while (
+      failedPorts.has(tryPort) ||
+      tryingPorts.has(tryPort) ||
+      usedPorts.has(tryPort)
+    ) {
       tryPort += 1;
     }
+    tryingPorts.add(tryPort);
     return tryPort;
   };
-  let startDolphin: (port: number) => void;
-  const playDolphin = (port: number, set: AvailableSet) => {
-    startDolphin(port);
-    const dolphin = dolphins.get(port);
+  let startDolphin: (port: number) => Promise<void>;
+  const playDolphin = async (set: AvailableSet, port?: number) => {
+    let actualPort = 0;
+    if (!port) {
+      let startedDolphin = false;
+      while (!startedDolphin) {
+        try {
+          actualPort = getNextPort();
+          startedDolphin = true;
+          // eslint-disable-next-line no-await-in-loop
+          await startDolphin(actualPort);
+        } catch (e: any) {
+          startedDolphin = false;
+        }
+      }
+    } else {
+      actualPort = port;
+    }
+    if (actualPort === 0) {
+      throw new Error('actualPort 0 somehow???');
+    }
 
-    gameIndices.set(port, 0);
-    playingSets.set(port, set);
+    gameIndices.set(actualPort, 0);
+    playingSets.set(actualPort, set);
     set.playedMs = Date.now();
     set.playing = true;
     dirNameToPlayedMs.set(set.dirName, set.playedMs);
@@ -299,34 +322,28 @@ export default async function setupIPCs(
     );
     sortAvailableSets();
 
-    dolphin!
-      .play(set.replayPaths)
-      .then(() => {
-        return mainWindow.webContents.send(
-          'playing',
-          availableSets.map(toRenderSet),
-          queuedSet ? queuedSet.dirName : '',
-        );
-      })
-      .catch(() => {});
+    await dolphins.get(actualPort)!.play(set.replayPaths);
+    mainWindow.webContents.send(
+      'playing',
+      availableSets.map(toRenderSet),
+      queuedSet ? queuedSet.dirName : '',
+    );
   };
-  startDolphin = (port: number) => {
+  startDolphin = async (port: number) => {
     if (dolphins.get(port)) {
-      return;
+      return Promise.resolve();
     }
 
     const newDolphin = new Dolphin(dolphinPath, isoPath, tempDir, port);
-    dolphins.set(port, newDolphin);
-
     newDolphin.on(DolphinEvent.CLOSE, () => {
       const playingSet = playingSets.get(port);
       if (playingSet) {
         playingSet.playing = false;
       }
 
+      newDolphin.removeAllListeners();
       gameIndices.delete(port);
       playingSets.delete(port);
-      dolphins.get(port)?.removeAllListeners();
       dolphins.delete(port);
       if (dolphins.size === 0) {
         queuedSet = null;
@@ -347,7 +364,7 @@ export default async function setupIPCs(
         playingSet.playing = false;
         if (queuedSet) {
           if (dolphins.size === 1) {
-            playDolphin(port, queuedSet);
+            playDolphin(queuedSet, port);
             return;
           }
           const round = playingSet.context?.startgg?.set.round;
@@ -355,16 +372,28 @@ export default async function setupIPCs(
             round === undefined ||
             round === queuedSet.context?.startgg?.set.round
           ) {
-            playDolphin(port, queuedSet);
+            playDolphin(queuedSet, port);
             return;
           }
         }
       }
       dolphins.get(port)?.close();
     });
-    newDolphin.on(DolphinEvent.START_FAILED, () => {
-      failedPorts.add(port);
-      dolphins.get(port)?.close();
+    return new Promise<void>((resolve, reject) => {
+      newDolphin.on(DolphinEvent.START_FAILED, (connectFailed: boolean) => {
+        if (connectFailed) {
+          failedPorts.add(port);
+        }
+        newDolphin.close();
+        tryingPorts.delete(port);
+        reject();
+      });
+      newDolphin.on(DolphinEvent.START_READY, () => {
+        dolphins.set(port, newDolphin);
+        tryingPorts.delete(port);
+        resolve();
+      });
+      newDolphin.open();
     });
   };
   ipcMain.removeHandler('watch');
@@ -431,12 +460,12 @@ export default async function setupIPCs(
           };
           checkCanPlayIsNext();
           if (
-            playingSets.size < maxDolphins &&
+            dolphins.size + tryingPorts.size < maxDolphins &&
             newSet.playedMs === 0 &&
             canPlay &&
             isNext
           ) {
-            playDolphin(getNextPort(), newSet);
+            await playDolphin(newSet);
           } else {
             if (isNext) {
               queuedSet = newSet;
@@ -478,19 +507,19 @@ export default async function setupIPCs(
   );
 
   ipcMain.removeHandler('play');
-  ipcMain.handle('play', (event: IpcMainInvokeEvent, dirName: string) => {
+  ipcMain.handle('play', async (event: IpcMainInvokeEvent, dirName: string) => {
     const setToPlay = availableSets.find((set) => set.dirName === dirName);
     if (!setToPlay) {
       throw new Error(`no such set to play: ${dirName}`);
     }
 
     if (playingSets.size === 0) {
-      playDolphin(getNextPort(), setToPlay);
+      await playDolphin(setToPlay);
     }
     if (playingSets.size === 1) {
       const [port, playingSet] = Array.from(playingSets.entries())[0];
       playingSet.playing = false;
-      playDolphin(port, setToPlay);
+      playDolphin(setToPlay, port);
     }
   });
 

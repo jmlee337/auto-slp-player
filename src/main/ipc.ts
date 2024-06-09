@@ -526,9 +526,7 @@ export default async function setupIPCs(
             );
           }
         } catch (e: any) {
-          if (e instanceof Error) {
-            console.log(e.message);
-          }
+          /* empty */
         }
       });
     } else if (watcher) {

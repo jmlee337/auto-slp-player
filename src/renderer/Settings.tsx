@@ -317,19 +317,37 @@ export default function Settings({
             />
           </Box>
           <Stack>
-            <FormControlLabel
-              control={
-                <Checkbox
-                  checked={obsConnectionEnabled}
-                  onChange={async (event) => {
-                    const newEnabled = event.target.checked;
-                    await window.electron.setObsConnectionEnabled(newEnabled);
-                    setObsConnectionEnabled(newEnabled);
-                  }}
-                />
-              }
-              label="OBS Connection Enabled"
-            />
+            <Stack
+              alignItems="center"
+              direction="row"
+              marginLeft="-11px"
+              spacing="8px"
+            >
+              <FormControlLabel
+                control={
+                  <Checkbox
+                    checked={obsConnectionEnabled}
+                    onChange={async (event) => {
+                      const newEnabled = event.target.checked;
+                      await window.electron.setObsConnectionEnabled(newEnabled);
+                      setObsConnectionEnabled(newEnabled);
+                    }}
+                  />
+                }
+                label="OBS Connection Enabled"
+              />
+              <DialogContentText>
+                (Scene/Source setup info{' '}
+                <a
+                  href="https://github.com/jmlee337/auto-slp-player/blob/main/src/docs/obs.md"
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  here
+                </a>
+                )
+              </DialogContentText>
+            </Stack>
             {obsConnectionEnabled && (
               <Stack direction="row" spacing="8px">
                 <Select

@@ -11,6 +11,7 @@ const electronHandler = {
   setMaxDolphins: (maxDolphins: number): Promise<void> =>
     ipcRenderer.invoke('setMaxDolphins', maxDolphins),
   chooseWatchDir: (): Promise<string> => ipcRenderer.invoke('chooseWatchDir'),
+  openDolphins: (): Promise<void> => ipcRenderer.invoke('openDolphins'),
   watch: (start: boolean): Promise<void> => ipcRenderer.invoke('watch', start),
   play: (dirName: string): Promise<void> => ipcRenderer.invoke('play', dirName),
   queue: (dirName: string): Promise<void> =>
@@ -37,6 +38,12 @@ const electronHandler = {
   getVersion: (): Promise<string> => ipcRenderer.invoke('getVersion'),
   getLatestVersion: (): Promise<string> =>
     ipcRenderer.invoke('getLatestVersion'),
+  onDolphins: (
+    callback: (event: IpcRendererEvent, numDolphins: number) => void,
+  ) => {
+    ipcRenderer.removeAllListeners('dolphins');
+    ipcRenderer.on('dolphins', callback);
+  },
   onPlaying: (
     callback: (
       event: IpcRendererEvent,

@@ -276,10 +276,27 @@ export default async function setupIPCs(
     return tryPort;
   };
   let startDolphin: (port: number) => Promise<void>;
+  const startDolphinWithoutPort = async () => {
+    let actualPort = 0;
+    let startedDolphin = false;
+    while (!startedDolphin) {
+      try {
+        actualPort = getNextPort();
+        startedDolphin = true;
+        // eslint-disable-next-line no-await-in-loop
+        await startDolphin(actualPort);
+      } catch (e: any) {
+        startedDolphin = false;
+      }
+    }
+    if (actualPort === 0) {
+      throw new Error('actualPort 0 somehow???');
+    }
+    return actualPort;
+  };
   const playDolphin = async (set: AvailableSet, port?: number) => {
     let actualPort = 0;
     if (!port) {
-      let startedDolphin = false;
       if (dolphins.size > playingSets.size) {
         const usableDolphins = new Set(dolphins.keys());
         Array.from(playingSets.keys()).forEach((usedPort) => {
@@ -288,17 +305,8 @@ export default async function setupIPCs(
         [actualPort] = Array.from(usableDolphins.values()).sort(
           (a, b) => a - b,
         );
-        startedDolphin = true;
-      }
-      while (!startedDolphin) {
-        try {
-          actualPort = getNextPort();
-          startedDolphin = true;
-          // eslint-disable-next-line no-await-in-loop
-          await startDolphin(actualPort);
-        } catch (e: any) {
-          startedDolphin = false;
-        }
+      } else {
+        actualPort = await startDolphinWithoutPort();
       }
     } else {
       actualPort = port;
@@ -358,6 +366,7 @@ export default async function setupIPCs(
       if (dolphins.size === 0) {
         queuedSet = null;
       }
+      mainWindow.webContents.send('dolphins', dolphins.size);
       mainWindow.webContents.send(
         'playing',
         availableSets.map(toRenderSet),
@@ -411,11 +420,28 @@ export default async function setupIPCs(
       newDolphin.on(DolphinEvent.START_READY, () => {
         dolphins.set(port, newDolphin);
         tryingPorts.delete(port);
+        mainWindow.webContents.send('dolphins', dolphins.size);
         resolve();
       });
       newDolphin.open();
     });
   };
+  ipcMain.removeHandler('openDolphins');
+  ipcMain.handle('openDolphins', async () => {
+    const toOpen = maxDolphins - dolphins.size - tryingPorts.size;
+    for (let i = 0; i < toOpen; i += 1) {
+      // eslint-disable-next-line no-await-in-loop
+      const port = await startDolphinWithoutPort();
+      if (
+        playingSets.size > 0 &&
+        queuedSet &&
+        queuedSet.context?.startgg?.set.round ===
+          Array.from(playingSets.values())[0].context?.startgg?.set.round
+      ) {
+        playDolphin(queuedSet, port);
+      }
+    }
+  });
   ipcMain.removeHandler('watch');
   ipcMain.handle('watch', async (event: IpcMainInvokeEvent, start: boolean) => {
     if (start) {
@@ -457,10 +483,9 @@ export default async function setupIPCs(
           const checkCanPlayIsNext = () => {
             for (let i = availableSets.length - 2; i >= 0; i -= 1) {
               if (availableSets[i].playing) {
-                const round = availableSets[i].context?.startgg?.set.round;
                 if (
-                  round === undefined ||
-                  round === newSet.context?.startgg?.set.round
+                  availableSets[i].context?.startgg?.set.round ===
+                  newSet.context?.startgg?.set.round
                 ) {
                   canPlay = true;
                 }

@@ -147,6 +147,7 @@ export class Dolphin extends EventEmitter {
       return;
     }
 
+    await this.writeComm([]);
     const params = [
       '-b',
       '-e',

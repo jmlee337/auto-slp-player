@@ -21,6 +21,7 @@ import {
   StopCircle,
   SubdirectoryArrowRight,
   Visibility,
+  WebAsset,
 } from '@mui/icons-material';
 import { IpcRendererEvent } from 'electron';
 import { RenderSet, TwitchSettings } from '../common/types';
@@ -65,9 +66,16 @@ function Hello() {
 
   const [watchDir, setWatchDir] = useState('');
   const [watching, setWatching] = useState(false);
+  const [numDolphins, setNumDolphins] = useState(0);
+  const [dolphinsOpening, setDolphinsOpening] = useState(false);
   const [queuedSetDirName, setQueuedSetDirName] = useState('');
   const [renderSets, setRenderSets] = useState<RenderSet[]>([]);
   useEffect(() => {
+    window.electron.onDolphins(
+      (event: IpcRendererEvent, newNumDolphins: number) => {
+        setNumDolphins(newNumDolphins);
+      },
+    );
     window.electron.onPlaying(
       (
         event: IpcRendererEvent,
@@ -130,6 +138,24 @@ function Hello() {
           latestAppVersion={latestAppVersion}
           gotSettings={gotSettings}
         />
+        <Button
+          disabled={numDolphins === maxDolphins || dolphinsOpening}
+          endIcon={
+            dolphinsOpening ? <CircularProgress size="24px" /> : <WebAsset />
+          }
+          onClick={async () => {
+            setDolphinsOpening(true);
+            try {
+              await window.electron.openDolphins();
+            } finally {
+              setDolphinsOpening(false);
+            }
+          }}
+          variant="contained"
+        >
+          {numDolphins === maxDolphins ? 'Dolphins Open' : 'Open Dolphins'}{' '}
+          {`(${numDolphins})`}
+        </Button>
         <Button
           disabled={!dolphinPath || !isoPath || !watchDir}
           endIcon={watching ? <StopCircle /> : <PlayCircle />}

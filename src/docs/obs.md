@@ -3,7 +3,7 @@ Use mode "Capture specific window" for dolphin sources and pre-assign dolphin wi
 You can open dolphins with the "Open Dolphins" button in Auto SLP Player.
 Arrange your dolphin windows as follows:
 
-![Screenshot 2024-06-09 134932](https://github.com/jmlee337/auto-slp-player/assets/3300257/a1fbcb3e-a427-4946-adec-0b18480968af)
-![Screenshot 2024-06-09 134936](https://github.com/jmlee337/auto-slp-player/assets/3300257/a36db2f5-5876-46a4-8b34-ec703e564bcd)
-![Screenshot 2024-06-09 134939](https://github.com/jmlee337/auto-slp-player/assets/3300257/43bab7fc-f6c7-4123-ad06-b9d9e8d0cf30)
-![Screenshot 2024-06-09 134943](https://github.com/jmlee337/auto-slp-player/assets/3300257/2d008007-a1e2-46b4-968d-70ea76c685be)
+![Screenshot 2024-06-09 135313](https://github.com/jmlee337/auto-slp-player/assets/3300257/6cbacd67-41d9-4f4b-ab8e-0ab51317ff3a)
+![Screenshot 2024-06-09 135317](https://github.com/jmlee337/auto-slp-player/assets/3300257/2589a2d8-add1-4e5e-a470-e94d1c561f8f)
+![Screenshot 2024-06-09 135323](https://github.com/jmlee337/auto-slp-player/assets/3300257/911db8a1-747d-49a7-9879-98835e483cd6)
+![Screenshot 2024-06-09 135326](https://github.com/jmlee337/auto-slp-player/assets/3300257/790d3275-8201-4dd7-975b-b352d25710fa)

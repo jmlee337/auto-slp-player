@@ -137,12 +137,15 @@ export default async function setupIPCs(
         if (phaseIdCompare) {
           return phaseIdCompare;
         }
+        const aRound = aStartgg.set.round;
+        const bRound = bStartgg.set.round;
+        if (Math.sign(aRound) === Math.sign(bRound) && aRound !== bRound) {
+          return Math.abs(aRound) - Math.abs(bRound);
+        }
         const roundCompare = earliestForPhaseRound
-          .get(`${aStartgg.phase.id}${aStartgg.set.round}`)!
+          .get(`${aStartgg.phase.id}${aRound}`)!
           .localeCompare(
-            earliestForPhaseRound.get(
-              `${bStartgg.phase.id}${bStartgg.set.round}`,
-            )!,
+            earliestForPhaseRound.get(`${bStartgg.phase.id}${bRound}`)!,
           );
         if (roundCompare) {
           return roundCompare;

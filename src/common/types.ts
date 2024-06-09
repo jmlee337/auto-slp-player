@@ -144,3 +144,16 @@ export type OverlayContext = {
   upcoming: { leftNames: string[]; rightNames: string[] }[];
   upcomingRoundName: string;
 };
+
+export enum OBSConnectionStatus {
+  OBS_NOT_CONNECTED = 0,
+  OBS_NOT_SETUP = 1,
+  READY = 2,
+}
+
+export type OBSSettings = {
+  protocol: string;
+  address: string;
+  port: string;
+  password: string;
+};

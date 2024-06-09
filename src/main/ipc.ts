@@ -13,15 +13,24 @@ import path from 'path';
 import { RefreshingAuthProvider } from '@twurple/auth';
 import { Bot, createBotCommand } from '@twurple/easy-bot';
 import { Ports } from '@slippi/slippi-js';
+import { spawn } from 'child_process';
 import unzip from './unzip';
 import {
   AvailableSet,
+  OBSSettings,
   OverlayContext,
   OverlaySet,
   TwitchSettings,
 } from '../common/types';
 import { Dolphin, DolphinEvent } from './dolphin';
 import { toRenderSet } from './set';
+import OBSConnection from './obs';
+
+// taken from https://semver.org/#is-there-a-suggested-regular-expression-regex-to-check-a-semver-string
+// via https://github.com/project-slippi/slippi-launcher/blob/ae8bb69e235b6e46b24bc966aeaa80f45030c6f9/src/dolphin/install/ishiiruka_installation.ts#L23-L24
+// ty nikki
+const SEMVER_REGEX =
+  /(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(?:-((?:0|[1-9][0-9]*|[0-9]*[a-zA-Z-][0-9a-zA-Z-]*)(?:\.(?:0|[1-9][0-9]*|[0-9]*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\+([0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?/;
 
 export default async function setupIPCs(
   mainWindow: BrowserWindow,
@@ -48,6 +57,37 @@ export default async function setupIPCs(
         clientId: '',
         clientSecret: '',
       };
+  let obsConnectionEnabled = store.has('obsConnectionEnabled')
+    ? (store.get('obsConnectionEnabled') as boolean)
+    : false;
+  let obsSettings: OBSSettings = store.has('obsSettings')
+    ? (store.get('obsSettings') as OBSSettings)
+    : { protocol: 'ws', address: '127.0.0.1', port: '4455', password: '' };
+
+  const dolphinVersionPromiseFn = (
+    resolve: (value: string) => void,
+    reject: (reason?: any) => void,
+  ) => {
+    const process = spawn(dolphinPath, ['--version']);
+    process.stdout.on('data', (data: Buffer) => {
+      const match = data.toString().match(SEMVER_REGEX);
+      if (match) {
+        resolve(match[0]);
+      }
+    });
+    process.on('close', () => {
+      reject();
+    });
+  };
+  let dolphinVersionPromise = dolphinPath
+    ? new Promise(dolphinVersionPromiseFn)
+    : null;
+
+  const obsConnection = new OBSConnection(mainWindow);
+  obsConnection.setMaxDolphins(maxDolphins);
+  if (dolphinVersionPromise) {
+    obsConnection.setDolphinVersionPromise(dolphinVersionPromise);
+  }
 
   ipcMain.removeHandler('getDolphinPath');
   ipcMain.handle('getDolphinPath', (): string => dolphinPath);
@@ -62,6 +102,8 @@ export default async function setupIPCs(
     }
     [dolphinPath] = openDialogRes.filePaths;
     store.set('dolphinPath', dolphinPath);
+    dolphinVersionPromise = new Promise(dolphinVersionPromiseFn);
+    obsConnection.setDolphinVersionPromise(dolphinVersionPromise);
     return dolphinPath;
   });
 
@@ -94,6 +136,7 @@ export default async function setupIPCs(
   ipcMain.handle('setMaxDolphins', (event, newMaxDolphins: number) => {
     store.set('maxDolphins', newMaxDolphins);
     maxDolphins = newMaxDolphins;
+    obsConnection.setMaxDolphins(maxDolphins);
   });
 
   let watchDir = '';
@@ -445,6 +488,10 @@ export default async function setupIPCs(
       }
     }
   });
+  ipcMain.removeHandler('connectObs');
+  ipcMain.handle('connectObs', async () => {
+    await obsConnection.connect(obsSettings);
+  });
   ipcMain.removeHandler('watch');
   ipcMain.handle('watch', async (event: IpcMainInvokeEvent, start: boolean) => {
     if (start) {
@@ -747,6 +794,33 @@ export default async function setupIPCs(
     },
   );
   maybeStartTwitchBot(twitchSettings);
+
+  ipcMain.removeHandler('getDolphinVersion');
+  ipcMain.handle('getDolphinVersion', async () => dolphinVersionPromise ?? '');
+
+  ipcMain.removeHandler('getObsConnectionEnabled');
+  ipcMain.handle('getObsConnectionEnabled', () => obsConnectionEnabled);
+
+  ipcMain.removeHandler('setObsConnectionEnabled');
+  ipcMain.handle(
+    'setObsConnectionEnabled',
+    (event: IpcMainInvokeEvent, enabled: boolean) => {
+      store.set('obsConnectionEnabled', enabled);
+      obsConnectionEnabled = enabled;
+    },
+  );
+
+  ipcMain.removeHandler('getObsSettings');
+  ipcMain.handle('getObsSettings', () => obsSettings);
+
+  ipcMain.removeHandler('setObsSettings');
+  ipcMain.handle(
+    'setObsSettings',
+    (event: IpcMainInvokeEvent, newObsSettings: OBSSettings) => {
+      store.set('obsSettings', newObsSettings);
+      obsSettings = newObsSettings;
+    },
+  );
 
   ipcMain.removeHandler('openOverlayDir');
   ipcMain.handle('openOverlayDir', () => {

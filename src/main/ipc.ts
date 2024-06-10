@@ -412,6 +412,7 @@ export default async function setupIPCs(
       if (dolphins.size === 0) {
         queuedSet = null;
       }
+      obsConnection.transition(playingSets);
       mainWindow.webContents.send('dolphins', dolphins.size);
       mainWindow.webContents.send(
         'playing',
@@ -436,9 +437,11 @@ export default async function setupIPCs(
               // eslint-disable-next-line no-await-in-loop
               await playDolphin(queuedSet);
             } while (
+              queuedSet &&
               playingSets.size + tryingPorts.size < maxDolphins &&
               nextRound === queuedSet.context?.startgg?.set.round
             );
+            obsConnection.transition(playingSets);
             return;
           }
           if (currentRound === nextRound) {
@@ -448,6 +451,7 @@ export default async function setupIPCs(
         }
       }
       playingSets.delete(port);
+      obsConnection.transition(playingSets);
       mainWindow.webContents.send(
         'playing',
         availableSets.map(toRenderSet),
@@ -474,6 +478,7 @@ export default async function setupIPCs(
   };
   ipcMain.removeHandler('openDolphins');
   ipcMain.handle('openDolphins', async () => {
+    const prevPlayingSize = playingSets.size;
     const toOpen = maxDolphins - dolphins.size - tryingPorts.size;
     for (let i = 0; i < toOpen; i += 1) {
       // eslint-disable-next-line no-await-in-loop
@@ -484,8 +489,12 @@ export default async function setupIPCs(
         queuedSet.context?.startgg?.set.round ===
           Array.from(playingSets.values())[0].context?.startgg?.set.round
       ) {
-        playDolphin(queuedSet, port);
+        // eslint-disable-next-line no-await-in-loop
+        await playDolphin(queuedSet, port);
       }
+    }
+    if (playingSets.size !== prevPlayingSize) {
+      obsConnection.transition(playingSets);
     }
   });
   ipcMain.removeHandler('connectObs');
@@ -561,6 +570,7 @@ export default async function setupIPCs(
             isNext
           ) {
             await playDolphin(newSet);
+            obsConnection.transition(playingSets);
           } else {
             if (isNext) {
               queuedSet = newSet;

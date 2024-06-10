@@ -1,6 +1,10 @@
-import OBSWebSocket from 'obs-websocket-js';
+import OBSWebSocket, { RequestBatchRequest } from 'obs-websocket-js';
 import { BrowserWindow } from 'electron';
-import { OBSConnectionStatus, OBSSettings } from '../common/types';
+import {
+  AvailableSet,
+  OBSConnectionStatus,
+  OBSSettings,
+} from '../common/types';
 
 export default class OBSConnection {
   private dolphinVersionPromise: Promise<string> | null = null;
@@ -13,8 +17,11 @@ export default class OBSConnection {
 
   private obsWebSocket: OBSWebSocket | null = null;
 
+  private windowExecutablePart: string;
+
   constructor(mainWindow: BrowserWindow) {
     this.mainWindow = mainWindow;
+    this.windowExecutablePart = '';
   }
 
   setDolphinVersionPromise(dolphinVersionPromise: Promise<string>) {
@@ -93,17 +100,22 @@ export default class OBSConnection {
             );
             return;
           }
-          if (
-            !(inputSettings.window as string).startsWith(
-              'Faster Melee - Slippi (',
-            )
-          ) {
+          const { window }: { window: string } = inputSettings as {
+            window: string;
+          };
+          if (!window.startsWith('Faster Melee - Slippi (')) {
             this.mainWindow.webContents.send(
               'obsConnectionStatus',
               OBSConnectionStatus.OBS_NOT_SETUP,
               `Game Capture "${sourceName}" window not set to Slippi Dolphin.`,
             );
             return;
+          }
+          if (!this.windowExecutablePart) {
+            const sliceI = window.indexOf(':') + 1;
+            if (sliceI < window.length) {
+              this.windowExecutablePart = window.slice(sliceI);
+            }
           }
         }
       }
@@ -217,5 +229,42 @@ export default class OBSConnection {
 
       await this.checkObsSetup();
     }
+  }
+
+  async transition(playingSets: Map<number, AvailableSet>) {
+    if (!this.obsWebSocket || !this.obsConnected || playingSets.size === 0) {
+      return;
+    }
+    const ports = Array.from(playingSets.keys()).sort((a, b) => a - b);
+
+    if (ports.length > this.maxDolphins) {
+      throw new Error('more playing than max dolphins?');
+    }
+    if (!this.windowExecutablePart) {
+      throw new Error('no window executable part?');
+    }
+    if (!this.dolphinVersionPromise) {
+      throw new Error('no dolphin version promise?');
+    }
+    const dolphinVersion = await this.dolphinVersionPromise;
+
+    const requests: RequestBatchRequest[] = [];
+    requests.push({
+      requestType: 'SetCurrentProgramScene',
+      requestData: { sceneName: `quad ${ports.length}` },
+    });
+    for (let i = 0; i < ports.length; i += 1) {
+      requests.push({
+        requestType: 'SetInputSettings',
+        requestData: {
+          inputName: `dolphin ${i}`,
+          inputSettings: {
+            window: `Faster Melee - Slippi (${dolphinVersion}) - Playback | ${ports[i]}:${this.windowExecutablePart}`,
+          },
+          overlay: true,
+        },
+      });
+    }
+    await this.obsWebSocket.callBatch(requests);
   }
 }

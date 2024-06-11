@@ -452,7 +452,9 @@ export default async function setupIPCs(
         }
       }
       playingSets.delete(port);
-      obsConnection.transition(playingSets);
+      setTimeout(() => {
+        obsConnection.transition(playingSets);
+      }, 1000);
       mainWindow.webContents.send(
         'playing',
         availableSets.map(toRenderSet),

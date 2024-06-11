@@ -29,7 +29,7 @@ export default class OBSConnection {
 
   private portToUuid: Map<number, string>;
 
-  private windowExecutablePart: string;
+  private sceneNameToUuidToSceneItemId: Map<string, Map<string, number>>;
 
   constructor(mainWindow: BrowserWindow) {
     this.mainWindow = mainWindow;
@@ -39,7 +39,7 @@ export default class OBSConnection {
     this.obsConnected = false;
     this.obsWebSocket = null;
     this.portToUuid = new Map();
-    this.windowExecutablePart = '';
+    this.sceneNameToUuidToSceneItemId = new Map();
   }
 
   setDolphinVersionPromise(dolphinVersionPromise: Promise<string>) {
@@ -165,6 +165,7 @@ export default class OBSConnection {
             );
             return;
           }
+          this.sceneNameToUuidToSceneItemId.set(sceneName, uuidToSceneItemId);
         }
       }
     }
@@ -227,6 +228,7 @@ export default class OBSConnection {
           );
           return;
         }
+        this.sceneNameToUuidToSceneItemId.set(sceneName, uuidToSceneItemId);
       }
     }
     const expectedSceneNum = expectedSceneNums.get(this.maxDolphins)!;
@@ -308,37 +310,52 @@ export default class OBSConnection {
   }
 
   async transition(playingSets: Map<number, AvailableSet>) {
-    if (!this.obsWebSocket || !this.obsConnected || playingSets.size === 0) {
+    if (!this.obsWebSocket || !this.obsConnected) {
       return;
     }
     const ports = Array.from(playingSets.keys()).sort((a, b) => a - b);
-
     if (ports.length > this.maxDolphins) {
       throw new Error('more playing than max dolphins?');
     }
-    if (!this.windowExecutablePart) {
-      throw new Error('no window executable part?');
-    }
-    if (!this.dolphinVersionPromise) {
-      throw new Error('no dolphin version promise?');
-    }
-    const dolphinVersion = await this.dolphinVersionPromise;
 
+    let sceneName = `quad ${ports.length}`;
+    const isQuad2SpecialCase = ports.length === 2 && this.maxDolphins > 2;
+    if (isQuad2SpecialCase) {
+      const postfix = ports
+        .map((port) => {
+          const i = this.dolphinPorts.indexOf(port);
+          if (i < 0) {
+            throw new Error('asdf');
+          }
+          return i + 1;
+        })
+        .join('');
+      sceneName += ` ${postfix}`;
+    }
     const requests: RequestBatchRequest[] = [];
     requests.push({
       requestType: 'SetCurrentProgramScene',
-      requestData: { sceneName: `quad ${ports.length}` },
+      requestData: { sceneName },
     });
-    for (let i = 0; i < ports.length; i += 1) {
-      requests.push({
-        requestType: 'SetInputSettings',
-        requestData: {
-          inputName: `dolphin ${i}`,
-          inputSettings: {
-            window: `Faster Melee - Slippi (${dolphinVersion}) - Playback | ${ports[i]}:${this.windowExecutablePart}`,
-          },
-          overlay: true,
-        },
+    if (!isQuad2SpecialCase && ports.length !== 0) {
+      const enabledPorts = new Set(ports);
+      this.dolphinPorts.forEach((port) => {
+        const uuid = this.portToUuid.get(port);
+        if (uuid) {
+          const sceneItemId = this.sceneNameToUuidToSceneItemId
+            .get(sceneName)
+            ?.get(uuid);
+          if (sceneItemId) {
+            requests.push({
+              requestType: 'SetSceneItemEnabled',
+              requestData: {
+                sceneName,
+                sceneItemId,
+                sceneItemEnabled: enabledPorts.has(port),
+              },
+            });
+          }
+        }
       });
     }
     await this.obsWebSocket.callBatch(requests);

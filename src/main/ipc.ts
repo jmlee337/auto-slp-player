@@ -412,6 +412,7 @@ export default async function setupIPCs(
       if (dolphins.size === 0) {
         queuedSet = null;
       }
+      obsConnection.setDolphins(dolphins);
       obsConnection.transition(playingSets);
       mainWindow.webContents.send('dolphins', dolphins.size);
       mainWindow.webContents.send(
@@ -469,6 +470,7 @@ export default async function setupIPCs(
       });
       newDolphin.on(DolphinEvent.START_READY, () => {
         dolphins.set(port, newDolphin);
+        obsConnection.setDolphins(dolphins);
         tryingPorts.delete(port);
         mainWindow.webContents.send('dolphins', dolphins.size);
         resolve();

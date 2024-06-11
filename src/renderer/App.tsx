@@ -228,6 +228,8 @@ function Hello() {
           disabled={
             !dolphinVersion ||
             !obsConnectionEnabled ||
+            (numDolphins < maxDolphins &&
+              obsConnectionStatus === OBSConnectionStatus.OBS_NOT_CONNECTED) ||
             obsConnectionStatus === OBSConnectionStatus.READY
           }
           endIcon={obsButtonIcon}

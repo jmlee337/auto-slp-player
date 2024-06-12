@@ -56,10 +56,37 @@
       </div>
     </div>
     <div class="set set-1">
+      <div class="best-of">BO3</div>
+      <div class="left">
+        <div class="left-full-names">Dojo | Sourdough</div>
+        <div class="left-score">1</div>
+      </div>
+      <div class="right">
+        <div class="right-full-names">DaN</div>
+        <div class="right-score">0</div>
+      </div>
     </div>
     <div class="set set-2">
+      <div class="best-of">BO3</div>
+      <div class="left">
+        <div class="left-full-names">Dojo | Sourdough</div>
+        <div class="left-score">1</div>
+      </div>
+      <div class="right">
+        <div class="right-full-names">DaN</div>
+        <div class="right-score">0</div>
+      </div>
     </div>
     <div class="set set-3">
+      <div class="best-of">BO3</div>
+      <div class="left">
+        <div class="left-full-names">Dojo | Sourdough</div>
+        <div class="left-score">1</div>
+      </div>
+      <div class="right">
+        <div class="right-full-names">DaN</div>
+        <div class="right-score">0</div>
+      </div>
     </div>
     <div class="upcoming">
       <div class="upcoming-title">Next in round:</div>
@@ -94,47 +121,49 @@
           replace('event-phase-name', newContext.eventName && newContext.phaseName ? `${newContext.eventName}, ${newContext.phaseName}` : '');
           replace('round', newContext.roundName);
 
-          const set = newContext.sets.find((set) => set);
-          const setEl = getElementByClassName('set-0');
-          if (!set) {
-            replace('best-of', '', setEl);
-            replace('left-full-names', '', setEl);
-            replace('left-score', '', setEl);
-            replace('right-full-names', '', setEl);
-            replace('right-score', '', setEl)
-          } else {
-            replace('best-of', `BO${set.bestOf}`, setEl);
-            const leftFullNames = [];
-            for (let i = 0; i < set.leftPrefixes.length; i += 1) {
-              let fullName = '';
-              if (set.leftPrefixes[i]) {
-                fullName += `${set.leftPrefixes[i]} | `;
+          for (let i = 0; i < 4; i++) {
+            const setEl = getElementByClassName(`set-${i}`);
+            const set = newContext.sets[i];
+            if (!set) {
+              replace('best-of', '', setEl);
+              replace('left-full-names', '', setEl);
+              replace('left-score', '', setEl);
+              replace('right-full-names', '', setEl);
+              replace('right-score', '', setEl)
+            } else {
+              replace('best-of', `BO${set.bestOf}`, setEl);
+              const leftFullNames = [];
+              for (let i = 0; i < set.leftPrefixes.length; i += 1) {
+                let fullName = '';
+                if (set.leftPrefixes[i]) {
+                  fullName += `${set.leftPrefixes[i]} | `;
+                }
+                fullName += set.leftNames[i];
+                if (set.leftPronouns[i]) {
+                  fullName += ` (${set.leftPronouns[i]})`;
+                }
+                leftFullNames.push(fullName);
               }
-              fullName += set.leftNames[i];
-              if (set.leftPronouns[i]) {
-                fullName += ` (${set.leftPronouns[i]})`;
-              }
-              leftFullNames.push(fullName);
-            }
-            const leftScore = leftFullNames.length > 0 ? set.leftScore.toString() : '';
-            replace('left-full-names', leftFullNames.join(', '), setEl);
-            replace('left-score', leftScore, setEl);
+              const leftScore = leftFullNames.length > 0 ? set.leftScore.toString() : '';
+              replace('left-full-names', leftFullNames.join(', '), setEl);
+              replace('left-score', leftScore, setEl);
 
-            const rightFullNames = [];
-            for (let i = 0; i < set.rightPrefixes.length; i += 1) {
-              let fullName = '';
-              if (set.rightPrefixes[i]) {
-                fullName += `${set.rightPrefixes[i]} | `;
+              const rightFullNames = [];
+              for (let i = 0; i < set.rightPrefixes.length; i += 1) {
+                let fullName = '';
+                if (set.rightPrefixes[i]) {
+                  fullName += `${set.rightPrefixes[i]} | `;
+                }
+                fullName += set.rightNames[i];
+                if (set.rightPronouns[i]) {
+                  fullName += ` (${set.rightPronouns[i]})`;
+                }
+                rightFullNames.push(fullName);
               }
-              fullName += set.rightNames[i];
-              if (set.rightPronouns[i]) {
-                fullName += ` (${set.rightPronouns[i]})`;
-              }
-              rightFullNames.push(fullName);
+              const rightScore = rightFullNames.length > 0 ? set.rightScore.toString() : '';
+              replace('right-full-names', rightFullNames.join(', '), setEl);
+              replace('right-score', rightScore, setEl);
             }
-            const rightScore = rightFullNames.length > 0 ? set.rightScore.toString() : '';
-            replace('right-full-names', rightFullNames.join(', '), setEl);
-            replace('right-score', rightScore, setEl);
           }
 
           const upcoming = getElementByClassName('upcoming');

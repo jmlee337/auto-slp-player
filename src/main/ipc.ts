@@ -214,6 +214,7 @@ export default async function setupIPCs(
     });
   };
 
+  const dolphins: Map<number, Dolphin> = new Map();
   const playingSets: Map<number, AvailableSet> = new Map();
   const gameIndices: Map<number, number> = new Map();
   let queuedSet: AvailableSet | null = null;
@@ -278,9 +279,12 @@ export default async function setupIPCs(
       entriesWithContexts.forEach(([port, playingSet]) => {
         const { context } = playingSet;
         const gameIndex = gameIndices.get(port);
-        if (context && gameIndex !== undefined) {
+        const setIndex = Array.from(dolphins.keys())
+          .sort((a, b) => a - b)
+          .indexOf(port);
+        if (context && gameIndex !== undefined && setIndex >= 0) {
           const { slots } = context!.scores[gameIndex];
-          sets.push({
+          sets[setIndex] = {
             bestOf: context!.bestOf,
             leftPrefixes: slots[0].prefixes,
             leftNames: slots[0].displayNames,
@@ -290,7 +294,7 @@ export default async function setupIPCs(
             rightNames: slots[1].displayNames,
             rightPronouns: slots[1].pronouns,
             rightScore: slots[1].score,
-          });
+          };
         }
       });
     }
@@ -305,7 +309,6 @@ export default async function setupIPCs(
     };
     return writeFile(overlayPath, JSON.stringify(overlayContext));
   };
-  const dolphins: Map<number, Dolphin> = new Map();
   const failedPorts = new Set<number>();
   const tryingPorts = new Set<number>();
   const getNextPort = () => {
@@ -452,6 +455,7 @@ export default async function setupIPCs(
         }
       }
       playingSets.delete(port);
+      writeOverlayJson();
       setTimeout(() => {
         obsConnection.transition(playingSets);
       }, 1000);

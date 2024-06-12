@@ -292,7 +292,7 @@ export default class OBSConnection {
         'InputSettingsChanged',
         async ({ inputSettings }) => {
           const { window } = inputSettings as { window: string };
-          if (window.startsWith(await this.getPrefix())) {
+          if (window && window.startsWith(await this.getPrefix())) {
             this.checkObsSetup();
           }
         },

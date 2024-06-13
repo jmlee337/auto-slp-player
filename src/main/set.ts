@@ -9,13 +9,14 @@ import {
 } from '../common/types';
 
 export function toMainContext(context: Context): MainContext | undefined {
-  const { bestOf, durationMs, scores } = context;
+  const { bestOf, durationMs, scores, startMs } = context;
   if (
     !Number.isInteger(bestOf) ||
     !Number.isInteger(durationMs) ||
     !scores ||
     !Array.isArray(scores) ||
-    scores.length === 0
+    scores.length === 0 ||
+    !Number.isInteger(startMs)
   ) {
     return undefined;
   }
@@ -54,6 +55,7 @@ export function toMainContext(context: Context): MainContext | undefined {
     bestOf: bestOf!,
     durationMs: durationMs!,
     scores: mainScores,
+    startMs: startMs!,
   };
 
   const tournamentName = context.startgg?.tournament?.name;
@@ -65,6 +67,7 @@ export function toMainContext(context: Context): MainContext | undefined {
   const phaseGroupName = context.startgg?.phaseGroup?.name;
   const fullRoundText = context.startgg?.set?.fullRoundText;
   const round = context.startgg?.set?.round;
+  const twitchStream = context.startgg?.set?.twitchStream;
   if (
     typeof tournamentName !== 'string' ||
     typeof eventName !== 'string' ||
@@ -74,7 +77,8 @@ export function toMainContext(context: Context): MainContext | undefined {
     !Number.isInteger(phaseGroupId) ||
     typeof phaseGroupName !== 'string' ||
     typeof fullRoundText !== 'string' ||
-    !Number.isInteger(round)
+    !Number.isInteger(round) ||
+    (twitchStream !== null && typeof twitchStream !== 'string')
   ) {
     return mainContext;
   }
@@ -98,6 +102,7 @@ export function toMainContext(context: Context): MainContext | undefined {
     set: {
       fullRoundText,
       round: round!,
+      twitchStream,
     },
   };
   return mainContext;

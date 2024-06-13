@@ -164,7 +164,7 @@ export default async function setupIPCs(
 
   const dirNameToPlayedMs = new Map<string, number>();
   const availableSets: AvailableSet[] = [];
-  const earliestForPhaseRound = new Map<string, string>();
+  const earliestForPhaseRound = new Map<string, number>();
   const sortAvailableSets = () => {
     availableSets.sort((a, b) => {
       if (a.context?.startgg && b.context?.startgg) {
@@ -185,11 +185,9 @@ export default async function setupIPCs(
         if (Math.sign(aRound) === Math.sign(bRound) && aRound !== bRound) {
           return Math.abs(aRound) - Math.abs(bRound);
         }
-        const roundCompare = earliestForPhaseRound
-          .get(`${aStartgg.phase.id}${aRound}`)!
-          .localeCompare(
-            earliestForPhaseRound.get(`${bStartgg.phase.id}${bRound}`)!,
-          );
+        const roundCompare =
+          earliestForPhaseRound.get(`${aStartgg.phase.id}${aRound}`)! -
+          earliestForPhaseRound.get(`${bStartgg.phase.id}${bRound}`)!;
         if (roundCompare) {
           return roundCompare;
         }
@@ -537,16 +535,13 @@ export default async function setupIPCs(
           }
           if (newSet.context && newSet.context.startgg) {
             const phaseRoundKey = `${newSet.context.startgg.phase.id}${newSet.context.startgg.set.round}`;
+            const { startMs } = newSet.context;
             if (earliestForPhaseRound.has(phaseRoundKey)) {
-              if (
-                newSet.dirName.localeCompare(
-                  earliestForPhaseRound.get(phaseRoundKey)!,
-                ) < 0
-              ) {
-                earliestForPhaseRound.set(phaseRoundKey, newSet.dirName);
+              if (startMs < earliestForPhaseRound.get(phaseRoundKey)!) {
+                earliestForPhaseRound.set(phaseRoundKey, startMs);
               }
             } else {
-              earliestForPhaseRound.set(phaseRoundKey, newSet.dirName);
+              earliestForPhaseRound.set(phaseRoundKey, startMs);
             }
           }
           availableSets.push(newSet);

@@ -36,8 +36,10 @@ export type Context = {
       id: number;
       fullRoundText?: string;
       round?: number;
+      twitchStream?: string | null;
     };
   };
+  startMs?: number;
 };
 
 export type MainContextSlot = {
@@ -75,8 +77,10 @@ export type MainContext = {
     set: {
       fullRoundText: string;
       round: number;
+      twitchStream: string | null;
     };
   };
+  startMs: number;
 };
 
 export type AvailableSet = {

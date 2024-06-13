@@ -12,10 +12,25 @@ import { access, mkdir, writeFile } from 'fs/promises';
 import path from 'path';
 import { RefreshingAuthProvider } from '@twurple/auth';
 import { Bot, createBotCommand } from '@twurple/easy-bot';
+import { Ports } from '@slippi/slippi-js';
+import { spawn } from 'child_process';
 import unzip from './unzip';
-import { AvailableSet, OverlayContext, TwitchSettings } from '../common/types';
+import {
+  AvailableSet,
+  OBSSettings,
+  OverlayContext,
+  OverlaySet,
+  TwitchSettings,
+} from '../common/types';
 import { Dolphin, DolphinEvent } from './dolphin';
 import { toRenderSet } from './set';
+import OBSConnection from './obs';
+
+// taken from https://semver.org/#is-there-a-suggested-regular-expression-regex-to-check-a-semver-string
+// via https://github.com/project-slippi/slippi-launcher/blob/ae8bb69e235b6e46b24bc966aeaa80f45030c6f9/src/dolphin/install/ishiiruka_installation.ts#L23-L24
+// ty nikki
+const SEMVER_REGEX =
+  /(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(?:-((?:0|[1-9][0-9]*|[0-9]*[a-zA-Z-][0-9a-zA-Z-]*)(?:\.(?:0|[1-9][0-9]*|[0-9]*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\+([0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?/;
 
 export default async function setupIPCs(
   mainWindow: BrowserWindow,
@@ -26,6 +41,9 @@ export default async function setupIPCs(
     ? (store.get('dolphinPath') as string)
     : '';
   let isoPath = store.has('isoPath') ? (store.get('isoPath') as string) : '';
+  let maxDolphins = store.has('maxDolphins')
+    ? (store.get('maxDolphins') as number)
+    : 1;
   let generateOverlay = store.has('generateOverlay')
     ? (store.get('generateOverlay') as boolean)
     : false;
@@ -39,6 +57,37 @@ export default async function setupIPCs(
         clientId: '',
         clientSecret: '',
       };
+  let obsConnectionEnabled = store.has('obsConnectionEnabled')
+    ? (store.get('obsConnectionEnabled') as boolean)
+    : false;
+  let obsSettings: OBSSettings = store.has('obsSettings')
+    ? (store.get('obsSettings') as OBSSettings)
+    : { protocol: 'ws', address: '127.0.0.1', port: '4455', password: '' };
+
+  const dolphinVersionPromiseFn = (
+    resolve: (value: string) => void,
+    reject: (reason?: any) => void,
+  ) => {
+    const process = spawn(dolphinPath, ['--version']);
+    process.stdout.on('data', (data: Buffer) => {
+      const match = data.toString().match(SEMVER_REGEX);
+      if (match) {
+        resolve(match[0]);
+      }
+    });
+    process.on('close', () => {
+      reject();
+    });
+  };
+  let dolphinVersionPromise = dolphinPath
+    ? new Promise(dolphinVersionPromiseFn)
+    : null;
+
+  const obsConnection = new OBSConnection(mainWindow);
+  obsConnection.setMaxDolphins(maxDolphins);
+  if (dolphinVersionPromise) {
+    obsConnection.setDolphinVersionPromise(dolphinVersionPromise);
+  }
 
   ipcMain.removeHandler('getDolphinPath');
   ipcMain.handle('getDolphinPath', (): string => dolphinPath);
@@ -53,6 +102,8 @@ export default async function setupIPCs(
     }
     [dolphinPath] = openDialogRes.filePaths;
     store.set('dolphinPath', dolphinPath);
+    dolphinVersionPromise = new Promise(dolphinVersionPromiseFn);
+    obsConnection.setDolphinVersionPromise(dolphinVersionPromise);
     return dolphinPath;
   });
 
@@ -76,6 +127,16 @@ export default async function setupIPCs(
     [isoPath] = openDialogRes.filePaths;
     store.set('isoPath', isoPath);
     return isoPath;
+  });
+
+  ipcMain.removeHandler('getMaxDolphins');
+  ipcMain.handle('getMaxDolphins', () => maxDolphins);
+
+  ipcMain.removeHandler('setMaxDolphins');
+  ipcMain.handle('setMaxDolphins', (event, newMaxDolphins: number) => {
+    store.set('maxDolphins', newMaxDolphins);
+    maxDolphins = newMaxDolphins;
+    obsConnection.setMaxDolphins(maxDolphins);
   });
 
   let watchDir = '';
@@ -119,12 +180,15 @@ export default async function setupIPCs(
         if (phaseIdCompare) {
           return phaseIdCompare;
         }
+        const aRound = aStartgg.set.round;
+        const bRound = bStartgg.set.round;
+        if (Math.sign(aRound) === Math.sign(bRound) && aRound !== bRound) {
+          return Math.abs(aRound) - Math.abs(bRound);
+        }
         const roundCompare = earliestForPhaseRound
-          .get(`${aStartgg.phase.id}${aStartgg.set.round}`)!
+          .get(`${aStartgg.phase.id}${aRound}`)!
           .localeCompare(
-            earliestForPhaseRound.get(
-              `${bStartgg.phase.id}${bStartgg.set.round}`,
-            )!,
+            earliestForPhaseRound.get(`${bStartgg.phase.id}${bRound}`)!,
           );
         if (roundCompare) {
           return roundCompare;
@@ -138,29 +202,22 @@ export default async function setupIPCs(
         if (!a.playedMs && b.playedMs) {
           return 1;
         }
-        if (
-          a.context.scores.length !== b.context.scores.length ||
-          a.context.bestOf !== b.context.bestOf
-        ) {
-          const ratioCompare =
-            b.context.scores.length / b.context.bestOf -
-            a.context.scores.length / a.context.bestOf;
-          if (ratioCompare) {
-            return ratioCompare;
-          }
-        }
-      } else if (!a.context && b.context) {
+        return b.context.durationMs - a.context.durationMs;
+      }
+      if (!a.context && b.context) {
         return -1;
-      } else if (a.context && !b.context) {
+      }
+      if (a.context && !b.context) {
         return 1;
       }
       return a.dirName.localeCompare(b.dirName);
     });
   };
 
-  let playingSet: AvailableSet | null = null;
+  const dolphins: Map<number, Dolphin> = new Map();
+  const playingSets: Map<number, AvailableSet> = new Map();
+  const gameIndices: Map<number, number> = new Map();
   let queuedSet: AvailableSet | null = null;
-  let gameIndex = 0;
   const writeOverlayJson = async () => {
     if (!generateOverlay) {
       return null;
@@ -172,58 +229,38 @@ export default async function setupIPCs(
     let eventName = '';
     let phaseName = '';
     let roundName = '';
-    let bestOf = 0;
-    let leftPrefixes: string[] = [];
-    let leftNames: string[] = [];
-    let leftPronouns: string[] = [];
-    let leftScore = 0;
-    let rightPrefixes: string[] = [];
-    let rightNames: string[] = [];
-    let rightPronouns: string[] = [];
-    let rightScore = 0;
+    const sets: OverlaySet[] = [];
     const upcoming: { leftNames: string[]; rightNames: string[] }[] = [];
     let upcomingRoundName = '';
-    if (playingSet && playingSet.context) {
-      const { context } = playingSet;
-      bestOf = context.bestOf;
-      const { slots } = context.scores[gameIndex];
-      leftPrefixes = slots[0].prefixes;
-      leftNames = slots[0].displayNames;
-      leftPronouns = slots[0].pronouns;
-      leftScore = slots[0].score;
-      rightPrefixes = slots[1].prefixes;
-      rightNames = slots[1].displayNames;
-      rightPronouns = slots[1].pronouns;
-      rightScore = slots[1].score;
+    const entriesWithContexts = Array.from(playingSets.entries()).filter(
+      ([, playingSet]) => playingSet.context,
+    ) as [number, AvailableSet][];
+    if (entriesWithContexts.length > 0) {
+      const representativePlayingSet = entriesWithContexts[0][1];
+      const representativeStartgg = representativePlayingSet.context?.startgg;
+      if (representativeStartgg) {
+        tournamentName = representativeStartgg.tournament.name;
+        eventName = representativeStartgg.event.name;
+        phaseName = representativeStartgg.phase.name;
+        roundName = representativeStartgg.set.fullRoundText;
 
-      if (context.startgg) {
-        tournamentName = context.startgg.tournament.name;
-        eventName = context.startgg.event.name;
-        phaseName = context.startgg.phase.name;
-        roundName = context.startgg.set.fullRoundText;
-
-        const setUpcomingSetsOrRound = (
-          round: number,
-          dirName: string,
-          playing: boolean,
-        ) => {
-          const sameRoundSets = availableSets.filter(
-            (availableSet) =>
-              availableSet.context?.startgg?.set.round === round,
-          );
-          const startingIndex = sameRoundSets.findIndex(
-            (availableSet) => availableSet.dirName === dirName,
-          );
-          if (startingIndex >= 0) {
-            if (!playing) {
-              upcoming.push({
-                leftNames:
-                  sameRoundSets[0].context!.scores[0].slots[0].displayNames,
-                rightNames:
-                  sameRoundSets[0].context!.scores[0].slots[1].displayNames,
-              });
-            }
-            for (let i = startingIndex + 1; i < sameRoundSets.length; i += 1) {
+        if (queuedSet) {
+          const round = queuedSet.context?.startgg?.set.round;
+          if (round === representativeStartgg.set.round) {
+            const sameRoundSets = availableSets.filter(
+              (availableSet) =>
+                availableSet.context?.startgg?.set.round === round,
+            );
+            const startI = sameRoundSets.findIndex(
+              (set) => set.dirName === queuedSet!.dirName,
+            );
+            upcoming.push({
+              leftNames:
+                sameRoundSets[startI].context!.scores[0].slots[0].displayNames,
+              rightNames:
+                sameRoundSets[startI].context!.scores[0].slots[1].displayNames,
+            });
+            for (let i = startI + 1; i < sameRoundSets.length; i += 1) {
               if (sameRoundSets[i].playedMs === 0) {
                 upcoming.push({
                   leftNames:
@@ -233,167 +270,250 @@ export default async function setupIPCs(
                 });
               }
             }
-          }
-          if (upcoming.length === 0) {
-            const overallStartingIndex = availableSets.findIndex(
-              (availableSet) => availableSet.dirName === dirName,
-            );
-            if (overallStartingIndex >= 0) {
-              for (
-                let i = overallStartingIndex + 1;
-                i < availableSets.length;
-                i += 1
-              ) {
-                if (availableSets[i].playedMs === 0) {
-                  const nextRoundName =
-                    availableSets[i].context?.startgg?.set.fullRoundText;
-                  if (nextRoundName) {
-                    upcomingRoundName = nextRoundName;
-                  }
-                  break;
-                }
-              }
-            }
-          }
-        };
-        if (queuedSet) {
-          if (
-            queuedSet.context?.startgg?.set.round === context.startgg.set.round
-          ) {
-            setUpcomingSetsOrRound(
-              queuedSet.context.startgg.set.round,
-              queuedSet.dirName,
-              false,
-            );
           } else if (queuedSet.context?.startgg?.set.fullRoundText) {
             upcomingRoundName = queuedSet.context.startgg.set.fullRoundText;
           }
-        } else {
-          setUpcomingSetsOrRound(
-            context.startgg.set.round,
-            playingSet.dirName,
-            true,
-          );
         }
       }
+
+      entriesWithContexts.forEach(([port, playingSet]) => {
+        const { context } = playingSet;
+        const gameIndex = gameIndices.get(port);
+        const setIndex = Array.from(dolphins.keys())
+          .sort((a, b) => a - b)
+          .indexOf(port);
+        if (context && gameIndex !== undefined && setIndex >= 0) {
+          const { slots } = context!.scores[gameIndex];
+          sets[setIndex] = {
+            bestOf: context!.bestOf,
+            leftPrefixes: slots[0].prefixes,
+            leftNames: slots[0].displayNames,
+            leftPronouns: slots[0].pronouns,
+            leftScore: slots[0].score,
+            rightPrefixes: slots[1].prefixes,
+            rightNames: slots[1].displayNames,
+            rightPronouns: slots[1].pronouns,
+            rightScore: slots[1].score,
+          };
+        }
+      });
     }
     const overlayContext: OverlayContext = {
       tournamentName,
       eventName,
       phaseName,
       roundName,
-      bestOf,
-      leftPrefixes,
-      leftNames,
-      leftPronouns,
-      leftScore,
-      rightPrefixes,
-      rightNames,
-      rightPronouns,
-      rightScore,
+      sets,
       upcoming,
       upcomingRoundName,
     };
     return writeFile(overlayPath, JSON.stringify(overlayContext));
   };
-  let dolphin: Dolphin | null = null;
-  let newDolphin: () => void;
-  const playDolphin = (set: AvailableSet) => {
-    if (!dolphin) {
-      newDolphin();
+  const failedPorts = new Set<number>();
+  const tryingPorts = new Set<number>();
+  const getNextPort = () => {
+    let tryPort = Ports.DEFAULT;
+    const usedPorts = new Set(dolphins.keys());
+    while (
+      failedPorts.has(tryPort) ||
+      tryingPorts.has(tryPort) ||
+      usedPorts.has(tryPort)
+    ) {
+      tryPort += 1;
+    }
+    tryingPorts.add(tryPort);
+    return tryPort;
+  };
+  let startDolphin: (port: number) => Promise<void>;
+  const startDolphinWithoutPort = async () => {
+    let actualPort = 0;
+    let startedDolphin = false;
+    while (!startedDolphin) {
+      try {
+        actualPort = getNextPort();
+        startedDolphin = true;
+        // eslint-disable-next-line no-await-in-loop
+        await startDolphin(actualPort);
+      } catch (e: any) {
+        startedDolphin = false;
+      }
+    }
+    if (actualPort === 0) {
+      throw new Error('actualPort 0 somehow???');
+    }
+    return actualPort;
+  };
+  const playDolphin = async (set: AvailableSet, port?: number) => {
+    let actualPort = 0;
+    if (!port) {
+      if (dolphins.size > playingSets.size) {
+        const usableDolphins = new Set(dolphins.keys());
+        Array.from(playingSets.keys()).forEach((usedPort) => {
+          usableDolphins.delete(usedPort);
+        });
+        [actualPort] = Array.from(usableDolphins.values()).sort(
+          (a, b) => a - b,
+        );
+      } else {
+        actualPort = await startDolphinWithoutPort();
+      }
+    } else {
+      actualPort = port;
+    }
+    if (actualPort === 0) {
+      throw new Error('actualPort 0 somehow???');
     }
 
-    playingSet = set;
-    gameIndex = 0;
+    gameIndices.set(actualPort, 0);
+    playingSets.set(actualPort, set);
     set.playedMs = Date.now();
     set.playing = true;
     dirNameToPlayedMs.set(set.dirName, set.playedMs);
 
-    const playPromise = dolphin!.play(set.replayPaths);
-    sortAvailableSets();
-    playPromise
-      .then(() => {
-        return mainWindow.webContents.send(
-          'playing',
-          availableSets.map(toRenderSet),
-        );
-      })
-      .catch(() => {});
-  };
-  newDolphin = () => {
-    dolphin = new Dolphin(dolphinPath, isoPath, tempDir);
-    dolphin.on(DolphinEvent.CLOSE, () => {
-      if (playingSet) {
-        playingSet.playing = false;
-        playingSet = null;
-      }
-      gameIndex = 0;
-      queuedSet = null;
-      mainWindow.webContents.send('playing', availableSets.map(toRenderSet));
-      if (dolphin) {
-        dolphin.removeAllListeners();
-        dolphin = null;
-        mainWindow.webContents.send('dolphin', false);
-      }
-    });
-    dolphin.on(DolphinEvent.PLAYING, (newGameIndex: number) => {
-      gameIndex = newGameIndex;
-      writeOverlayJson();
-    });
-    dolphin.on(DolphinEvent.ENDED, () => {
-      if (playingSet) {
-        playingSet.playing = false;
-      }
-
-      if (queuedSet) {
-        playDolphin(queuedSet);
+    const queueNextSet = (startI: number) => {
+      if (startI < 0) {
         queuedSet = null;
         return;
       }
 
-      if (playingSet === null) {
-        gameIndex = 0;
-        mainWindow.webContents.send('playing', availableSets.map(toRenderSet));
-        return;
-      }
-
-      const index = availableSets.findIndex(
-        (value) => value.dirName === playingSet!.dirName,
-      );
-      if (index === -1) {
-        playingSet = null;
-        gameIndex = 0;
-        mainWindow.webContents.send('playing', availableSets.map(toRenderSet));
-        return;
-      }
-      for (let i = index + 1; i < availableSets.length; i += 1) {
-        if (!dirNameToPlayedMs.get(availableSets[i].dirName)) {
-          playDolphin(availableSets[i]);
+      for (let i = startI + 1; i < availableSets.length; i += 1) {
+        if (availableSets[i].playedMs === 0) {
+          queuedSet = availableSets[i];
           return;
         }
       }
-      playingSet = null;
-      gameIndex = 0;
-      mainWindow.webContents.send('playing', availableSets.map(toRenderSet));
-    });
-    dolphin.on(DolphinEvent.START_FAILED, () => {
-      if (dolphin) {
-        dolphin.close();
-      }
-    });
-    dolphin.on(DolphinEvent.START_READY, () => {
-      mainWindow.webContents.send('dolphin', true);
-    });
+      queuedSet = null;
+    };
+    queueNextSet(
+      availableSets.findIndex((value) => value.dirName === set.dirName),
+    );
+    sortAvailableSets();
+
+    await dolphins.get(actualPort)!.play(set.replayPaths);
+    mainWindow.webContents.send(
+      'playing',
+      availableSets.map(toRenderSet),
+      queuedSet ? queuedSet.dirName : '',
+    );
   };
-  ipcMain.removeHandler('openDolphin');
-  ipcMain.handle('openDolphin', () => {
-    if (dolphin) {
-      mainWindow.webContents.send('dolphin', true);
-      return;
+  startDolphin = async (port: number) => {
+    if (dolphins.get(port)) {
+      return Promise.resolve();
     }
 
-    newDolphin();
-    dolphin!.open();
+    const newDolphin = new Dolphin(dolphinPath, isoPath, tempDir, port);
+    newDolphin.on(DolphinEvent.CLOSE, () => {
+      const playingSet = playingSets.get(port);
+      if (playingSet) {
+        playingSet.playing = false;
+      }
+
+      newDolphin.removeAllListeners();
+      gameIndices.delete(port);
+      playingSets.delete(port);
+      dolphins.delete(port);
+      if (dolphins.size === 0) {
+        queuedSet = null;
+      }
+      obsConnection.setDolphins(dolphins);
+      obsConnection.transition(playingSets);
+      mainWindow.webContents.send('dolphins', dolphins.size);
+      mainWindow.webContents.send(
+        'playing',
+        availableSets.map(toRenderSet),
+        queuedSet ? queuedSet.dirName : '',
+      );
+    });
+    newDolphin.on(DolphinEvent.PLAYING, (newGameIndex: number) => {
+      gameIndices.set(port, newGameIndex);
+      writeOverlayJson();
+    });
+    newDolphin.on(DolphinEvent.ENDED, async () => {
+      const playingSet = playingSets.get(port);
+      if (playingSet) {
+        playingSet.playing = false;
+        if (queuedSet) {
+          const currentRound = playingSet.context?.startgg?.set.round;
+          const nextRound = queuedSet.context?.startgg?.set.round;
+          if (playingSets.size === 1) {
+            playingSets.delete(port);
+            do {
+              // eslint-disable-next-line no-await-in-loop
+              await playDolphin(queuedSet);
+            } while (
+              queuedSet &&
+              playingSets.size + tryingPorts.size < maxDolphins &&
+              nextRound === queuedSet.context?.startgg?.set.round
+            );
+            obsConnection.transition(playingSets);
+            return;
+          }
+          if (currentRound === nextRound) {
+            playDolphin(queuedSet, port);
+            return;
+          }
+        }
+      }
+      playingSets.delete(port);
+      writeOverlayJson();
+      setTimeout(() => {
+        obsConnection.transition(playingSets);
+      }, 1000);
+      mainWindow.webContents.send(
+        'playing',
+        availableSets.map(toRenderSet),
+        queuedSet ? queuedSet.dirName : '',
+      );
+    });
+    return new Promise<void>((resolve, reject) => {
+      newDolphin.on(DolphinEvent.START_FAILED, (connectFailed: boolean) => {
+        if (connectFailed) {
+          failedPorts.add(port);
+        }
+        newDolphin.close();
+        tryingPorts.delete(port);
+        reject();
+      });
+      newDolphin.on(DolphinEvent.START_READY, () => {
+        dolphins.set(port, newDolphin);
+        obsConnection.setDolphins(dolphins);
+        tryingPorts.delete(port);
+        mainWindow.webContents.send('dolphins', dolphins.size);
+        resolve();
+      });
+      newDolphin.open();
+    });
+  };
+  ipcMain.removeHandler('getNumDolphins');
+  ipcMain.handle('getNumDolphins', () => dolphins.size);
+  ipcMain.removeHandler('openDolphins');
+  ipcMain.handle('openDolphins', async () => {
+    const prevPlayingSize = playingSets.size;
+    const toOpen = maxDolphins - dolphins.size - tryingPorts.size;
+    for (let i = 0; i < toOpen; i += 1) {
+      // eslint-disable-next-line no-await-in-loop
+      const port = await startDolphinWithoutPort();
+      if (
+        playingSets.size > 0 &&
+        queuedSet &&
+        queuedSet.context?.startgg?.set.round ===
+          Array.from(playingSets.values())[0].context?.startgg?.set.round
+      ) {
+        // eslint-disable-next-line no-await-in-loop
+        await playDolphin(queuedSet, port);
+      }
+    }
+    if (playingSets.size !== prevPlayingSize) {
+      obsConnection.transition(playingSets);
+    }
+  });
+  ipcMain.removeHandler('getObsConnectionStatus');
+  ipcMain.handle('getObsConnectionStatus', () =>
+    obsConnection.getConnectionStatus(),
+  );
+  ipcMain.removeHandler('connectObs');
+  ipcMain.handle('connectObs', async () => {
+    await obsConnection.connect(obsSettings);
   });
   ipcMain.removeHandler('watch');
   ipcMain.handle('watch', async (event: IpcMainInvokeEvent, start: boolean) => {
@@ -408,7 +528,11 @@ export default async function setupIPCs(
       watcher.on('add', async (newZipPath) => {
         try {
           const newSet = await unzip(newZipPath, tempDir, dirNameToPlayedMs);
-          if (newSet.dirName === playingSet?.dirName) {
+          if (
+            Array.from(playingSets.values()).find(
+              (playingSet) => newSet.dirName === playingSet.dirName,
+            )
+          ) {
             newSet.playing = true;
           }
           if (newSet.context && newSet.context.startgg) {
@@ -426,20 +550,54 @@ export default async function setupIPCs(
             }
           }
           availableSets.push(newSet);
-          if (!playingSet && newSet.playedMs === 0) {
-            playDolphin(newSet);
+          sortAvailableSets();
+          let canPlay = availableSets.length === 1;
+          let isNext = availableSets.length === 1;
+          const checkCanPlayIsNext = () => {
+            for (let i = availableSets.length - 2; i >= 0; i -= 1) {
+              if (availableSets[i].playing) {
+                if (
+                  availableSets[i].context?.startgg?.set.round ===
+                  newSet.context?.startgg?.set.round
+                ) {
+                  canPlay = true;
+                }
+                for (let j = i + 1; j < availableSets.length; j += 1) {
+                  if (availableSets[j].playedMs === 0) {
+                    if (availableSets[j].dirName === newSet.dirName) {
+                      isNext = true;
+                    }
+                    break;
+                  }
+                }
+                return;
+              }
+            }
+            canPlay = true;
+            isNext = true;
+          };
+          checkCanPlayIsNext();
+          if (
+            playingSets.size + tryingPorts.size < maxDolphins &&
+            newSet.playedMs === 0 &&
+            canPlay &&
+            isNext
+          ) {
+            await playDolphin(newSet);
+            obsConnection.transition(playingSets);
           } else {
-            sortAvailableSets();
+            if (isNext) {
+              queuedSet = newSet;
+            }
             writeOverlayJson();
             mainWindow.webContents.send(
               'unzip',
               availableSets.map(toRenderSet),
+              queuedSet ? queuedSet.dirName : '',
             );
           }
         } catch (e: any) {
-          if (e instanceof Error) {
-            console.log(e.message);
-          }
+          /* empty */
         }
       });
     } else if (watcher) {
@@ -460,23 +618,41 @@ export default async function setupIPCs(
       set.playedMs = played ? Date.now() : 0;
       dirNameToPlayedMs.set(set.dirName, set.playedMs);
       sortAvailableSets();
+      for (let i = availableSets.length - 2; i >= 0; i -= 1) {
+        if (availableSets[i].playing) {
+          queuedSet = null;
+          for (let j = i + 1; j < availableSets.length; j += 1) {
+            if (availableSets[j].playedMs === 0) {
+              queuedSet = availableSets[j];
+              break;
+            }
+          }
+          break;
+        }
+      }
       writeOverlayJson();
-      return availableSets.map(toRenderSet);
+      return {
+        renderSets: availableSets.map(toRenderSet),
+        queuedSetDirName: queuedSet ? queuedSet.dirName : '',
+      };
     },
   );
 
   ipcMain.removeHandler('play');
-  ipcMain.handle('play', (event: IpcMainInvokeEvent, dirName: string) => {
+  ipcMain.handle('play', async (event: IpcMainInvokeEvent, dirName: string) => {
     const setToPlay = availableSets.find((set) => set.dirName === dirName);
     if (!setToPlay) {
       throw new Error(`no such set to play: ${dirName}`);
     }
 
-    if (playingSet) {
-      playingSet.playing = false;
+    if (playingSets.size === 0) {
+      await playDolphin(setToPlay);
     }
-    queuedSet = null;
-    playDolphin(setToPlay);
+    if (playingSets.size === 1) {
+      const [port, playingSet] = Array.from(playingSets.entries())[0];
+      playingSet.playing = false;
+      playDolphin(setToPlay, port);
+    }
   });
 
   ipcMain.removeHandler('queue');
@@ -543,96 +719,23 @@ export default async function setupIPCs(
       authProvider,
       channel: twitchSettings.channelName,
       commands: [
-        createBotCommand('help', (params, { say }) => {
-          say('!help, !bracket, !score, !set');
-        }),
         createBotCommand('bracket', (params, { say }) => {
-          if (!playingSet) {
+          const playingSetsWithContextStartgg = Array.from(
+            playingSets.values(),
+          ).filter(
+            (playingSet) => playingSet.context && playingSet.context.startgg,
+          );
+          if (playingSetsWithContextStartgg.length === 0) {
             return;
           }
-          if (!playingSet.context?.startgg) {
-            say('unknown');
-            return;
-          }
+          const representativeStartgg =
+            playingSetsWithContextStartgg[0].context!.startgg!;
 
-          const eventSlug = playingSet.context.startgg.event.slug;
-          const phaseId = playingSet.context.startgg.phase.id;
-          const phaseGroupId = playingSet.context.startgg.phaseGroup.id;
+          const eventSlug = representativeStartgg.event.slug;
+          const phaseId = representativeStartgg.phase.id;
+          const phaseGroupId = representativeStartgg.phaseGroup.id;
           say(
             `SPOILERS: https://www.start.gg/${eventSlug}/brackets/${phaseId}/${phaseGroupId}`,
-          );
-        }),
-        createBotCommand('score', (params, { say }) => {
-          if (!playingSet) {
-            return;
-          }
-          if (!playingSet.context) {
-            say('unknown');
-            return;
-          }
-
-          const { bestOf, scores } = playingSet.context;
-          const scoreLeft = scores[gameIndex].slots[0].score;
-          const scoreRight = scores[gameIndex].slots[1].score;
-          say(`${scoreLeft} - ${scoreRight} (BO${bestOf})`);
-        }),
-        createBotCommand('set', (params, { say }) => {
-          if (!playingSet) {
-            return;
-          }
-          if (!playingSet.context?.startgg) {
-            say('unknown');
-            return;
-          }
-
-          const tournamentName = playingSet.context.startgg.tournament.name;
-          const eventName = playingSet.context.startgg.event.name;
-          const phaseName = playingSet.context.startgg.phase.name;
-          const phaseGroupName = playingSet.context.startgg.phaseGroup.name;
-          const bracketContext = `${tournamentName} ${eventName}, ${phaseName} (pool ${phaseGroupName})`;
-
-          const { fullRoundText, round } = playingSet.context.startgg.set;
-          const { bestOf, scores } = playingSet.context;
-          const fullRoundInfo = `${fullRoundText} (BO${bestOf})`;
-          const separator = round > 0 ? '🟩' : '🟥';
-
-          const { slots } = scores[gameIndex];
-          const leftPrefixes = slots[0].prefixes;
-          const leftNames = slots[0].displayNames;
-          const leftPronouns = slots[0].pronouns;
-          const leftFullNames: string[] = [];
-          for (let i = 0; i < leftPrefixes.length; i += 1) {
-            let fullName = '';
-            if (leftPrefixes[i]) {
-              fullName += `${leftPrefixes[i]} | `;
-            }
-            fullName += leftNames[i];
-            if (leftPronouns[i]) {
-              fullName += ` (${leftPronouns[i]})`;
-            }
-            leftFullNames.push(fullName);
-          }
-          const rightPrefixes = slots[1].prefixes;
-          const rightNames = slots[1].displayNames;
-          const rightPronouns = slots[1].pronouns;
-          const rightFullNames: string[] = [];
-          for (let i = 0; i < rightPrefixes.length; i += 1) {
-            let fullName = '';
-            if (rightPrefixes[i]) {
-              fullName += `${rightPrefixes[i]} | `;
-            }
-            fullName += rightNames[i];
-            if (rightPronouns[i]) {
-              fullName += ` (${rightPronouns[i]})`;
-            }
-            rightFullNames.push(fullName);
-          }
-          const versus = `${leftFullNames.join(', ')} vs ${rightFullNames.join(
-            ', ',
-          )}`;
-
-          say(
-            `${bracketContext} ${separator} ${fullRoundInfo} ${separator} ${versus}`,
           );
         }),
       ],
@@ -715,6 +818,33 @@ export default async function setupIPCs(
     },
   );
   maybeStartTwitchBot(twitchSettings);
+
+  ipcMain.removeHandler('getDolphinVersion');
+  ipcMain.handle('getDolphinVersion', async () => dolphinVersionPromise ?? '');
+
+  ipcMain.removeHandler('getObsConnectionEnabled');
+  ipcMain.handle('getObsConnectionEnabled', () => obsConnectionEnabled);
+
+  ipcMain.removeHandler('setObsConnectionEnabled');
+  ipcMain.handle(
+    'setObsConnectionEnabled',
+    (event: IpcMainInvokeEvent, enabled: boolean) => {
+      store.set('obsConnectionEnabled', enabled);
+      obsConnectionEnabled = enabled;
+    },
+  );
+
+  ipcMain.removeHandler('getObsSettings');
+  ipcMain.handle('getObsSettings', () => obsSettings);
+
+  ipcMain.removeHandler('setObsSettings');
+  ipcMain.handle(
+    'setObsSettings',
+    (event: IpcMainInvokeEvent, newObsSettings: OBSSettings) => {
+      store.set('obsSettings', newObsSettings);
+      obsSettings = newObsSettings;
+    },
+  );
 
   ipcMain.removeHandler('openOverlayDir');
   ipcMain.handle('openOverlayDir', () => {

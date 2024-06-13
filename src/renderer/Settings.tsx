@@ -1,5 +1,6 @@
 import {
   Alert,
+  Box,
   Button,
   Checkbox,
   CircularProgress,
@@ -11,6 +12,8 @@ import {
   FormControlLabel,
   IconButton,
   InputBase,
+  MenuItem,
+  Select,
   Stack,
   TextField,
   Tooltip,
@@ -129,10 +132,22 @@ export default function Settings({
   setDolphinPath,
   isoPath,
   setIsoPath,
+  maxDolphins,
+  setMaxDolphins,
   generateOverlay,
   setGenerateOverlay,
   twitchSettings,
   setTwitchSettings,
+  obsConnectionEnabled,
+  setObsConnectionEnabled,
+  obsProtocol,
+  setObsProtocol,
+  obsAddress,
+  setObsAddress,
+  obsPort,
+  setObsPort,
+  obsPassword,
+  setObsPassword,
   appVersion,
   latestAppVersion,
   gotSettings,
@@ -141,10 +156,22 @@ export default function Settings({
   setDolphinPath: (dolphinPath: string) => void;
   isoPath: string;
   setIsoPath: (isoPath: string) => void;
+  maxDolphins: number;
+  setMaxDolphins: (maxDolphins: number) => void;
   generateOverlay: boolean;
   setGenerateOverlay: (generateOverlay: boolean) => void;
   twitchSettings: TwitchSettings;
   setTwitchSettings: (twitchSettings: TwitchSettings) => void;
+  obsConnectionEnabled: boolean;
+  setObsConnectionEnabled: (enabled: boolean) => void;
+  obsProtocol: string;
+  setObsProtocol: (protocol: string) => void;
+  obsAddress: string;
+  setObsAddress: (address: string) => void;
+  obsPort: string;
+  setObsPort: (port: string) => void;
+  obsPassword: string;
+  setObsPassword: (password: string) => void;
   appVersion: string;
   latestAppVersion: string;
   gotSettings: boolean;
@@ -206,7 +233,13 @@ export default function Settings({
       </Button>
       <Dialog
         open={open}
-        onClose={() => {
+        onClose={async () => {
+          await window.electron.setObsSettings({
+            protocol: obsProtocol,
+            address: obsAddress,
+            port: obsPort,
+            password: obsPassword,
+          });
           setOpen(false);
         }}
         fullWidth
@@ -258,19 +291,128 @@ export default function Settings({
               </IconButton>
             </Tooltip>
           </Stack>
-          <FormControlLabel
-            control={
-              <Checkbox
-                checked={generateOverlay}
-                onChange={async (event) => {
-                  const newGenerateOverlay = event.target.checked;
-                  await window.electron.setGenerateOverlay(newGenerateOverlay);
-                  setGenerateOverlay(newGenerateOverlay);
-                }}
+          <Box>
+            <FormControlLabel
+              control={
+                <Select
+                  value={maxDolphins}
+                  onChange={async (event) => {
+                    const newMaxDolphins = event.target.value;
+                    if (Number.isInteger(newMaxDolphins)) {
+                      await window.electron.setMaxDolphins(
+                        newMaxDolphins as number,
+                      );
+                      setMaxDolphins(newMaxDolphins as number);
+                    }
+                  }}
+                  size="small"
+                >
+                  <MenuItem value={1}>1</MenuItem>
+                  <MenuItem value={2}>2</MenuItem>
+                  <MenuItem value={3}>3</MenuItem>
+                  <MenuItem value={4}>4</MenuItem>
+                </Select>
+              }
+              label="Max Dolphins"
+            />
+          </Box>
+          <Stack>
+            <Stack
+              alignItems="center"
+              direction="row"
+              marginLeft="-11px"
+              spacing="8px"
+            >
+              <FormControlLabel
+                control={
+                  <Checkbox
+                    checked={obsConnectionEnabled}
+                    onChange={async (event) => {
+                      const newEnabled = event.target.checked;
+                      await window.electron.setObsConnectionEnabled(newEnabled);
+                      setObsConnectionEnabled(newEnabled);
+                    }}
+                  />
+                }
+                label="OBS Connection Enabled"
               />
-            }
-            label="Generate Overlay"
-          />
+              <DialogContentText>
+                (Scene/Source setup info{' '}
+                <a
+                  href="https://github.com/jmlee337/auto-slp-player/blob/main/src/docs/obs.md"
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  here
+                </a>
+                )
+              </DialogContentText>
+            </Stack>
+            {obsConnectionEnabled && (
+              <Stack direction="row" spacing="8px">
+                <Select
+                  label="OBS Protocol"
+                  name="protocol"
+                  onChange={(event) => {
+                    setObsProtocol(event.target.value);
+                  }}
+                  size="small"
+                  value={obsProtocol}
+                >
+                  <MenuItem value="ws">ws://</MenuItem>
+                  <MenuItem value="wss">wss://</MenuItem>
+                </Select>
+                <TextField
+                  inputProps={{ maxLength: 15 }}
+                  label="OBS Address"
+                  name="address"
+                  onChange={(event) => {
+                    setObsAddress(event.target.value);
+                  }}
+                  value={obsAddress}
+                  variant="standard"
+                />
+                <TextField
+                  inputProps={{ min: 1024, max: 65535 }}
+                  label="OBS Port"
+                  name="port"
+                  onChange={(event) => {
+                    setObsPort(event.target.value);
+                  }}
+                  type="number"
+                  value={obsPort}
+                  variant="standard"
+                />
+                <TextField
+                  label="OBS Password"
+                  name="password"
+                  onChange={(event) => {
+                    setObsPassword(event.target.value);
+                  }}
+                  type="password"
+                  value={obsPassword}
+                  variant="standard"
+                />
+              </Stack>
+            )}
+          </Stack>
+          <Box>
+            <FormControlLabel
+              control={
+                <Checkbox
+                  checked={generateOverlay}
+                  onChange={async (event) => {
+                    const newGenerateOverlay = event.target.checked;
+                    await window.electron.setGenerateOverlay(
+                      newGenerateOverlay,
+                    );
+                    setGenerateOverlay(newGenerateOverlay);
+                  }}
+                />
+              }
+              label="Generate Overlay"
+            />
+          </Box>
           <Stack>
             <FormControlLabel
               control={
@@ -284,7 +426,7 @@ export default function Settings({
                   }}
                 />
               }
-              label="Use Twitch Bot"
+              label="Twitch Integration"
             />
             {twitchSettings.enabled && (
               <>
@@ -310,29 +452,31 @@ export default function Settings({
                     ). Then paste the client ID and client secret below:
                   </DialogContentText>
                 )}
-                <TextField
-                  defaultValue={twitchSettings.clientId}
-                  label="Client ID"
-                  variant="standard"
-                  onChange={async (event) => {
-                    twitchSettings.clientId = event.target.value;
-                    setTwitchSettings(
-                      await window.electron.setTwitchSettings(twitchSettings),
-                    );
-                  }}
-                />
-                <TextField
-                  defaultValue={twitchSettings.clientSecret}
-                  label="Client Secret"
-                  type="password"
-                  variant="standard"
-                  onChange={async (event) => {
-                    twitchSettings.clientSecret = event.target.value;
-                    setTwitchSettings(
-                      await window.electron.setTwitchSettings(twitchSettings),
-                    );
-                  }}
-                />
+                <Stack direction="row" spacing="8px">
+                  <TextField
+                    defaultValue={twitchSettings.clientId}
+                    label="Client ID"
+                    variant="standard"
+                    onChange={async (event) => {
+                      twitchSettings.clientId = event.target.value;
+                      setTwitchSettings(
+                        await window.electron.setTwitchSettings(twitchSettings),
+                      );
+                    }}
+                  />
+                  <TextField
+                    defaultValue={twitchSettings.clientSecret}
+                    label="Client Secret"
+                    type="password"
+                    variant="standard"
+                    onChange={async (event) => {
+                      twitchSettings.clientSecret = event.target.value;
+                      setTwitchSettings(
+                        await window.electron.setTwitchSettings(twitchSettings),
+                      );
+                    }}
+                  />
+                </Stack>
                 {twitchSettings.clientId && twitchSettings.clientSecret && (
                   <IfClientIdAndScecretSet
                     twitchSettings={twitchSettings}
@@ -345,7 +489,7 @@ export default function Settings({
             )}
           </Stack>
           {needUpdate && (
-            <Alert severity="warning">
+            <Alert severity="warning" style={{ marginTop: 8 }}>
               Update available!{' '}
               <a
                 href="https://github.com/jmlee337/auto-slp-player/releases/latest"

@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <style>
+      @font-face {
+        font-family: robotocjksc;
+        src: url(RobotoCJKSC-Regular.ttf);
+      }
+      body {
+        color: white;
+        display: flex;
+        flex-direction: row;
+        font-family: robotocjksc, Arial;
+        overflow: hidden;
+      }
+      .column {
+        display: flex;
+        flex-direction: column;
+        padding-right: 60px;
+        width: 50%;
+      }
+      .best-of, .round, .event-phase-name, .upcoming-title {
+        font-size: 24px;
+        line-height: 30px;
+      }
+      .left, .right {
+        display: flex;
+        flex-direction: row;
+        width: 100%;
+      }
+      .left-full-names, .right-full-names {
+        flex-grow: 1;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .event-phase-name {
+        margin-top: 16px;
+      }
+      .tournament-name, .left, .right, .upcoming-set {
+        font-size: 36px;
+        line-height: 48px;
+      }
+      .set {
+        height: 126px;
+        margin-bottom: 16px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="column">
+      <div class="set">
+        <div class="best-of">BO3</div>
+        <div class="left">
+          <div class="left-full-names">Dojo | Sourdough</div>
+          <div class="left-score">1</div>
+        </div>
+        <div class="right">
+          <div class="right-full-names">DaN</div>
+          <div class="right-score">0</div>
+        </div>
+      </div>
+      <div class="round">Losers Quarter-Final (BO3)</div>
+      <div class="event-phase-name">Melee Singles, Bracket</div>
+      <div class="tournament-name">Shuuten Tokyo 終点東京 #7</div>
+    </div>
+    <div class="column">
+      <div class="set">
+        <div class="best-of">BO3</div>
+        <div class="left">
+          <div class="left-full-names">Dojo | Sourdough</div>
+          <div class="left-score">1</div>
+        </div>
+        <div class="right">
+          <div class="right-full-names">DaN</div>
+          <div class="right-score">0</div>
+        </div>
+      </div>
+      <div class="upcoming">
+        <div class="upcoming-title">Next in round:</div>
+        <div class="upcoming-set">slurms vs Tyku</div>
+      </div>
+    </div>
+    <script>
+      let context = {
+        tournamentName: '',
+        eventName: '',
+        phaseName: '',
+        roundName: '',
+        sets: [],
+        upcoming: [],
+      }
+      function getElementByClassName(className, parentEl) {
+        const element = parentEl ?? document;
+        const elements = element.getElementsByClassName(className);
+        if (elements.length !== 1) {
+          throw new Error(`${elements.length} elements with className ${className}`);
+        }
+        return elements[0];
+      }
+      function replace(className, innerText, parentEl) {
+        const element = getElementByClassName(className, parentEl);
+        element.innerText = innerText;
+      }
+      async function update() {
+        const response = await fetch('./overlay.json');
+        const newContext = await response.json();
+        if (JSON.stringify(context) !== JSON.stringify(newContext)) {
+          replace('tournament-name', newContext.tournamentName);
+          replace('event-phase-name', newContext.eventName && newContext.phaseName ? `${newContext.eventName}, ${newContext.phaseName}` : '');
+          replace('round', newContext.roundName);
+
+          const sets = newContext.sets.filter((set) => set);
+          const setEls = document.getElementsByClassName('set');
+          for (let i = 0; i < 2; i++) {
+            const set = sets[i];
+            const setEl = setEls[i];
+            if (!set) {
+              replace('best-of', `BO${set.bestOf}`, setEl);
+              replace('left-full-names', '', setEl);
+              replace('left-score', '', setEl);
+              replace('right-full-names', '', setEl);
+              replace('right-score', '', setEl)
+            } else {
+              replace('best-of', `BO${set.bestOf}`, setEl);
+              const leftFullNames = [];
+              for (let i = 0; i < set.leftPrefixes.length; i += 1) {
+                let fullName = '';
+                if (set.leftPrefixes[i]) {
+                  fullName += `${set.leftPrefixes[i]} | `;
+                }
+                fullName += set.leftNames[i];
+                if (set.leftPronouns[i]) {
+                  fullName += ` (${set.leftPronouns[i]})`;
+                }
+                leftFullNames.push(fullName);
+              }
+              const leftScore = leftFullNames.length > 0 ? set.leftScore.toString() : '';
+              replace('left-full-names', leftFullNames.join(', '), setEl);
+              replace('left-score', leftScore, setEl);
+
+              const rightFullNames = [];
+              for (let i = 0; i < set.rightPrefixes.length; i += 1) {
+                let fullName = '';
+                if (set.rightPrefixes[i]) {
+                  fullName += `${set.rightPrefixes[i]} | `;
+                }
+                fullName += set.rightNames[i];
+                if (set.rightPronouns[i]) {
+                  fullName += ` (${set.rightPronouns[i]})`;
+                }
+                rightFullNames.push(fullName);
+              }
+              const rightScore = rightFullNames.length > 0 ? set.rightScore.toString() : '';
+              replace('right-full-names', rightFullNames.join(', '), setEl);
+              replace('right-score', rightScore, setEl);
+            }
+          }
+
+          const upcoming = getElementByClassName('upcoming');
+          upcoming.innerText = '';
+          if (newContext.upcoming.length > 0) {
+            const newUpcomingTitle = document.createElement('div');
+            newUpcomingTitle.className = 'upcoming-title';
+            newUpcomingTitle.innerText = 'Next in round:';
+            upcoming.appendChild(newUpcomingTitle);
+            for (const upcomingSet of newContext.upcoming) {
+              const newSet = document.createElement('div');
+              newSet.className = 'upcoming-set';
+              newSet.innerText = `${upcomingSet.leftNames.join(', ')} vs ${upcomingSet.rightNames.join(', ')}`;
+              upcoming.appendChild(newSet);
+            }
+          } else if (newContext.upcomingRoundName) {
+            const newUpcomingTitle = document.createElement('div');
+            newUpcomingTitle.className = 'upcoming-title';
+            newUpcomingTitle.innerText = `Next round: ${newContext.upcomingRoundName}`;
+            upcoming.appendChild(newUpcomingTitle);
+          }
+
+          context = newContext;
+        }
+      }
+      setInterval(() => { update(); }, 1000);
+    </script>
+  </body>
+</html>

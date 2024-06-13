@@ -7,7 +7,6 @@ import {
   ConnectionStatus,
   DolphinConnection,
   DolphinMessageType,
-  Ports,
 } from '@slippi/slippi-js';
 import { DolphinComm } from '../common/types';
 
@@ -30,6 +29,8 @@ export class Dolphin extends EventEmitter {
 
   private isoPath: string;
 
+  private port: number;
+
   private process: ChildProcess | null;
 
   private gameIndex: number;
@@ -38,17 +39,23 @@ export class Dolphin extends EventEmitter {
 
   private ignoreEndGame: boolean;
 
-  constructor(dolphinPath: string, isoPath: string, tempDir: string) {
+  constructor(
+    dolphinPath: string,
+    isoPath: string,
+    tempDir: string,
+    port: number,
+  ) {
     super();
     this.commNum = 0;
     this.dolphinPath = dolphinPath;
     this.isoPath = isoPath;
+    this.port = port;
     this.process = null;
     this.gameIndex = 0;
     this.gamesLength = 0;
     this.ignoreEndGame = false;
 
-    this.commPath = path.join(tempDir, 'comm.json');
+    this.commPath = path.join(tempDir, `${port}.json`);
     this.dolphinConnection = new DolphinConnection();
     this.dolphinConnection.on(ConnectionEvent.MESSAGE, (messageEvent) => {
       switch (messageEvent.type) {
@@ -73,6 +80,7 @@ export class Dolphin extends EventEmitter {
     const comm: DolphinComm = {
       mode: 'queue',
       commandId: this.commNum.toString(),
+      gameStation: `${this.port}`,
       queue: replayPaths.map((replayPath) => ({ path: replayPath })),
     };
     this.commNum += 1;
@@ -130,16 +138,25 @@ export class Dolphin extends EventEmitter {
       );
 
       // Actually initiate the connection
-      this.dolphinConnection.connect('127.0.0.1', Ports.DEFAULT).catch(reject);
+      this.dolphinConnection.connect('127.0.0.1', this.port).catch(reject);
     });
   }
 
-  public async open(replayPaths: string[] = []) {
+  public async open() {
     if (this.process) {
       return;
     }
 
-    const params = ['-b', '-e', this.isoPath, '-i', this.commPath];
+    await this.writeComm([]);
+    const params = [
+      '-b',
+      '-e',
+      this.isoPath,
+      '-i',
+      this.commPath,
+      '--slippi-spectator-port',
+      `${this.port}`,
+    ];
     if (process.platform === 'darwin') {
       this.process = execFile(this.dolphinPath, params, {
         // 100MB
@@ -153,9 +170,8 @@ export class Dolphin extends EventEmitter {
       try {
         await this.connectToDolphin();
         this.emit(DolphinEvent.START_READY);
-        await this.writeComm(replayPaths);
       } catch (e: any) {
-        this.emit(DolphinEvent.START_FAILED);
+        this.emit(DolphinEvent.START_FAILED, this.process !== null);
       }
     });
     this.process.on('close', (code) => {
@@ -167,11 +183,11 @@ export class Dolphin extends EventEmitter {
   }
 
   public async play(replayPaths: string[]) {
-    if (this.process) {
-      this.writeComm(replayPaths);
-      return;
+    if (!this.process) {
+      throw new Error('dolphin not open');
     }
-    await this.open(replayPaths);
+
+    return this.writeComm(replayPaths);
   }
 
   public close() {

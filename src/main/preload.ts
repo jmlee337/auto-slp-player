@@ -1,5 +1,10 @@
 import { IpcRendererEvent, contextBridge, ipcRenderer } from 'electron';
-import { RenderSet, TwitchSettings } from '../common/types';
+import {
+  OBSConnectionStatus,
+  OBSSettings,
+  RenderSet,
+  TwitchSettings,
+} from '../common/types';
 
 const electronHandler = {
   getDolphinPath: (): Promise<string> => ipcRenderer.invoke('getDolphinPath'),
@@ -7,13 +12,23 @@ const electronHandler = {
     ipcRenderer.invoke('chooseDolphinPath'),
   getIsoPath: (): Promise<string> => ipcRenderer.invoke('getIsoPath'),
   chooseIsoPath: (): Promise<string> => ipcRenderer.invoke('chooseIsoPath'),
+  getMaxDolphins: (): Promise<number> => ipcRenderer.invoke('getMaxDolphins'),
+  setMaxDolphins: (maxDolphins: number): Promise<void> =>
+    ipcRenderer.invoke('setMaxDolphins', maxDolphins),
   chooseWatchDir: (): Promise<string> => ipcRenderer.invoke('chooseWatchDir'),
-  openDolphin: (): Promise<void> => ipcRenderer.invoke('openDolphin'),
+  getNumdolphins: (): Promise<number> => ipcRenderer.invoke('getNumDolphins'),
+  openDolphins: (): Promise<void> => ipcRenderer.invoke('openDolphins'),
+  getObsConnectionStatus: (): Promise<OBSConnectionStatus> =>
+    ipcRenderer.invoke('getObsConnectionStatus'),
+  connectObs: (): Promise<void> => ipcRenderer.invoke('connectObs'),
   watch: (start: boolean): Promise<void> => ipcRenderer.invoke('watch', start),
   play: (dirName: string): Promise<void> => ipcRenderer.invoke('play', dirName),
   queue: (dirName: string): Promise<void> =>
     ipcRenderer.invoke('queue', dirName),
-  markPlayed: (dirName: string, played: boolean): Promise<RenderSet[]> =>
+  markPlayed: (
+    dirName: string,
+    played: boolean,
+  ): Promise<{ renderSets: RenderSet[]; queuedSetDirName: string }> =>
     ipcRenderer.invoke('markPlayed', dirName, played),
   getGenerateOverlay: (): Promise<boolean> =>
     ipcRenderer.invoke('getGenerateOverlay'),
@@ -27,25 +42,49 @@ const electronHandler = {
     ipcRenderer.invoke('setTwitchSettings', newTwitchSettings),
   getTwitchTokens: (code: string): Promise<void> =>
     ipcRenderer.invoke('getTwitchTokens', code),
+  getDolphinVersion: (): Promise<string> =>
+    ipcRenderer.invoke('getDolphinVersion'),
+  getObsConnectionEnabled: (): Promise<boolean> =>
+    ipcRenderer.invoke('getObsConnectionEnabled'),
+  setObsConnectionEnabled: (enabled: boolean) =>
+    ipcRenderer.invoke('setObsConnectionEnabled', enabled),
+  getObsSettings: (): Promise<OBSSettings> =>
+    ipcRenderer.invoke('getObsSettings'),
+  setObsSettings: (settings: OBSSettings) =>
+    ipcRenderer.invoke('setObsSettings', settings),
   openOverlayDir: (): Promise<void> => ipcRenderer.invoke('openOverlayDir'),
   openTempDir: (): Promise<void> => ipcRenderer.invoke('openTempDir'),
   getVersion: (): Promise<string> => ipcRenderer.invoke('getVersion'),
   getLatestVersion: (): Promise<string> =>
     ipcRenderer.invoke('getLatestVersion'),
-  onDolphin: (
-    callback: (event: IpcRendererEvent, dolphinOpen: boolean) => void,
+  onDolphins: (
+    callback: (event: IpcRendererEvent, numDolphins: number) => void,
   ) => {
-    ipcRenderer.removeAllListeners('dolphin');
-    ipcRenderer.on('dolphin', callback);
+    ipcRenderer.removeAllListeners('dolphins');
+    ipcRenderer.on('dolphins', callback);
+  },
+  onObsConnectionStatus: (
+    callback: (event: IpcRendererEvent, status: OBSConnectionStatus) => void,
+  ) => {
+    ipcRenderer.removeAllListeners('obsConnectionStatus');
+    ipcRenderer.on('obsConnectionStatus', callback);
   },
   onPlaying: (
-    callback: (event: IpcRendererEvent, renderSets: RenderSet[]) => void,
+    callback: (
+      event: IpcRendererEvent,
+      renderSets: RenderSet[],
+      queuedSetDirName: string,
+    ) => void,
   ) => {
     ipcRenderer.removeAllListeners('playing');
     ipcRenderer.on('playing', callback);
   },
   onUnzip: (
-    callback: (event: IpcRendererEvent, renderSets: RenderSet[]) => void,
+    callback: (
+      event: IpcRendererEvent,
+      renderSets: RenderSet[],
+      queuedSetDirName: string,
+    ) => void,
   ) => {
     ipcRenderer.removeAllListeners('unzip');
     ipcRenderer.on('unzip', callback);

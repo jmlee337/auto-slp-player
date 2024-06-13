@@ -101,6 +101,7 @@ export type RenderContext = {
     phaseName: string;
     phaseGroupName: string;
     fullRoundText: string;
+    twitchStream: string;
   };
 };
 

@@ -525,7 +525,12 @@ export default async function setupIPCs(
       watcher = watch(glob);
       watcher.on('add', async (newZipPath) => {
         try {
-          const newSet = await unzip(newZipPath, tempDir, dirNameToPlayedMs);
+          const newSet = await unzip(
+            newZipPath,
+            tempDir,
+            dirNameToPlayedMs,
+            twitchSettings.channelName,
+          );
           if (
             Array.from(playingSets.values()).find(
               (playingSet) => newSet.dirName === playingSet.dirName,

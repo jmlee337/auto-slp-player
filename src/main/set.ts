@@ -127,6 +127,7 @@ export function toRenderSet(set: AvailableSet): RenderSet {
         eventName: set.context.startgg.event.name,
         phaseName: set.context.startgg.phase.name,
         phaseGroupName: set.context.startgg.phaseGroup.name,
+        twitchStream: set.context.startgg.set.twitchStream ?? '',
       };
     }
   }

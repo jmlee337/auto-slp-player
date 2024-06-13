@@ -17,6 +17,7 @@ async function unzipInner(
   zipPath: string,
   tempDir: string,
   dirNameToPlayedMs: Map<string, number>,
+  twitchChannel: string,
 ): Promise<AvailableSet> {
   return new Promise((resolve, reject) => {
     yauzl.open(zipPath, { lazyEntries: true }, async (openErr, zipFile) => {
@@ -27,14 +28,25 @@ async function unzipInner(
       const unzipDir = path.join(tempDir, path.basename(zipPath, '.zip'));
       try {
         await access(unzipDir);
-        const contextPromise = getContext(path.join(unzipDir, 'context.json'));
+        const context = toMainContext(
+          await getContext(path.join(unzipDir, 'context.json')),
+        );
         const replayPaths = (await readdir(unzipDir))
           .filter((existingPath) => existingPath.endsWith('.slp'))
           .map((slpPath) => path.join(unzipDir, slpPath));
         replayPaths.sort();
         const dirName = path.basename(unzipDir);
+        const streamedTwitchChannel = context?.startgg?.set.twitchStream;
+        if (
+          twitchChannel &&
+          streamedTwitchChannel &&
+          twitchChannel !== streamedTwitchChannel &&
+          !dirNameToPlayedMs.has(dirName)
+        ) {
+          dirNameToPlayedMs.set(dirName, context?.startMs ?? Date.now());
+        }
         resolve({
-          context: toMainContext(await contextPromise),
+          context,
           dirName,
           playedMs: dirNameToPlayedMs.get(dirName) ?? 0,
           playing: false,
@@ -61,6 +73,15 @@ async function unzipInner(
             : undefined;
           replayPaths.sort();
           const dirName = path.basename(unzipDir);
+          const streamedTwitchChannel = context?.startgg?.set.twitchStream;
+          if (
+            twitchChannel &&
+            streamedTwitchChannel &&
+            twitchChannel !== streamedTwitchChannel &&
+            !dirNameToPlayedMs.has(dirName)
+          ) {
+            dirNameToPlayedMs.set(dirName, context?.startMs ?? Date.now());
+          }
           resolve({
             context,
             dirName,
@@ -113,6 +134,7 @@ async function unzipIfSettled(
   zipPath: string,
   tempDir: string,
   dirNameToPlayedMs: Map<string, number>,
+  twitchChannel: string,
   lastSize: number,
   timeout: number,
   resolve: (availableSet: AvailableSet) => void,
@@ -127,6 +149,7 @@ async function unzipIfSettled(
           zipPath,
           tempDir,
           dirNameToPlayedMs,
+          twitchChannel,
         );
         resolve(availableSet);
       } catch (e: any) {
@@ -137,6 +160,7 @@ async function unzipIfSettled(
         zipPath,
         tempDir,
         dirNameToPlayedMs,
+        twitchChannel,
         size,
         timeout * 2,
         resolve,
@@ -150,6 +174,7 @@ export default async function unzip(
   zipPath: string,
   tempDir: string,
   dirNameToPlayedMs: Map<string, number>,
+  twitchChannel: string,
 ) {
   const stats = await stat(zipPath);
   const lastSize = stats.size;
@@ -158,6 +183,7 @@ export default async function unzip(
       zipPath,
       tempDir,
       dirNameToPlayedMs,
+      twitchChannel,
       lastSize,
       1000,
       resolve,

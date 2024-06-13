@@ -1,5 +1,5 @@
 # OBS Scene/Source Setup
-Use `mode: "Capture specific window"` and `window match priority: "Window title must match"` for dolphin sources and pre-assign dolphin windows.
+Use `mode: "Capture specific window"`, `window match priority: "Window title must match"`, and `Capture Audio` for dolphin sources and pre-assign dolphin windows.
 All dolphins must be open before connecting to OBS.
 You can open dolphins with the "Open Dolphins" button in Auto SLP Player.
 

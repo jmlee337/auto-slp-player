@@ -123,7 +123,7 @@ export default class OBSConnection {
       const notFound = Array.from(expectedPortStrs.keys()).sort().join(', ');
       this.setConnectionStatus(
         OBSConnectionStatus.OBS_NOT_SETUP,
-        `Inputs not found for dolphin(s): ${notFound}. Check the "Window" and "Window match priority" settings on your Game Capture inputs.`,
+        `Inputs not found for dolphin(s): ${notFound}. Check the "Window", "Window match priority" ("Window title must match"), and "Capture Audio" (enabled) settings on your Game Capture inputs.`,
       );
       return;
     }
@@ -343,26 +343,40 @@ export default class OBSConnection {
       requestType: 'SetCurrentProgramScene',
       requestData: { sceneName },
     });
-    if (!isQuad2SpecialCase && ports.length !== 0) {
-      const enabledPorts = new Set(ports);
+    if (ports.length !== 0) {
       this.dolphinPorts.forEach((port) => {
         const uuid = this.portToUuid.get(port);
         if (uuid) {
-          const sceneItemId = this.sceneNameToUuidToSceneItemId
-            .get(sceneName)
-            ?.get(uuid);
-          if (sceneItemId) {
-            requests.push({
-              requestType: 'SetSceneItemEnabled',
-              requestData: {
-                sceneName,
-                sceneItemId,
-                sceneItemEnabled: enabledPorts.has(port),
-              },
-            });
-          }
+          requests.push({
+            requestType: 'SetInputMute',
+            requestData: {
+              inputUuid: uuid,
+              inputMuted: port !== ports[0],
+            },
+          });
         }
       });
+      if (!isQuad2SpecialCase) {
+        const enabledPorts = new Set(ports);
+        this.dolphinPorts.forEach((port) => {
+          const uuid = this.portToUuid.get(port);
+          if (uuid) {
+            const sceneItemId = this.sceneNameToUuidToSceneItemId
+              .get(sceneName)
+              ?.get(uuid);
+            if (sceneItemId) {
+              requests.push({
+                requestType: 'SetSceneItemEnabled',
+                requestData: {
+                  sceneName,
+                  sceneItemId,
+                  sceneItemEnabled: enabledPorts.has(port),
+                },
+              });
+            }
+          }
+        });
+      }
     }
     await this.obsWebSocket.callBatch(requests);
   }

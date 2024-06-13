@@ -57,6 +57,10 @@ function Hello() {
   const [obsAddress, setObsAddress] = useState('');
   const [obsPort, setObsPort] = useState('');
   const [obsPassword, setObsPassword] = useState('');
+  const [numDolphins, setNumDolphins] = useState(0);
+  const [obsConnectionStatus, setObsConnectionStatus] = useState(
+    OBSConnectionStatus.OBS_NOT_CONNECTED,
+  );
   const [gotSettings, setGotSettings] = useState(false);
   useEffect(() => {
     const inner = async () => {
@@ -71,6 +75,9 @@ function Hello() {
       const obsConnectionEnabledPromise =
         window.electron.getObsConnectionEnabled();
       const obsSettingsPromise = window.electron.getObsSettings();
+      const numDolphinsPromise = window.electron.getNumdolphins();
+      const obsConnectionStatusPromise =
+        window.electron.getObsConnectionStatus();
       setAppVersion(await appVersionPromise);
       setLatestAppVersion(await latestAppVersionPromise);
       setDolphinPath(await dolphinPathPromise);
@@ -84,6 +91,8 @@ function Hello() {
       setObsAddress((await obsSettingsPromise).address);
       setObsPort((await obsSettingsPromise).port);
       setObsPassword((await obsSettingsPromise).password);
+      setNumDolphins(await numDolphinsPromise);
+      setObsConnectionStatus(await obsConnectionStatusPromise);
       setGotSettings(true);
     };
     inner();
@@ -91,13 +100,9 @@ function Hello() {
 
   const [watchDir, setWatchDir] = useState('');
   const [watching, setWatching] = useState(false);
-  const [numDolphins, setNumDolphins] = useState(0);
   const [dolphinsOpening, setDolphinsOpening] = useState(false);
   const [queuedSetDirName, setQueuedSetDirName] = useState('');
   const [renderSets, setRenderSets] = useState<RenderSet[]>([]);
-  const [obsConnectionStatus, setObsConnectionStatus] = useState(
-    OBSConnectionStatus.OBS_NOT_CONNECTED,
-  );
   const [obsError, setObsError] = useState('');
   const [obsErrorDialogOpen, setObsErrorDialogOpen] = useState(false);
   useEffect(() => {
@@ -115,6 +120,7 @@ function Hello() {
         setObsConnectionStatus(newStatus);
         if (newStatus === OBSConnectionStatus.READY) {
           setObsError('');
+          setObsErrorDialogOpen(false);
         } else {
           if (newStatus === OBSConnectionStatus.OBS_NOT_CONNECTED) {
             setObsError('OBS disconnected.');

@@ -484,6 +484,8 @@ export default async function setupIPCs(
       newDolphin.open();
     });
   };
+  ipcMain.removeHandler('getNumDolphins');
+  ipcMain.handle('getNumDolphins', () => dolphins.size);
   ipcMain.removeHandler('openDolphins');
   ipcMain.handle('openDolphins', async () => {
     const prevPlayingSize = playingSets.size;
@@ -505,6 +507,10 @@ export default async function setupIPCs(
       obsConnection.transition(playingSets);
     }
   });
+  ipcMain.removeHandler('getObsConnectionStatus');
+  ipcMain.handle('getObsConnectionStatus', () =>
+    obsConnection.getConnectionStatus(),
+  );
   ipcMain.removeHandler('connectObs');
   ipcMain.handle('connectObs', async () => {
     await obsConnection.connect(obsSettings);

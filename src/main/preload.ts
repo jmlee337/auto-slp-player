@@ -16,7 +16,10 @@ const electronHandler = {
   setMaxDolphins: (maxDolphins: number): Promise<void> =>
     ipcRenderer.invoke('setMaxDolphins', maxDolphins),
   chooseWatchDir: (): Promise<string> => ipcRenderer.invoke('chooseWatchDir'),
+  getNumdolphins: (): Promise<number> => ipcRenderer.invoke('getNumDolphins'),
   openDolphins: (): Promise<void> => ipcRenderer.invoke('openDolphins'),
+  getObsConnectionStatus: (): Promise<OBSConnectionStatus> =>
+    ipcRenderer.invoke('getObsConnectionStatus'),
   connectObs: (): Promise<void> => ipcRenderer.invoke('connectObs'),
   watch: (start: boolean): Promise<void> => ipcRenderer.invoke('watch', start),
   play: (dirName: string): Promise<void> => ipcRenderer.invoke('play', dirName),

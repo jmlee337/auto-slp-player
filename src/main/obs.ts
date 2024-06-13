@@ -15,6 +15,8 @@ const expectedSceneNums = new Map([
 ]);
 
 export default class OBSConnection {
+  private connectionStatus: OBSConnectionStatus;
+
   private dolphinPorts: number[];
 
   private dolphinVersionPromise: Promise<string> | null;
@@ -22,8 +24,6 @@ export default class OBSConnection {
   private mainWindow: BrowserWindow;
 
   private maxDolphins: number;
-
-  private obsConnected: boolean;
 
   private obsWebSocket: OBSWebSocket | null;
 
@@ -33,10 +33,11 @@ export default class OBSConnection {
 
   constructor(mainWindow: BrowserWindow) {
     this.mainWindow = mainWindow;
+
+    this.connectionStatus = OBSConnectionStatus.OBS_NOT_CONNECTED;
     this.dolphinPorts = [];
     this.dolphinVersionPromise = null;
     this.maxDolphins = 0;
-    this.obsConnected = false;
     this.obsWebSocket = null;
     this.portToUuid = new Map();
     this.sceneNameToUuidToSceneItemId = new Map();
@@ -44,6 +45,22 @@ export default class OBSConnection {
 
   setDolphinVersionPromise(dolphinVersionPromise: Promise<string>) {
     this.dolphinVersionPromise = dolphinVersionPromise;
+  }
+
+  getConnectionStatus() {
+    return this.connectionStatus;
+  }
+
+  private setConnectionStatus(
+    connectionStatus: OBSConnectionStatus,
+    errMessage?: string,
+  ) {
+    this.connectionStatus = connectionStatus;
+    this.mainWindow.webContents.send(
+      'obsConnectionStatus',
+      this.connectionStatus,
+      errMessage,
+    );
   }
 
   private async getPrefix() {
@@ -54,14 +71,13 @@ export default class OBSConnection {
   private async checkObsSetup() {
     if (
       this.obsWebSocket === null ||
-      !this.obsConnected ||
+      this.connectionStatus === OBSConnectionStatus.OBS_NOT_CONNECTED ||
       !this.dolphinVersionPromise
     ) {
       return;
     }
     if (this.dolphinPorts.length < this.maxDolphins) {
-      this.mainWindow.webContents.send(
-        'obsConnectionStatus',
+      this.setConnectionStatus(
         OBSConnectionStatus.OBS_NOT_SETUP,
         `${this.dolphinPorts.length} dolphins open. Expected ${this.maxDolphins}.`,
       );
@@ -81,12 +97,13 @@ export default class OBSConnection {
     await Promise.all(
       inputs.map(async (input) => {
         const { inputUuid } = input as { inputUuid: string };
-        // {"capture_mode":"window","priority":1,"window":"Faster Melee - Slippi (3.4.2) - Playback | 51441:wxWindowNR:Slippi Dolphin.exe"}
+        // {"capture_audio":true,"capture_mode":"window","priority":1,"window":"Faster Melee - Slippi (3.4.2) - Playback | 51441:wxWindowNR:Slippi Dolphin.exe"}
         const { inputSettings } = await this.obsWebSocket!.call(
           'GetInputSettings',
           { inputUuid },
         );
         if (
+          inputSettings.capture_audio &&
           inputSettings.capture_mode === 'window' &&
           inputSettings.priority === 1
         ) {
@@ -104,8 +121,7 @@ export default class OBSConnection {
     );
     if (expectedPortStrs.size !== 0) {
       const notFound = Array.from(expectedPortStrs.keys()).sort().join(', ');
-      this.mainWindow.webContents.send(
-        'obsConnectionStatus',
+      this.setConnectionStatus(
         OBSConnectionStatus.OBS_NOT_SETUP,
         `Inputs not found for dolphin(s): ${notFound}. Check the "Window" and "Window match priority" settings on your Game Capture inputs.`,
       );
@@ -125,8 +141,7 @@ export default class OBSConnection {
       if (this.maxDolphins === 2 || i !== 2) {
         const sceneName = `quad ${i}`;
         if (!sceneNames.has(sceneName)) {
-          this.mainWindow.webContents.send(
-            'obsConnectionStatus',
+          this.setConnectionStatus(
             OBSConnectionStatus.OBS_NOT_SETUP,
             `Scene "${sceneName}" not found.`,
           );
@@ -158,8 +173,7 @@ export default class OBSConnection {
               }
             });
           if (expectedUuids.size !== 0) {
-            this.mainWindow.webContents.send(
-              'obsConnectionStatus',
+            this.setConnectionStatus(
               OBSConnectionStatus.OBS_NOT_SETUP,
               `Scene: "quad ${i}" doesn't contain all dolphin game inputs.`,
             );
@@ -185,8 +199,7 @@ export default class OBSConnection {
       for (let i = 0; i < expectedScenes.length; i += 1) {
         const { sceneName, indices } = expectedScenes[i];
         if (!sceneNames.has(sceneName)) {
-          this.mainWindow.webContents.send(
-            'obsConnectionStatus',
+          this.setConnectionStatus(
             OBSConnectionStatus.OBS_NOT_SETUP,
             `Scene "${sceneName}" not found.`,
           );
@@ -221,8 +234,7 @@ export default class OBSConnection {
           });
         if (expectedUuids.size !== 0) {
           const expectedPortsStr = expectedPorts.join(', ');
-          this.mainWindow.webContents.send(
-            'obsConnectionStatus',
+          this.setConnectionStatus(
             OBSConnectionStatus.OBS_NOT_SETUP,
             `Scene: "${sceneName}" should contain game inputs for dolphins: ${expectedPortsStr}.`,
           );
@@ -233,17 +245,13 @@ export default class OBSConnection {
     }
     const expectedSceneNum = expectedSceneNums.get(this.maxDolphins)!;
     if (scenes.length > expectedSceneNum) {
-      this.mainWindow.webContents.send(
-        'obsConnectionStatus',
+      this.setConnectionStatus(
         OBSConnectionStatus.OBS_NOT_SETUP,
         `Too many scenes. Expected: ${expectedSceneNum}, actual: ${scenes.length}.`,
       );
       return;
     }
-    this.mainWindow.webContents.send(
-      'obsConnectionStatus',
-      OBSConnectionStatus.READY,
-    );
+    this.setConnectionStatus(OBSConnectionStatus.READY);
   }
 
   setMaxDolphins(maxDophins: number) {
@@ -260,11 +268,7 @@ export default class OBSConnection {
     if (!this.obsWebSocket) {
       this.obsWebSocket = new OBSWebSocket();
       this.obsWebSocket.on('ConnectionClosed', () => {
-        this.obsConnected = false;
-        this.mainWindow.webContents.send(
-          'obsConnectionStatus',
-          OBSConnectionStatus.OBS_NOT_CONNECTED,
-        );
+        this.setConnectionStatus(OBSConnectionStatus.OBS_NOT_CONNECTED);
       });
       this.obsWebSocket.on('CurrentSceneCollectionChanged', () => {
         this.checkObsSetup();
@@ -298,19 +302,21 @@ export default class OBSConnection {
         },
       );
     }
-    if (!this.obsConnected) {
+    if (this.connectionStatus === OBSConnectionStatus.OBS_NOT_CONNECTED) {
       await this.obsWebSocket.connect(
         `${settings.protocol}://${settings.address}:${settings.port}`,
         settings.password.length > 0 ? settings.password : undefined,
       );
-      this.obsConnected = true;
-
+      this.connectionStatus = OBSConnectionStatus.OBS_NOT_SETUP;
       await this.checkObsSetup();
     }
   }
 
   async transition(playingSets: Map<number, AvailableSet>) {
-    if (!this.obsWebSocket || !this.obsConnected) {
+    if (
+      !this.obsWebSocket ||
+      this.connectionStatus === OBSConnectionStatus.OBS_NOT_CONNECTED
+    ) {
       return;
     }
     const ports = Array.from(playingSets.keys()).sort((a, b) => a - b);

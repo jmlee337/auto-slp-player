@@ -218,7 +218,7 @@ export default async function setupIPCs(
   let queuedSet: AvailableSet | null = null;
   const writeOverlayJson = async () => {
     if (!generateOverlay) {
-      return null;
+      return undefined;
     }
 
     const overlayPath = path.join(resourcesPath, 'overlay', 'overlay.json');
@@ -283,6 +283,7 @@ export default async function setupIPCs(
         if (context && gameIndex !== undefined && setIndex >= 0) {
           const { slots } = context!.scores[gameIndex];
           sets[setIndex] = {
+            roundName,
             bestOf: context!.bestOf,
             leftPrefixes: slots[0].prefixes,
             leftNames: slots[0].displayNames,
@@ -300,7 +301,6 @@ export default async function setupIPCs(
       tournamentName,
       eventName,
       phaseName,
-      roundName,
       sets,
       upcoming,
       upcomingRoundName,

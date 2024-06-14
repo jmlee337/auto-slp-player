@@ -12,7 +12,7 @@
         font-family: robotocjksc, Arial;
         overflow: hidden;
       }
-      .best-of, .round, .event-phase-name, .upcoming-title {
+      .round-bo, .event-phase-name, .upcoming-title {
         font-size: 24px;
         line-height: 30px;
       }
@@ -27,8 +27,8 @@
         text-overflow: ellipsis;
         white-space: nowrap;
       }
-      .round, .upcoming {
-        margin-top: 24px;
+      .set-3, .tournament-name {
+        margin-bottom: 24px;
       }
       .tournament-name, .left, .right, .upcoming-set {
         font-size: 36px;
@@ -43,9 +43,8 @@
   <body>
     <div class="event-phase-name">Melee Singles, Bracket</div>
     <div class="tournament-name">Shuuten Tokyo 終点東京 #7</div>
-    <div class="round">Losers Quarter-Final (BO3)</div>
     <div class="set set-0">
-      <div class="best-of">BO3</div>
+      <div class="round-bo">Losers Quarter-Final (BO3)</div>
       <div class="left">
         <div class="left-full-names">Dojo | Sourdough</div>
         <div class="left-score">1</div>
@@ -56,7 +55,7 @@
       </div>
     </div>
     <div class="set set-1">
-      <div class="best-of">BO3</div>
+      <div class="round-bo">Losers Quarter-Final (BO3)</div>
       <div class="left">
         <div class="left-full-names">Dojo | Sourdough</div>
         <div class="left-score">1</div>
@@ -67,7 +66,7 @@
       </div>
     </div>
     <div class="set set-2">
-      <div class="best-of">BO3</div>
+      <div class="round-bo">Losers Quarter-Final (BO3)</div>
       <div class="left">
         <div class="left-full-names">Dojo | Sourdough</div>
         <div class="left-score">1</div>
@@ -78,7 +77,7 @@
       </div>
     </div>
     <div class="set set-3">
-      <div class="best-of">BO3</div>
+      <div class="round-bo">Losers Quarter-Final (BO3)</div>
       <div class="left">
         <div class="left-full-names">Dojo | Sourdough</div>
         <div class="left-score">1</div>
@@ -89,7 +88,7 @@
       </div>
     </div>
     <div class="upcoming">
-      <div class="upcoming-title">Next in round:</div>
+      <div class="upcoming-title">Next:</div>
       <div class="upcoming-set">slurms vs Tyku</div>
     </div>
     <script>
@@ -97,7 +96,6 @@
         tournamentName: '',
         eventName: '',
         phaseName: '',
-        roundName: '',
         sets: [],
         upcoming: [],
       }
@@ -119,19 +117,18 @@
         if (JSON.stringify(context) !== JSON.stringify(newContext)) {
           replace('tournament-name', newContext.tournamentName);
           replace('event-phase-name', newContext.eventName && newContext.phaseName ? `${newContext.eventName}, ${newContext.phaseName}` : '');
-          replace('round', newContext.roundName);
 
           for (let i = 0; i < 4; i++) {
             const setEl = getElementByClassName(`set-${i}`);
             const set = newContext.sets[i];
             if (!set) {
-              replace('best-of', '', setEl);
+              replace('round-bo', '', setEl);
               replace('left-full-names', '', setEl);
               replace('left-score', '', setEl);
               replace('right-full-names', '', setEl);
               replace('right-score', '', setEl)
             } else {
-              replace('best-of', `BO${set.bestOf}`, setEl);
+              replace('round-bo', `${set.roundName} (BO${set.bestOf})`, setEl);
               const leftFullNames = [];
               for (let i = 0; i < set.leftPrefixes.length; i += 1) {
                 let fullName = '';
@@ -171,7 +168,7 @@
           if (newContext.upcoming.length > 0) {
             const newUpcomingTitle = document.createElement('div');
             newUpcomingTitle.className = 'upcoming-title';
-            newUpcomingTitle.innerText = 'Next in round:';
+            newUpcomingTitle.innerText = 'Next:';
             upcoming.appendChild(newUpcomingTitle);
             for (const upcomingSet of newContext.upcoming) {
               const newSet = document.createElement('div');

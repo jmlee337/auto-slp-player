@@ -129,6 +129,7 @@ export type TwitchSettings = {
 };
 
 export type OverlaySet = {
+  roundName: string;
   bestOf: number;
   leftPrefixes: string[];
   leftNames: string[];
@@ -144,7 +145,6 @@ export type OverlayContext = {
   tournamentName: string;
   eventName: string;
   phaseName: string;
-  roundName: string;
   sets: OverlaySet[];
   upcoming: { leftNames: string[]; rightNames: string[] }[];
   upcomingRoundName: string;

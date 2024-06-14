@@ -20,7 +20,7 @@
         padding-right: 60px;
         width: 50%;
       }
-      .best-of, .round, .event-phase-name, .upcoming-title {
+      .round-bo, .event-phase-name, .upcoming-title {
         font-size: 24px;
         line-height: 30px;
       }
@@ -35,23 +35,20 @@
         text-overflow: ellipsis;
         white-space: nowrap;
       }
-      .event-phase-name {
-        margin-top: 16px;
-      }
       .tournament-name, .left, .right, .upcoming-set {
         font-size: 36px;
         line-height: 48px;
       }
       .set {
         height: 126px;
-        margin-bottom: 16px;
+        margin-bottom: 24px;
       }
     </style>
   </head>
   <body>
     <div class="column">
       <div class="set">
-        <div class="best-of">BO3</div>
+        <div class="round-bo">Losers Quarter-Final (BO3)</div>
         <div class="left">
           <div class="left-full-names">Dojo | Sourdough</div>
           <div class="left-score">1</div>
@@ -61,13 +58,12 @@
           <div class="right-score">0</div>
         </div>
       </div>
-      <div class="round">Losers Quarter-Final (BO3)</div>
       <div class="event-phase-name">Melee Singles, Bracket</div>
       <div class="tournament-name">Shuuten Tokyo 終点東京 #7</div>
     </div>
     <div class="column">
       <div class="set">
-        <div class="best-of">BO3</div>
+        <div class="round-bo">Losers Quarter-Final (BO3)</div>
         <div class="left">
           <div class="left-full-names">Dojo | Sourdough</div>
           <div class="left-score">1</div>
@@ -78,7 +74,7 @@
         </div>
       </div>
       <div class="upcoming">
-        <div class="upcoming-title">Next in round:</div>
+        <div class="upcoming-title">Next:</div>
         <div class="upcoming-set">slurms vs Tyku</div>
       </div>
     </div>
@@ -87,7 +83,6 @@
         tournamentName: '',
         eventName: '',
         phaseName: '',
-        roundName: '',
         sets: [],
         upcoming: [],
       }
@@ -109,7 +104,6 @@
         if (JSON.stringify(context) !== JSON.stringify(newContext)) {
           replace('tournament-name', newContext.tournamentName);
           replace('event-phase-name', newContext.eventName && newContext.phaseName ? `${newContext.eventName}, ${newContext.phaseName}` : '');
-          replace('round', newContext.roundName);
 
           const sets = newContext.sets.filter((set) => set);
           const setEls = document.getElementsByClassName('set');
@@ -117,13 +111,13 @@
             const set = sets[i];
             const setEl = setEls[i];
             if (!set) {
-              replace('best-of', `BO${set.bestOf}`, setEl);
+              replace('round-bo', ``, setEl);
               replace('left-full-names', '', setEl);
               replace('left-score', '', setEl);
               replace('right-full-names', '', setEl);
               replace('right-score', '', setEl)
             } else {
-              replace('best-of', `BO${set.bestOf}`, setEl);
+              replace('round-bo', `${set.roundName} (BO${set.bestOf})`, setEl);
               const leftFullNames = [];
               for (let i = 0; i < set.leftPrefixes.length; i += 1) {
                 let fullName = '';
@@ -163,7 +157,7 @@
           if (newContext.upcoming.length > 0) {
             const newUpcomingTitle = document.createElement('div');
             newUpcomingTitle.className = 'upcoming-title';
-            newUpcomingTitle.innerText = 'Next in round:';
+            newUpcomingTitle.innerText = 'Next:';
             upcoming.appendChild(newUpcomingTitle);
             for (const upcomingSet of newContext.upcoming) {
               const newSet = document.createElement('div');

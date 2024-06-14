@@ -34,6 +34,10 @@ const electronHandler = {
     ipcRenderer.invoke('getGenerateOverlay'),
   setGenerateOverlay: (newGenerateOverlay: boolean) =>
     ipcRenderer.invoke('setGenerateOverlay', newGenerateOverlay),
+  getTwitchChannel: (): Promise<string> =>
+    ipcRenderer.invoke('getTwitchChannel'),
+  setTwitchChannel: (twitchChannel: string): Promise<void> =>
+    ipcRenderer.invoke('setTwitchChannel', twitchChannel),
   getTwitchSettings: (): Promise<TwitchSettings> =>
     ipcRenderer.invoke('getTwitchSettings'),
   setTwitchSettings: (

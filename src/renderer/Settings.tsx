@@ -48,82 +48,57 @@ function IfClientIdAndScecretSet({
 }) {
   const [getting, setGetting] = useState(false);
 
-  return twitchSettings.accessToken && twitchSettings.refreshToken ? (
-    <Form
-      onSubmit={async (event) => {
-        const target = event.target as typeof event.target & {
-          channel: { value: string };
-        };
-        const channel = target.channel.value;
-        event.preventDefault();
-        event.stopPropagation();
-        if (channel) {
-          twitchSettings.channelName = channel;
-          setTwitchSettings(
-            await window.electron.setTwitchSettings(twitchSettings),
-          );
-        }
-      }}
-    >
-      <TextField
-        defaultValue={twitchSettings.channelName}
-        label="Channel"
-        name="channel"
-        variant="standard"
-      />
-      <Button type="submit" variant="contained">
-        Set
-      </Button>
-    </Form>
-  ) : (
-    <>
-      <DialogContentText>
-        <a
-          href={`https://id.twitch.tv/oauth2/authorize?client_id=${twitchSettings.clientId}&redirect_uri=http://localhost&response_type=code&scope=chat:read+chat:edit`}
-          target="_blank"
-          rel="noreferrer"
-        >
-          Authorize here
-        </a>
-        , and paste the code parameter from the redirect URL below (
-        <a href="https://imgur.com/1QFJwvJ" target="_blank" rel="noreferrer">
-          example screenshot
-        </a>
-        ):
-      </DialogContentText>
-      {twitchTokenError && <Alert severity="error">{twitchTokenError}</Alert>}
-      <Form
-        onSubmit={async (event) => {
-          const target = event.target as typeof event.target & {
-            code: { value: string };
-          };
-          const code = target.code.value;
-          event.preventDefault();
-          event.stopPropagation();
-          if (code && !getting) {
-            try {
-              setGetting(true);
-              await window.electron.getTwitchTokens(code);
-              setTwitchSettings(await window.electron.getTwitchSettings());
-            } catch (e: any) {
-              setTwitchTokenError('Twitch error, please try again');
-            } finally {
-              setGetting(false);
+  return (
+    (!twitchSettings.accessToken || !twitchSettings.refreshToken) && (
+      <>
+        <DialogContentText>
+          <a
+            href={`https://id.twitch.tv/oauth2/authorize?client_id=${twitchSettings.clientId}&redirect_uri=http://localhost&response_type=code&scope=chat:read+chat:edit`}
+            target="_blank"
+            rel="noreferrer"
+          >
+            Authorize here
+          </a>
+          , and paste the code parameter from the redirect URL below (
+          <a href="https://imgur.com/1QFJwvJ" target="_blank" rel="noreferrer">
+            example screenshot
+          </a>
+          ):
+        </DialogContentText>
+        {twitchTokenError && <Alert severity="error">{twitchTokenError}</Alert>}
+        <Form
+          onSubmit={async (event) => {
+            const target = event.target as typeof event.target & {
+              code: { value: string };
+            };
+            const code = target.code.value;
+            event.preventDefault();
+            event.stopPropagation();
+            if (code && !getting) {
+              try {
+                setGetting(true);
+                await window.electron.getTwitchTokens(code);
+                setTwitchSettings(await window.electron.getTwitchSettings());
+              } catch (e: any) {
+                setTwitchTokenError('Twitch error, please try again');
+              } finally {
+                setGetting(false);
+              }
             }
-          }
-        }}
-      >
-        <TextField label="code" name="code" variant="standard" />
-        <Button
-          disabled={getting}
-          endIcon={getting && <CircularProgress size={24} />}
-          type="submit"
-          variant="contained"
+          }}
         >
-          Go!
-        </Button>
-      </Form>
-    </>
+          <TextField label="code" name="code" size="small" variant="standard" />
+          <Button
+            disabled={getting}
+            endIcon={getting && <CircularProgress size={24} />}
+            type="submit"
+            variant="contained"
+          >
+            Go!
+          </Button>
+        </Form>
+      </>
+    )
   );
 }
 
@@ -136,6 +111,8 @@ export default function Settings({
   setMaxDolphins,
   generateOverlay,
   setGenerateOverlay,
+  twitchChannel,
+  setTwitchChannel,
   twitchSettings,
   setTwitchSettings,
   obsConnectionEnabled,
@@ -160,6 +137,8 @@ export default function Settings({
   setMaxDolphins: (maxDolphins: number) => void;
   generateOverlay: boolean;
   setGenerateOverlay: (generateOverlay: boolean) => void;
+  twitchChannel: string;
+  setTwitchChannel: (twitchChannel: string) => void;
   twitchSettings: TwitchSettings;
   setTwitchSettings: (twitchSettings: TwitchSettings) => void;
   obsConnectionEnabled: boolean;
@@ -234,12 +213,15 @@ export default function Settings({
       <Dialog
         open={open}
         onClose={async () => {
-          await window.electron.setObsSettings({
-            protocol: obsProtocol,
-            address: obsAddress,
-            port: obsPort,
-            password: obsPassword,
-          });
+          await Promise.all([
+            window.electron.setObsSettings({
+              protocol: obsProtocol,
+              address: obsAddress,
+              port: obsPort,
+              password: obsPassword,
+            }),
+            window.electron.setTwitchChannel(twitchChannel),
+          ]);
           setOpen(false);
         }}
         fullWidth
@@ -369,6 +351,7 @@ export default function Settings({
                   onChange={(event) => {
                     setObsAddress(event.target.value);
                   }}
+                  size="small"
                   value={obsAddress}
                   variant="standard"
                 />
@@ -379,6 +362,7 @@ export default function Settings({
                   onChange={(event) => {
                     setObsPort(event.target.value);
                   }}
+                  size="small"
                   type="number"
                   value={obsPort}
                   variant="standard"
@@ -389,6 +373,7 @@ export default function Settings({
                   onChange={(event) => {
                     setObsPassword(event.target.value);
                   }}
+                  size="small"
                   type="password"
                   value={obsPassword}
                   variant="standard"
@@ -414,20 +399,31 @@ export default function Settings({
             />
           </Box>
           <Stack>
-            <FormControlLabel
-              control={
-                <Checkbox
-                  checked={twitchSettings.enabled}
-                  onChange={async (event) => {
-                    twitchSettings.enabled = event.target.checked;
-                    setTwitchSettings(
-                      await window.electron.setTwitchSettings(twitchSettings),
-                    );
-                  }}
-                />
-              }
-              label="Twitch Integration"
-            />
+            <Stack direction="row" alignItems="center">
+              <TextField
+                label="Twitch channel"
+                onChange={(event) => {
+                  setTwitchChannel(event.target.value);
+                }}
+                size="small"
+                value={twitchChannel}
+                variant="standard"
+              />
+              <FormControlLabel
+                control={
+                  <Checkbox
+                    checked={twitchSettings.enabled}
+                    onChange={async (event) => {
+                      twitchSettings.enabled = event.target.checked;
+                      setTwitchSettings(
+                        await window.electron.setTwitchSettings(twitchSettings),
+                      );
+                    }}
+                  />
+                }
+                label="Twitch Bot"
+              />
+            </Stack>
             {twitchSettings.enabled && (
               <>
                 {(!twitchSettings.clientId || !twitchSettings.clientSecret) && (
@@ -456,6 +452,7 @@ export default function Settings({
                   <TextField
                     defaultValue={twitchSettings.clientId}
                     label="Client ID"
+                    size="small"
                     variant="standard"
                     onChange={async (event) => {
                       twitchSettings.clientId = event.target.value;
@@ -467,6 +464,7 @@ export default function Settings({
                   <TextField
                     defaultValue={twitchSettings.clientSecret}
                     label="Client Secret"
+                    size="small"
                     type="password"
                     variant="standard"
                     onChange={async (event) => {

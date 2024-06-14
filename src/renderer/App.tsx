@@ -44,9 +44,9 @@ function Hello() {
   const [isoPath, setIsoPath] = useState('');
   const [maxDolphins, setMaxDolphins] = useState(1);
   const [generateOverlay, setGenerateOverlay] = useState(false);
+  const [twitchChannel, setTwitchChannel] = useState('');
   const [twitchSettings, setTwitchSettings] = useState<TwitchSettings>({
     enabled: false,
-    channelName: '',
     accessToken: '',
     refreshToken: '',
     clientId: '',
@@ -71,6 +71,7 @@ function Hello() {
       const isoPathPromise = window.electron.getIsoPath();
       const maxDolphinsPromise = window.electron.getMaxDolphins();
       const generateOverlayPromise = window.electron.getGenerateOverlay();
+      const twitchChannelPromise = window.electron.getTwitchChannel();
       const twitchSettingsPromise = window.electron.getTwitchSettings();
       const dolphinVersionPromise = window.electron.getDolphinVersion();
       const obsConnectionEnabledPromise =
@@ -85,6 +86,7 @@ function Hello() {
       setIsoPath(await isoPathPromise);
       setMaxDolphins(await maxDolphinsPromise);
       setGenerateOverlay(await generateOverlayPromise);
+      setTwitchChannel(await twitchChannelPromise);
       setTwitchSettings(await twitchSettingsPromise);
       setDolphinVersion(await dolphinVersionPromise);
       setObsConnectionEnabled(await obsConnectionEnabledPromise);
@@ -197,6 +199,8 @@ function Hello() {
           setGenerateOverlay={setGenerateOverlay}
           maxDolphins={maxDolphins}
           setMaxDolphins={setMaxDolphins}
+          twitchChannel={twitchChannel}
+          setTwitchChannel={setTwitchChannel}
           twitchSettings={twitchSettings}
           setTwitchSettings={setTwitchSettings}
           obsConnectionEnabled={obsConnectionEnabled}
@@ -307,9 +311,9 @@ function Hello() {
                     {renderSet.context.namesLeft} vs{' '}
                     {renderSet.context.namesRight}
                   </ListItemText>
-                  {twitchSettings.channelName &&
+                  {twitchChannel &&
                     renderSet.context.startgg?.twitchStream &&
-                    twitchSettings.channelName !==
+                    twitchChannel !==
                       renderSet.context.startgg?.twitchStream && (
                       <Tooltip
                         arrow

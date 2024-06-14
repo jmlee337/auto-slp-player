@@ -121,7 +121,6 @@ export type DolphinComm = {
 
 export type TwitchSettings = {
   enabled: boolean;
-  channelName: string;
   clientId: string;
   clientSecret: string;
   accessToken: string;

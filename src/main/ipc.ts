@@ -47,11 +47,13 @@ export default async function setupIPCs(
   let generateOverlay = store.has('generateOverlay')
     ? (store.get('generateOverlay') as boolean)
     : false;
+  let twitchChannel = store.has('twitchChannel')
+    ? (store.get('twitchChannel') as string)
+    : '';
   let twitchSettings: TwitchSettings = store.has('twitchSettings')
     ? (store.get('twitchSettings') as TwitchSettings)
     : {
         enabled: false,
-        channelName: '',
         accessToken: '',
         refreshToken: '',
         clientId: '',
@@ -529,7 +531,7 @@ export default async function setupIPCs(
             newZipPath,
             tempDir,
             dirNameToPlayedMs,
-            twitchSettings.channelName,
+            twitchChannel,
           );
           if (
             Array.from(playingSets.values()).find(
@@ -666,9 +668,7 @@ export default async function setupIPCs(
   });
 
   ipcMain.removeHandler('getGenerateOverlay');
-  ipcMain.handle('getGenerateOverlay', () => {
-    return generateOverlay;
-  });
+  ipcMain.handle('getGenerateOverlay', () => generateOverlay);
 
   ipcMain.removeHandler('setGenerateOverlay');
   ipcMain.handle(
@@ -682,12 +682,15 @@ export default async function setupIPCs(
     },
   );
 
+  ipcMain.removeHandler('getTwitchChannel');
+  ipcMain.handle('getTwitchChannel', () => twitchChannel);
+
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   let twitchBot: Bot | null;
   const maybeStartTwitchBot = async (newTwitchSettings: TwitchSettings) => {
     if (
+      !twitchChannel ||
       !newTwitchSettings.enabled ||
-      !newTwitchSettings.channelName ||
       !newTwitchSettings.clientId ||
       !newTwitchSettings.clientSecret ||
       !newTwitchSettings.accessToken ||
@@ -717,8 +720,11 @@ export default async function setupIPCs(
 
     twitchBot = new Bot({
       authProvider,
-      channel: twitchSettings.channelName,
+      channel: twitchChannel,
       commands: [
+        createBotCommand('auto', (params, { say }) => {
+          say('tbd');
+        }),
         createBotCommand('bracket', (params, { say }) => {
           const playingSetsWithContextStartgg = Array.from(
             playingSets.values(),
@@ -742,6 +748,16 @@ export default async function setupIPCs(
     });
   };
 
+  ipcMain.removeHandler('setTwitchChannel');
+  ipcMain.handle(
+    'setTwitchChannel',
+    (event: IpcMainInvokeEvent, newTwitchChannel: string) => {
+      store.set('twitchChannel', newTwitchChannel);
+      twitchChannel = newTwitchChannel;
+      maybeStartTwitchBot(twitchSettings);
+    },
+  );
+
   ipcMain.removeHandler('getTwitchSettings');
   ipcMain.handle('getTwitchSettings', () => {
     return twitchSettings;
@@ -751,21 +767,17 @@ export default async function setupIPCs(
   ipcMain.handle(
     'setTwitchSettings',
     async (event: IpcMainInvokeEvent, newTwitchSettings: TwitchSettings) => {
-      const channelDiff =
-        twitchSettings.channelName !== newTwitchSettings.channelName;
       const clientIdDiff =
         twitchSettings.clientId !== newTwitchSettings.clientId;
       const clientSecretDiff =
         twitchSettings.clientSecret !== newTwitchSettings.clientSecret;
       if (
-        channelDiff ||
         clientIdDiff ||
         clientSecretDiff ||
         twitchSettings.enabled !== newTwitchSettings.enabled
       ) {
         const actualNewTwitchSettings: TwitchSettings = {
           enabled: newTwitchSettings.enabled,
-          channelName: newTwitchSettings.channelName,
           clientId: newTwitchSettings.clientId,
           clientSecret: newTwitchSettings.clientSecret,
           accessToken: twitchSettings.accessToken,

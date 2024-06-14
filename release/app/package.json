@@ -1,12 +1,11 @@
 {
   "name": "auto-slp-player",
-  "version": "0.2.2",
+  "version": "0.3.0",
   "description": "An app for playing Slippi replays",
   "license": "MIT",
   "author": {
-    "name": "Electron React Boilerplate Maintainers",
-    "email": "electronreactboilerplate@gmail.com",
-    "url": "https://github.com/electron-react-boilerplate"
+    "name": "Nicolet",
+    "url": "https://github.com/jmlee337"
   },
   "main": "./dist/main/main.js",
   "scripts": {

@@ -334,7 +334,7 @@ export default function Settings({
               <DialogContentText>
                 (Scene/Source setup info{' '}
                 <a
-                  href="https://github.com/jmlee337/auto-slp-player/blob/main/src/docs/obs.md"
+                  href={`https://github.com/jmlee337/auto-slp-player/blob/${appVersion}/src/docs/obs.md`}
                   target="_blank"
                   rel="noreferrer"
                 >

@@ -273,29 +273,42 @@ export default function Settings({
               </IconButton>
             </Tooltip>
           </Stack>
+          <Stack direction="row" alignItems="center" spacing="8px">
+            <Select
+              value={maxDolphins}
+              onChange={async (event) => {
+                const newMaxDolphins = event.target.value;
+                if (Number.isInteger(newMaxDolphins)) {
+                  await window.electron.setMaxDolphins(
+                    newMaxDolphins as number,
+                  );
+                  setMaxDolphins(newMaxDolphins as number);
+                }
+              }}
+              size="small"
+            >
+              <MenuItem value={1}>1</MenuItem>
+              <MenuItem value={2}>2</MenuItem>
+              <MenuItem value={3}>3</MenuItem>
+              <MenuItem value={4}>4</MenuItem>
+            </Select>
+            <Typography variant="body1">Max Dolphins</Typography>
+          </Stack>
           <Box>
             <FormControlLabel
               control={
-                <Select
-                  value={maxDolphins}
+                <Checkbox
+                  checked={generateOverlay}
                   onChange={async (event) => {
-                    const newMaxDolphins = event.target.value;
-                    if (Number.isInteger(newMaxDolphins)) {
-                      await window.electron.setMaxDolphins(
-                        newMaxDolphins as number,
-                      );
-                      setMaxDolphins(newMaxDolphins as number);
-                    }
+                    const newGenerateOverlay = event.target.checked;
+                    await window.electron.setGenerateOverlay(
+                      newGenerateOverlay,
+                    );
+                    setGenerateOverlay(newGenerateOverlay);
                   }}
-                  size="small"
-                >
-                  <MenuItem value={1}>1</MenuItem>
-                  <MenuItem value={2}>2</MenuItem>
-                  <MenuItem value={3}>3</MenuItem>
-                  <MenuItem value={4}>4</MenuItem>
-                </Select>
+                />
               }
-              label="Max Dolphins"
+              label="Generate Overlay"
             />
           </Box>
           <Stack>
@@ -381,23 +394,6 @@ export default function Settings({
               </Stack>
             )}
           </Stack>
-          <Box>
-            <FormControlLabel
-              control={
-                <Checkbox
-                  checked={generateOverlay}
-                  onChange={async (event) => {
-                    const newGenerateOverlay = event.target.checked;
-                    await window.electron.setGenerateOverlay(
-                      newGenerateOverlay,
-                    );
-                    setGenerateOverlay(newGenerateOverlay);
-                  }}
-                />
-              }
-              label="Generate Overlay"
-            />
-          </Box>
           <Stack>
             <Stack direction="row" alignItems="center">
               <TextField

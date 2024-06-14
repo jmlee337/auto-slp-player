@@ -1,5 +1,5 @@
 import { createWriteStream } from 'fs';
-import { access, mkdir, readFile, readdir, rmdir, stat } from 'fs/promises';
+import { access, mkdir, readFile, readdir, rmdir } from 'fs/promises';
 import path from 'path';
 import yauzl from 'yauzl';
 import { AvailableSet, Context } from '../common/types';
@@ -13,13 +13,13 @@ async function getContext(contextPath: string): Promise<Context> {
   }
 }
 
-async function unzipInner(
+export default async function unzip(
   zipPath: string,
   tempDir: string,
   dirNameToPlayedMs: Map<string, number>,
   twitchChannel: string,
-): Promise<AvailableSet> {
-  return new Promise((resolve, reject) => {
+) {
+  return new Promise<AvailableSet>((resolve, reject) => {
     yauzl.open(zipPath, { lazyEntries: true }, async (openErr, zipFile) => {
       if (openErr) {
         reject(new Error(`failed to open zip file ${openErr.message}`));
@@ -127,67 +127,5 @@ async function unzipInner(
       });
       zipFile.readEntry();
     });
-  });
-}
-
-async function unzipIfSettled(
-  zipPath: string,
-  tempDir: string,
-  dirNameToPlayedMs: Map<string, number>,
-  twitchChannel: string,
-  lastSize: number,
-  timeout: number,
-  resolve: (availableSet: AvailableSet) => void,
-  reject: (reason?: any) => void,
-) {
-  setTimeout(async () => {
-    const stats = await stat(zipPath);
-    const { size } = stats;
-    if (size === lastSize) {
-      try {
-        const availableSet = await unzipInner(
-          zipPath,
-          tempDir,
-          dirNameToPlayedMs,
-          twitchChannel,
-        );
-        resolve(availableSet);
-      } catch (e: any) {
-        reject(e);
-      }
-    } else {
-      unzipIfSettled(
-        zipPath,
-        tempDir,
-        dirNameToPlayedMs,
-        twitchChannel,
-        size,
-        timeout * 2,
-        resolve,
-        reject,
-      );
-    }
-  }, timeout);
-}
-
-export default async function unzip(
-  zipPath: string,
-  tempDir: string,
-  dirNameToPlayedMs: Map<string, number>,
-  twitchChannel: string,
-) {
-  const stats = await stat(zipPath);
-  const lastSize = stats.size;
-  return new Promise<AvailableSet>((resolve, reject) => {
-    unzipIfSettled(
-      zipPath,
-      tempDir,
-      dirNameToPlayedMs,
-      twitchChannel,
-      lastSize,
-      1000,
-      resolve,
-      reject,
-    );
   });
 }

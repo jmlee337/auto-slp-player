@@ -524,7 +524,7 @@ export default async function setupIPCs(
           ? watchDir.split(path.win32.sep).join(path.posix.sep)
           : watchDir;
       const glob = `${normalizedDir}/*.zip`;
-      watcher = watch(glob);
+      watcher = watch(glob, { awaitWriteFinish: true });
       watcher.on('add', async (newZipPath) => {
         try {
           const newSet = await unzip(

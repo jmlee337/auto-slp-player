@@ -384,10 +384,10 @@ export default async function setupIPCs(
       }
       queuedSet = null;
     };
+    sortAvailableSets();
     queueNextSet(
       availableSets.findIndex((value) => value.dirName === set.dirName),
     );
-    sortAvailableSets();
 
     await dolphins.get(actualPort)!.play(set.replayPaths);
     mainWindow.webContents.send(

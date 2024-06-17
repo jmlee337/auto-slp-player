@@ -18,47 +18,43 @@ export default async function unzip(
   tempDir: string,
   dirNameToPlayedMs: Map<string, number>,
   twitchChannel: string,
-) {
-  return new Promise<AvailableSet>((resolve, reject) => {
+): Promise<AvailableSet> {
+  const unzipDir = path.join(tempDir, path.basename(zipPath, '.zip'));
+  try {
+    await access(unzipDir);
+    const context = toMainContext(
+      await getContext(path.join(unzipDir, 'context.json')),
+    );
+    const replayPaths = (await readdir(unzipDir))
+      .filter((existingPath) => existingPath.endsWith('.slp'))
+      .map((slpPath) => path.join(unzipDir, slpPath));
+    replayPaths.sort();
+    const dirName = path.basename(unzipDir);
+    const streamedTwitchChannel = context?.startgg?.set.twitchStream;
+    if (
+      twitchChannel &&
+      streamedTwitchChannel &&
+      twitchChannel !== streamedTwitchChannel &&
+      !dirNameToPlayedMs.has(dirName)
+    ) {
+      dirNameToPlayedMs.set(dirName, context?.startMs ?? Date.now());
+    }
+    return {
+      context,
+      dirName,
+      invalidReason: replayPaths.length === 0 ? 'No replays' : '',
+      playedMs: dirNameToPlayedMs.get(dirName) ?? 0,
+      playing: false,
+      replayPaths,
+    };
+  } catch (accessE: any) {
+    await mkdir(unzipDir);
+  }
+  return new Promise((resolve, reject) => {
     yauzl.open(zipPath, { lazyEntries: true }, async (openErr, zipFile) => {
       if (openErr) {
         reject(new Error(`failed to open zip file ${openErr.message}`));
         return;
-      }
-      const unzipDir = path.join(tempDir, path.basename(zipPath, '.zip'));
-      try {
-        await access(unzipDir);
-        const context = toMainContext(
-          await getContext(path.join(unzipDir, 'context.json')),
-        );
-        const replayPaths = (await readdir(unzipDir))
-          .filter((existingPath) => existingPath.endsWith('.slp'))
-          .map((slpPath) => path.join(unzipDir, slpPath));
-        replayPaths.sort();
-        const dirName = path.basename(unzipDir);
-        const streamedTwitchChannel = context?.startgg?.set.twitchStream;
-        if (
-          twitchChannel &&
-          streamedTwitchChannel &&
-          twitchChannel !== streamedTwitchChannel &&
-          !dirNameToPlayedMs.has(dirName)
-        ) {
-          dirNameToPlayedMs.set(dirName, context?.startMs ?? Date.now());
-        }
-        resolve({
-          context,
-          dirName,
-          playedMs: dirNameToPlayedMs.get(dirName) ?? 0,
-          playing: false,
-          replayPaths,
-        });
-      } catch (accessE: any) {
-        try {
-          await mkdir(unzipDir);
-        } catch (mkdirE: any) {
-          reject(new Error(`failed to make unzip dir: ${mkdirE}`));
-          return;
-        }
       }
 
       let contextPath = '';
@@ -85,6 +81,7 @@ export default async function unzip(
           resolve({
             context,
             dirName,
+            invalidReason: replayPaths.length === 0 ? 'No replays' : '',
             playedMs: dirNameToPlayedMs.get(dirName) ?? 0,
             playing: false,
             replayPaths,

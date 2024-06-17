@@ -86,6 +86,7 @@ export type MainContext = {
 export type AvailableSet = {
   context?: MainContext;
   dirName: string;
+  invalidReason: string;
   playedMs: number;
   playing: boolean;
   replayPaths: string[];
@@ -108,6 +109,7 @@ export type RenderContext = {
 export type RenderSet = {
   context?: RenderContext;
   dirName: string;
+  invalidReason: string;
   played: boolean;
   playing: boolean;
 };

@@ -24,6 +24,7 @@ import {
   PlayCircle,
   PlaylistAddCheck,
   PriorityHigh,
+  Report,
   StopCircle,
   SubdirectoryArrowRight,
   Visibility,
@@ -288,24 +289,34 @@ function Hello() {
               dense
               disablePadding
               key={renderSet.dirName}
-              style={{ gap: '8px', opacity: renderSet.played ? '50%' : '100%' }}
+              style={{
+                gap: '8px',
+                opacity:
+                  renderSet.invalidReason || renderSet.played ? '50%' : '100%',
+              }}
             >
-              <Checkbox
-                checked={!renderSet.played}
-                disableRipple
-                onClick={async () => {
-                  const {
-                    renderSets: newRenderSets,
-                    queuedSetDirName: newQueuedSetDirName,
-                  } = await window.electron.markPlayed(
-                    renderSet.dirName,
-                    !renderSet.played,
-                  );
-                  setRenderSets(newRenderSets);
-                  setQueuedSetDirName(newQueuedSetDirName);
-                }}
-              />
-              {renderSet.context ? (
+              {renderSet.invalidReason ? (
+                <Tooltip arrow title={renderSet.invalidReason}>
+                  <Report style={{ padding: '9px' }} />
+                </Tooltip>
+              ) : (
+                <Checkbox
+                  checked={!renderSet.played}
+                  disableRipple
+                  onClick={async () => {
+                    const {
+                      renderSets: newRenderSets,
+                      queuedSetDirName: newQueuedSetDirName,
+                    } = await window.electron.markPlayed(
+                      renderSet.dirName,
+                      !renderSet.played,
+                    );
+                    setRenderSets(newRenderSets);
+                    setQueuedSetDirName(newQueuedSetDirName);
+                  }}
+                />
+              )}
+              {renderSet.context && !renderSet.invalidReason ? (
                 <Stack direction="row" flexGrow={1} spacing="8px">
                   <ListItemText primaryTypographyProps={{ noWrap: true }}>
                     {renderSet.context.namesLeft} vs{' '}
@@ -353,25 +364,29 @@ function Hello() {
               ) : (
                 <ListItemText>{renderSet.dirName}</ListItemText>
               )}
-              <Tooltip arrow title="Play next">
-                <IconButton
-                  onClick={async () => {
-                    window.electron.queue(renderSet.dirName);
-                    setQueuedSetDirName(renderSet.dirName);
-                  }}
-                >
-                  <SubdirectoryArrowRight />
-                </IconButton>
-              </Tooltip>
-              <Tooltip arrow title="Play now">
-                <IconButton
-                  onClick={() => {
-                    window.electron.play(renderSet.dirName);
-                  }}
-                >
-                  <PlayArrow />
-                </IconButton>
-              </Tooltip>
+              {!renderSet.invalidReason && (
+                <>
+                  <Tooltip arrow title="Play next">
+                    <IconButton
+                      onClick={async () => {
+                        window.electron.queue(renderSet.dirName);
+                        setQueuedSetDirName(renderSet.dirName);
+                      }}
+                    >
+                      <SubdirectoryArrowRight />
+                    </IconButton>
+                  </Tooltip>
+                  <Tooltip arrow title="Play now">
+                    <IconButton
+                      onClick={() => {
+                        window.electron.play(renderSet.dirName);
+                      }}
+                    >
+                      <PlayArrow />
+                    </IconButton>
+                  </Tooltip>
+                </>
+              )}
               <Box padding="8px" height="24px" width="24px">
                 {renderSet.playing && (
                   <Tooltip arrow title="Playing...">

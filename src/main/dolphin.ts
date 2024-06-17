@@ -35,9 +35,11 @@ export class Dolphin extends EventEmitter {
 
   private gameIndex: number;
 
-  private gamesLength: number;
+  private replayPaths: string[];
 
   private ignoreEndGame: boolean;
+
+  private waitingForStart: boolean;
 
   constructor(
     dolphinPath: string,
@@ -52,8 +54,9 @@ export class Dolphin extends EventEmitter {
     this.port = port;
     this.process = null;
     this.gameIndex = 0;
-    this.gamesLength = 0;
+    this.replayPaths = [];
     this.ignoreEndGame = false;
+    this.waitingForStart = false;
 
     this.commPath = path.join(tempDir, `${port}.json`);
     this.dolphinConnection = new DolphinConnection();
@@ -64,11 +67,26 @@ export class Dolphin extends EventEmitter {
             break;
           }
           this.gameIndex += 1;
-          if (this.gameIndex >= this.gamesLength) {
+          if (this.gameIndex >= this.replayPaths.length) {
             this.emit(DolphinEvent.ENDED);
+          } else {
+            this.waitingForStart = true;
+            setTimeout(() => {
+              if (this.waitingForStart) {
+                this.emit(
+                  DolphinEvent.ENDED,
+                  `Failed to play game ${
+                    this.gameIndex + 1
+                  }. Probably missing ${path.basename(
+                    this.replayPaths[this.gameIndex],
+                  )}`,
+                );
+              }
+            }, 5000);
           }
           break;
         case DolphinMessageType.START_GAME:
+          this.waitingForStart = false;
           this.emit(DolphinEvent.PLAYING, this.gameIndex);
           break;
         default:
@@ -85,14 +103,23 @@ export class Dolphin extends EventEmitter {
     };
     this.commNum += 1;
     this.gameIndex = 0;
-    this.gamesLength = replayPaths.length;
+    this.replayPaths = replayPaths;
     await writeFile(this.commPath, JSON.stringify(comm));
     // If we interrupt a replay in progress Dolphin will emit an END_GAME event
     // before starting our new replay. This would cause us to miscount so
     // ignore that.
     this.ignoreEndGame = true;
+    this.waitingForStart = true;
     setTimeout(() => {
       this.ignoreEndGame = false;
+      if (this.waitingForStart) {
+        this.emit(
+          DolphinEvent.ENDED,
+          `Failed to play game 1. Probably missing ${path.basename(
+            replayPaths[0],
+          )}`,
+        );
+      }
     }, 5000);
   }
 

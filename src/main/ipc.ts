@@ -169,6 +169,15 @@ export default async function setupIPCs(
   const earliestForPhaseRound = new Map<string, number>();
   const sortAvailableSets = () => {
     availableSets.sort((a, b) => {
+      if (a.invalidReason && !b.invalidReason) {
+        return -1;
+      }
+      if (!a.invalidReason && b.invalidReason) {
+        return 1;
+      }
+      if (a.invalidReason && b.invalidReason) {
+        return a.dirName.localeCompare(b.dirName);
+      }
       if (a.context?.startgg && b.context?.startgg) {
         const aStartgg = a.context.startgg;
         const bStartgg = b.context.startgg;
@@ -377,7 +386,10 @@ export default async function setupIPCs(
       }
 
       for (let i = startI + 1; i < availableSets.length; i += 1) {
-        if (availableSets[i].playedMs === 0) {
+        if (
+          availableSets[i].playedMs === 0 &&
+          !availableSets[i].invalidReason
+        ) {
           queuedSet = availableSets[i];
           return;
         }
@@ -428,10 +440,13 @@ export default async function setupIPCs(
       gameIndices.set(port, newGameIndex);
       writeOverlayJson();
     });
-    newDolphin.on(DolphinEvent.ENDED, async () => {
+    newDolphin.on(DolphinEvent.ENDED, async (failureReason: string) => {
       const playingSet = playingSets.get(port);
       if (playingSet) {
         playingSet.playing = false;
+        if (failureReason) {
+          playingSet.invalidReason = failureReason;
+        }
         if (queuedSet) {
           const currentRound = playingSet.context?.startgg?.set.round;
           const nextRound = queuedSet.context?.startgg?.set.round;
@@ -565,7 +580,10 @@ export default async function setupIPCs(
                   canPlay = true;
                 }
                 for (let j = i + 1; j < availableSets.length; j += 1) {
-                  if (availableSets[j].playedMs === 0) {
+                  if (
+                    availableSets[j].playedMs === 0 &&
+                    !availableSets[j].invalidReason
+                  ) {
                     if (availableSets[j].dirName === newSet.dirName) {
                       isNext = true;
                     }
@@ -575,13 +593,12 @@ export default async function setupIPCs(
                 return;
               }
             }
-            canPlay = true;
-            isNext = true;
+            canPlay = newSet.playedMs === 0 && !newSet.invalidReason;
+            isNext = newSet.playedMs === 0 && !newSet.invalidReason;
           };
           checkCanPlayIsNext();
           if (
             playingSets.size + tryingPorts.size < maxDolphins &&
-            newSet.playedMs === 0 &&
             canPlay &&
             isNext
           ) {
@@ -599,7 +616,8 @@ export default async function setupIPCs(
             );
           }
         } catch (e: any) {
-          /* empty */
+          // const message = e instanceof Error ? e.message : e;
+          // console.error(message);
         }
       });
     } else if (watcher) {
@@ -624,7 +642,10 @@ export default async function setupIPCs(
         if (availableSets[i].playing) {
           queuedSet = null;
           for (let j = i + 1; j < availableSets.length; j += 1) {
-            if (availableSets[j].playedMs === 0) {
+            if (
+              availableSets[j].playedMs === 0 &&
+              !availableSets[j].invalidReason
+            ) {
               queuedSet = availableSets[j];
               break;
             }
@@ -646,14 +667,18 @@ export default async function setupIPCs(
     if (!setToPlay) {
       throw new Error(`no such set to play: ${dirName}`);
     }
-
-    if (playingSets.size === 0) {
-      await playDolphin(setToPlay);
+    if (setToPlay.invalidReason) {
+      throw new Error(`cannot play set: ${setToPlay.invalidReason}`);
     }
-    if (playingSets.size === 1) {
+
+    if (playingSets.size === 1 && maxDolphins === 1 && tryingPorts.size === 0) {
       const [port, playingSet] = Array.from(playingSets.entries())[0];
       playingSet.playing = false;
       playDolphin(setToPlay, port);
+      return;
+    }
+    if (playingSets.size + tryingPorts.size < maxDolphins) {
+      await playDolphin(setToPlay);
     }
   });
 
@@ -663,6 +688,10 @@ export default async function setupIPCs(
     if (!setToQueue) {
       throw new Error(`no such set to queue: ${dirName}`);
     }
+    if (setToQueue.invalidReason) {
+      throw new Error(`cannot queue set: ${setToQueue.invalidReason}`);
+    }
+
     queuedSet = setToQueue;
     writeOverlayJson();
   });

@@ -7,10 +7,16 @@
         font-family: robotocjksc;
         src: url(RobotoCJKSC-Regular.ttf);
       }
+      html, body {
+        height: 100%;
+      }
       body {
         color: white;
         font-family: robotocjksc, Arial;
         overflow: hidden;
+      }
+      .event-phase-name {
+        margin-top: 8px;
       }
       .round-bo, .event-phase-name, .upcoming-title {
         font-size: 24px;
@@ -27,42 +33,54 @@
         text-overflow: ellipsis;
         white-space: nowrap;
       }
-      .set-3, .tournament-name {
-        margin-bottom: 24px;
+      .left-score, .right-score {
+        width: 44px;
+      }
+      .tournament-name {
+        margin-bottom: 8px;
       }
       .tournament-name, .left, .right, .upcoming-set {
         font-size: 36px;
-        line-height: 48px;
+        line-height: 44px;
       }
       .set {
-        height: 126px;
-        margin-bottom: 16px;
+        height: 118px;
+      }
+      .half {
+        display: flex;
+        flex-direction: column;
+        height: 50%;
+        padding: 0 8px;
+      }
+      .upcoming {
+        flex-grow: 1;
       }
     </style>
   </head>
   <body>
-    <div class="event-phase-name">Melee Singles, Bracket</div>
-    <div class="tournament-name">Shuuten Tokyo 終点東京 #7</div>
-    <div class="set set-0">
-      <div class="round-bo">Losers Quarter-Final (BO3)</div>
-      <div class="left">
-        <div class="left-full-names">Dojo | Sourdough</div>
-        <div class="left-score">1</div>
+    <div class="half">
+      <div class="event-phase-name">Melee Singles, Bracket</div>
+      <div class="tournament-name">Shuuten Tokyo 終点東京 #7</div>
+      <div class="upcoming">
+        <div class="upcoming-title">Next:</div>
+        <div class="upcoming-set">slurms vs Tyku</div>
+        <div class="upcoming-set">slurms vs Tyku</div>
+        <div class="upcoming-set">slurms vs Tyku</div>
+        <div class="upcoming-set">slurms vs Tyku</div>
       </div>
-      <div class="right">
-        <div class="right-full-names">DaN</div>
-        <div class="right-score">0</div>
+      <div class="set set-0">
+        <div class="round-bo">Losers Quarter-Final (BO3)</div>
+        <div class="left">
+          <div class="left-score">1</div>
+          <div class="left-full-names">Dojo | Sourdough</div>
+        </div>
+        <div class="right">
+          <div class="right-score">0</div>
+          <div class="right-full-names">DaN</div>
+        </div>
       </div>
-    </div>
-    <div class="set set-1">
-    </div>
-    <div class="set set-2">
-    </div>
-    <div class="set set-3">
-    </div>
-    <div class="upcoming">
-      <div class="upcoming-title">Next:</div>
-      <div class="upcoming-set">slurms vs Tyku</div>
+      <div class="set set-1">
+      </div>
     </div>
     <script>
       let context = {
@@ -141,7 +159,7 @@
             newUpcomingTitle.className = 'upcoming-title';
             newUpcomingTitle.innerText = 'Next:';
             upcoming.appendChild(newUpcomingTitle);
-            for (const upcomingSet of newContext.upcoming) {
+            for (const upcomingSet of newContext.upcoming.slice(0, 4)) {
               const newSet = document.createElement('div');
               newSet.className = 'upcoming-set';
               newSet.innerText = `${upcomingSet.leftNames.join(', ')} vs ${upcomingSet.rightNames.join(', ')}`;

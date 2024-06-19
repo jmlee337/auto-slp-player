@@ -8,7 +8,7 @@ import {
   shell,
 } from 'electron';
 import Store from 'electron-store';
-import { access, mkdir, writeFile } from 'fs/promises';
+import { access, mkdir, readdir, rm, unlink, writeFile } from 'fs/promises';
 import path from 'path';
 import { RefreshingAuthProvider } from '@twurple/auth';
 import { Bot, createBotCommand } from '@twurple/easy-bot';
@@ -895,6 +895,22 @@ export default async function setupIPCs(
   ipcMain.removeHandler('openTempDir');
   ipcMain.handle('openTempDir', () => {
     shell.openPath(tempDir);
+  });
+
+  ipcMain.removeHandler('clearTempDir');
+  ipcMain.handle('clearTempDir', async () => {
+    const dirents = await readdir(tempDir, { withFileTypes: true });
+    await Promise.all(
+      dirents.map((dirent) => {
+        if (dirent.isFile()) {
+          return unlink(path.join(tempDir, dirent.name));
+        }
+        if (dirent.isDirectory()) {
+          return rm(path.join(tempDir, dirent.name), { recursive: true });
+        }
+        return Promise.resolve();
+      }),
+    );
   });
 
   ipcMain.removeHandler('getVersion');

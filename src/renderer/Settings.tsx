@@ -21,6 +21,7 @@ import {
 } from '@mui/material';
 import { useMemo, useState } from 'react';
 import {
+  DeleteForever,
   SdCard,
   Settings as SettingsIcon,
   Terminal,
@@ -198,6 +199,9 @@ export default function Settings({
     setOpen(true);
     setHasAutoOpened(true);
   }
+
+  const [clearConfirmOpen, setClearConfirmOpen] = useState(false);
+  const [clearing, setClearing] = useState(false);
 
   return (
     <>
@@ -512,6 +516,46 @@ export default function Settings({
           >
             Open Temp Folder
           </Button>
+          <Tooltip arrow title="Clear Temp Folder">
+            <IconButton
+              onClick={() => {
+                setClearConfirmOpen(true);
+              }}
+            >
+              <DeleteForever />
+            </IconButton>
+          </Tooltip>
+          <Dialog
+            open={clearConfirmOpen}
+            onClose={() => {
+              setClearConfirmOpen(false);
+            }}
+          >
+            <DialogTitle>Clear Temp Folder?</DialogTitle>
+            <DialogContent>
+              <Alert severity="warning">
+                This will delete all unzipped replays and dolphin comm files.DO
+                NOT PROCEED if you are currently playing replays.
+              </Alert>
+            </DialogContent>
+            <DialogActions>
+              <Button
+                disabled={clearing}
+                onClick={async () => {
+                  try {
+                    setClearing(true);
+                    await window.electron.clearTempDir();
+                    setClearConfirmOpen(false);
+                  } finally {
+                    setClearing(false);
+                  }
+                }}
+                variant="contained"
+              >
+                Clear Temp Folder
+              </Button>
+            </DialogActions>
+          </Dialog>
         </DialogActions>
       </Dialog>
     </>

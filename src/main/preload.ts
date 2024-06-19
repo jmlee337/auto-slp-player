@@ -58,6 +58,7 @@ const electronHandler = {
     ipcRenderer.invoke('setObsSettings', settings),
   openOverlayDir: (): Promise<void> => ipcRenderer.invoke('openOverlayDir'),
   openTempDir: (): Promise<void> => ipcRenderer.invoke('openTempDir'),
+  clearTempDir: (): Promise<void> => ipcRenderer.invoke('clearTempDir'),
   getVersion: (): Promise<string> => ipcRenderer.invoke('getVersion'),
   getLatestVersion: (): Promise<string> =>
     ipcRenderer.invoke('getLatestVersion'),

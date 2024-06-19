@@ -112,7 +112,7 @@ export class Dolphin extends EventEmitter {
     this.waitingForStart = true;
     setTimeout(() => {
       this.ignoreEndGame = false;
-      if (this.waitingForStart) {
+      if (replayPaths.length > 0 && this.waitingForStart) {
         this.emit(
           DolphinEvent.ENDED,
           `Failed to play game 1. Probably missing ${path.basename(

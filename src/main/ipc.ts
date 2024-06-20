@@ -752,7 +752,9 @@ export default async function setupIPCs(
       channel: twitchChannel,
       commands: [
         createBotCommand('auto', (params, { say }) => {
-          say('tbd');
+          say(
+            'This is an auto stream using Slippi replays. Powered by Replay Manager for Slippi and Auto SLP Player: https://github.com/jmlee337',
+          );
         }),
         createBotCommand('bracket', (params, { say }) => {
           const playingSetsWithContextStartgg = Array.from(
@@ -771,6 +773,11 @@ export default async function setupIPCs(
           const phaseGroupId = representativeStartgg.phaseGroup.id;
           say(
             `SPOILERS: https://www.start.gg/${eventSlug}/brackets/${phaseId}/${phaseGroupId}`,
+          );
+        }),
+        createBotCommand('pronouns', (params, { say }) => {
+          say(
+            'Pronouns are pulled from start.gg. Update yours here: https://start.gg/admin/profile/profile-settings',
           );
         }),
       ],

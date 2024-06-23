@@ -7,19 +7,14 @@ import {
 } from '../common/types';
 import { Dolphin } from './dolphin';
 
-const expectedSceneNums = new Map([
-  [1, 2],
-  [2, 3],
-  [3, 6],
-  [4, 10],
-]);
-
 export default class OBSConnection {
   private connectionStatus: OBSConnectionStatus;
 
   private dolphinPorts: number[];
 
   private dolphinVersionPromise: Promise<string> | null;
+
+  private expectedSceneNames: Set<string>;
 
   private mainWindow: BrowserWindow;
 
@@ -37,6 +32,7 @@ export default class OBSConnection {
     this.connectionStatus = OBSConnectionStatus.OBS_NOT_CONNECTED;
     this.dolphinPorts = [];
     this.dolphinVersionPromise = null;
+    this.expectedSceneNames = new Set();
     this.maxDolphins = 0;
     this.obsWebSocket = null;
     this.portToUuid = new Map();
@@ -243,19 +239,35 @@ export default class OBSConnection {
         this.sceneNameToUuidToSceneItemId.set(sceneName, uuidToSceneItemId);
       }
     }
-    const expectedSceneNum = expectedSceneNums.get(this.maxDolphins)!;
-    if (scenes.length > expectedSceneNum) {
-      this.setConnectionStatus(
-        OBSConnectionStatus.OBS_NOT_SETUP,
-        `Too many scenes. Expected: ${expectedSceneNum}, actual: ${scenes.length}.`,
-      );
-      return;
-    }
     this.setConnectionStatus(OBSConnectionStatus.READY);
+  }
+
+  private updateExpectedSceneNames() {
+    const expectedSceneNamesArr = ['quad 0', 'quad 1'];
+    if (this.maxDolphins === 2) {
+      expectedSceneNamesArr.push('quad 2');
+    } else {
+      expectedSceneNamesArr.push(
+        'quad 2 12',
+        'quad 2 13',
+        'quad 2 23',
+        'quad 3',
+      );
+      if (this.maxDolphins === 4) {
+        expectedSceneNamesArr.push(
+          'quad 2 14',
+          'quad 2 24',
+          'quad 2 34',
+          'quad 4',
+        );
+      }
+    }
+    this.expectedSceneNames = new Set(expectedSceneNamesArr);
   }
 
   setMaxDolphins(maxDophins: number) {
     this.maxDolphins = maxDophins;
+    this.updateExpectedSceneNames();
     this.checkObsSetup();
   }
 
@@ -278,7 +290,7 @@ export default class OBSConnection {
       });
       this.obsWebSocket.on('SceneItemRemoved', ({ sceneName, sourceUuid }) => {
         if (
-          sceneName.startsWith('quad') &&
+          this.expectedSceneNames.has(sceneName) &&
           new Set(this.portToUuid.values()).has(sourceUuid)
         ) {
           this.checkObsSetup();
@@ -286,7 +298,7 @@ export default class OBSConnection {
       });
       this.obsWebSocket.on('SceneItemCreated', ({ sceneName, sourceUuid }) => {
         if (
-          sceneName.startsWith('quad') &&
+          this.expectedSceneNames.has(sceneName) &&
           new Set(this.portToUuid.values()).has(sourceUuid)
         ) {
           this.checkObsSetup();

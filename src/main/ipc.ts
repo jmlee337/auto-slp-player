@@ -229,6 +229,9 @@ export default async function setupIPCs(
   const playingSets: Map<number, AvailableSet> = new Map();
   const gameIndices: Map<number, number> = new Map();
   let queuedSet: AvailableSet | null = null;
+  let lastTournamentName = '';
+  let lastEventName = '';
+  let lastPhaseName = '';
   const writeOverlayJson = async () => {
     if (!generateOverlay) {
       return undefined;
@@ -236,10 +239,9 @@ export default async function setupIPCs(
 
     const overlayPath = path.join(resourcesPath, 'overlay', 'overlay.json');
 
-    let tournamentName = '';
-    let eventName = '';
-    let phaseName = '';
-    let roundName = '';
+    let tournamentName = lastTournamentName;
+    let eventName = lastEventName;
+    let phaseName = lastPhaseName;
     const sets: OverlaySet[] = [];
     const upcoming: { leftNames: string[]; rightNames: string[] }[] = [];
     let upcomingRoundName = '';
@@ -251,9 +253,11 @@ export default async function setupIPCs(
       const representativeStartgg = representativePlayingSet.context?.startgg;
       if (representativeStartgg) {
         tournamentName = representativeStartgg.tournament.name;
+        lastTournamentName = representativeStartgg.tournament.name;
         eventName = representativeStartgg.event.name;
+        lastEventName = representativeStartgg.event.name;
         phaseName = representativeStartgg.phase.name;
-        roundName = representativeStartgg.set.fullRoundText;
+        lastPhaseName = representativeStartgg.phase.name;
 
         if (queuedSet) {
           const round = queuedSet.context?.startgg?.set.round;
@@ -296,7 +300,7 @@ export default async function setupIPCs(
         if (context && gameIndex !== undefined && setIndex >= 0) {
           const { slots } = context!.scores[gameIndex];
           sets[setIndex] = {
-            roundName,
+            roundName: context!.startgg?.set.fullRoundText ?? '',
             bestOf: context!.bestOf,
             leftPrefixes: slots[0].prefixes,
             leftNames: slots[0].displayNames,
@@ -681,6 +685,7 @@ export default async function setupIPCs(
     }
     if (playingSets.size + tryingPorts.size < maxDolphins) {
       await playDolphin(setToPlay);
+      obsConnection.transition(playingSets);
     }
   });
 
@@ -718,6 +723,9 @@ export default async function setupIPCs(
 
   let twitchBot: Bot | null = null;
   let twitchBotStatus = { connected: false, error: '' };
+  let lastEventSlug = '';
+  let lastPhaseId = 0;
+  let lastPhaseGroupId = 0;
   const maybeStartTwitchBot = async (newTwitchSettings: TwitchSettings) => {
     if (
       !twitchChannel ||
@@ -765,23 +773,33 @@ export default async function setupIPCs(
             );
           }),
           createBotCommand('bracket', (params, { say }) => {
+            let eventSlug = lastEventSlug;
+            let phaseId = lastPhaseId;
+            let phaseGroupId = lastPhaseGroupId;
             const playingSetsWithContextStartgg = Array.from(
               playingSets.values(),
             ).filter(
               (playingSet) => playingSet.context && playingSet.context.startgg,
             );
-            if (playingSetsWithContextStartgg.length === 0) {
-              return;
+            if (playingSetsWithContextStartgg.length > 0) {
+              const representativeStartgg =
+                playingSetsWithContextStartgg[0].context!.startgg!;
+              eventSlug = representativeStartgg.event.slug;
+              lastEventSlug = representativeStartgg.event.slug;
+              phaseId = representativeStartgg.phase.id;
+              lastPhaseId = representativeStartgg.phase.id;
+              phaseGroupId = representativeStartgg.phaseGroup.id;
+              lastPhaseGroupId = representativeStartgg.phaseGroup.id;
             }
-            const representativeStartgg =
-              playingSetsWithContextStartgg[0].context!.startgg!;
-
-            const eventSlug = representativeStartgg.event.slug;
-            const phaseId = representativeStartgg.phase.id;
-            const phaseGroupId = representativeStartgg.phaseGroup.id;
-            say(
-              `SPOILERS: https://www.start.gg/${eventSlug}/brackets/${phaseId}/${phaseGroupId}`,
-            );
+            if (eventSlug && phaseId && phaseGroupId) {
+              const prefix =
+                playingSets.size === 0 && tryingPorts.size === 0
+                  ? ''
+                  : 'SPOILERS: ';
+              say(
+                `${prefix}https://www.start.gg/${eventSlug}/brackets/${phaseId}/${phaseGroupId}`,
+              );
+            }
           }),
           createBotCommand('pronouns', (params, { say }) => {
             say(

@@ -286,7 +286,21 @@ export default async function setupIPCs(
               }
             }
           } else if (queuedSet.context?.startgg?.set.fullRoundText) {
-            upcomingRoundName = queuedSet.context.startgg.set.fullRoundText;
+            let prefix = '';
+            if (
+              queuedSet.context.startgg.phase.id !==
+              representativeStartgg.phase.id
+            ) {
+              prefix = `${queuedSet.context.startgg.phase.name}, `;
+            }
+            if (
+              queuedSet.context.startgg.event.slug !==
+              representativeStartgg.event.slug
+            ) {
+              prefix = `${queuedSet.context.startgg.event.name}, ${prefix}`;
+            }
+            const roundName = queuedSet.context.startgg.set.fullRoundText;
+            upcomingRoundName = `${prefix}${roundName}`;
           }
         }
       }

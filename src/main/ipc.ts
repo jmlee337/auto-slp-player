@@ -305,6 +305,17 @@ export default async function setupIPCs(
         }
       }
 
+      const eventSlugs = new Set<string>();
+      const phaseIds = new Set<number>();
+      const phaseGroupIds = new Set<number>();
+      entriesWithContexts.forEach(([, playingSet]) => {
+        const startgg = playingSet.context?.startgg;
+        if (startgg) {
+          eventSlugs.add(startgg.event.slug);
+          phaseIds.add(startgg.phase.id);
+          phaseGroupIds.add(startgg.phaseGroup.id);
+        }
+      });
       entriesWithContexts.forEach(([port, playingSet]) => {
         const { context } = playingSet;
         const gameIndex = gameIndices.get(port);
@@ -312,10 +323,23 @@ export default async function setupIPCs(
           .sort((a, b) => a - b)
           .indexOf(port);
         if (context && gameIndex !== undefined && setIndex >= 0) {
-          const { slots } = context!.scores[gameIndex];
+          let roundName = '';
+          if (context.startgg) {
+            roundName = context.startgg.set.fullRoundText;
+            if (phaseGroupIds.size > 1) {
+              roundName = `Pool ${context.startgg.phaseGroup.name}, ${roundName}`;
+            }
+            if (phaseIds.size > 1) {
+              roundName = `${context.startgg.phase.name}, ${roundName}`;
+            }
+            if (eventSlugs.size > 1) {
+              roundName = `${context.startgg.event.name}, ${roundName}`;
+            }
+          }
+          const { slots } = context.scores[gameIndex];
           sets[setIndex] = {
-            roundName: context!.startgg?.set.fullRoundText ?? '',
-            bestOf: context!.bestOf,
+            roundName,
+            bestOf: context.bestOf,
             leftPrefixes: slots[0].prefixes,
             leftNames: slots[0].displayNames,
             leftPronouns: slots[0].pronouns,
@@ -468,7 +492,12 @@ export default async function setupIPCs(
           playingSet.invalidReason = failureReason;
         }
         if (queuedSet) {
+          const currentPhaseId = playingSet.context?.startgg?.phase.id;
+          const currentPhaseGroupId =
+            playingSet.context?.startgg?.phaseGroup.id;
           const currentRound = playingSet.context?.startgg?.set.round;
+          const nextPhaseId = queuedSet.context?.startgg?.phase.id;
+          const nextPhaseGroupId = queuedSet.context?.startgg?.phaseGroup.id;
           const nextRound = queuedSet.context?.startgg?.set.round;
           if (playingSets.size === 1) {
             playingSets.delete(port);
@@ -478,12 +507,21 @@ export default async function setupIPCs(
             } while (
               queuedSet &&
               playingSets.size + tryingPorts.size < maxDolphins &&
-              nextRound === queuedSet.context?.startgg?.set.round
+              nextPhaseId === queuedSet.context?.startgg?.phase.id &&
+              (nextPhaseGroupId !== queuedSet.context?.startgg?.phaseGroup.id ||
+                (nextPhaseGroupId ===
+                  queuedSet.context?.startgg?.phaseGroup.id &&
+                  nextRound === queuedSet.context?.startgg?.set.round))
             );
             obsConnection.transition(playingSets);
             return;
           }
-          if (currentRound === nextRound) {
+          if (
+            currentPhaseId === nextPhaseId &&
+            (currentPhaseGroupId !== nextPhaseGroupId ||
+              (currentPhaseGroupId === nextPhaseGroupId &&
+                currentRound === nextRound))
+          ) {
             playDolphin(queuedSet, port);
             return;
           }
@@ -588,35 +626,52 @@ export default async function setupIPCs(
           }
           availableSets.push(newSet);
           sortAvailableSets();
-          let canPlay = availableSets.length === 1;
-          let isNext = availableSets.length === 1;
-          const checkCanPlayIsNext = () => {
-            for (let i = availableSets.length - 2; i >= 0; i -= 1) {
-              if (availableSets[i].playing) {
+          const playingSetsArr = Array.from(playingSets.values());
+          let canPlay = playingSetsArr.length === 0;
+          let isNext = playingSetsArr.length === 0;
+          console.log(playingSetsArr.length);
+          playingSetsArr.forEach((set) => {
+            if (!set.context?.startgg && !newSet.context?.startgg) {
+              canPlay = true;
+              return;
+            }
+            if (
+              set.context?.startgg?.phase.id ===
+              newSet.context?.startgg?.phase.id
+            ) {
+              if (
+                set.context?.startgg?.phaseGroup.id ===
+                newSet.context?.startgg?.phaseGroup.id
+              ) {
+                // If same group must be same round to not spoil.
                 if (
-                  availableSets[i].context?.startgg?.set.round ===
+                  set.context?.startgg?.set.round ===
                   newSet.context?.startgg?.set.round
                 ) {
                   canPlay = true;
                 }
-                for (let j = i + 1; j < availableSets.length; j += 1) {
-                  if (
-                    availableSets[j].playedMs === 0 &&
-                    !availableSets[j].invalidReason
-                  ) {
-                    if (availableSets[j].dirName === newSet.dirName) {
-                      isNext = true;
-                    }
-                    break;
-                  }
-                }
-                return;
+              } else {
+                // Same phase different group: can never spoil.
+                canPlay = true;
               }
             }
-            canPlay = newSet.playedMs === 0 && !newSet.invalidReason;
-            isNext = newSet.playedMs === 0 && !newSet.invalidReason;
-          };
-          checkCanPlayIsNext();
+          });
+          const newSetI = availableSets.indexOf(newSet);
+          if (newSetI < 0) {
+            throw new Error('could not find newSet in availableSets');
+          }
+          for (let i = newSetI - 1; i >= 0; i -= 1) {
+            if (availableSets[i].playing) {
+              isNext = true;
+            } else if (
+              availableSets[i].playedMs !== 0 ||
+              availableSets[i].invalidReason
+            ) {
+              // eslint-disable-next-line no-continue
+              continue;
+            }
+            break;
+          }
           if (
             playingSets.size + tryingPorts.size < maxDolphins &&
             canPlay &&
@@ -625,7 +680,13 @@ export default async function setupIPCs(
             await playDolphin(newSet);
             obsConnection.transition(playingSets);
           } else {
-            if (isNext) {
+            if (
+              isNext &&
+              (!queuedSet ||
+                (newSet.context &&
+                  queuedSet.context &&
+                  newSet.context.durationMs > queuedSet.context.durationMs))
+            ) {
               queuedSet = newSet;
             }
             writeOverlayJson();

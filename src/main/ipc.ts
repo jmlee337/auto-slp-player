@@ -199,8 +199,12 @@ export default async function setupIPCs(
           return Math.abs(aRound) - Math.abs(bRound);
         }
         const roundCompare =
-          earliestForPhaseRound.get(`${aStartgg.phase.id}${aRound}`)! -
-          earliestForPhaseRound.get(`${bStartgg.phase.id}${bRound}`)!;
+          earliestForPhaseRound.get(
+            `${aStartgg.phase.id}${aStartgg.set.fullRoundText}`,
+          )! -
+          earliestForPhaseRound.get(
+            `${bStartgg.phase.id}${bStartgg.set.fullRoundText}`,
+          )!;
         if (roundCompare) {
           return roundCompare;
         }
@@ -614,7 +618,7 @@ export default async function setupIPCs(
             newSet.playing = true;
           }
           if (newSet.context && newSet.context.startgg) {
-            const phaseRoundKey = `${newSet.context.startgg.phase.id}${newSet.context.startgg.set.round}`;
+            const phaseRoundKey = `${newSet.context.startgg.phase.id}${newSet.context.startgg.set.fullRoundText}`;
             const { startMs } = newSet.context;
             if (earliestForPhaseRound.has(phaseRoundKey)) {
               if (startMs < earliestForPhaseRound.get(phaseRoundKey)!) {
@@ -629,7 +633,6 @@ export default async function setupIPCs(
           const playingSetsArr = Array.from(playingSets.values());
           let canPlay = playingSetsArr.length === 0;
           let isNext = playingSetsArr.length === 0;
-          console.log(playingSetsArr.length);
           playingSetsArr.forEach((set) => {
             if (!set.context?.startgg && !newSet.context?.startgg) {
               canPlay = true;

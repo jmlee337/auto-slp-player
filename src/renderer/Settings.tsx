@@ -407,6 +407,10 @@ export default function Settings({
             )}
           </Stack>
           <Stack>
+            <DialogContentText>
+              If Twitch channel is set, will automatically unqueue any sets that
+              were marked on start.gg as being streamed on a different channel
+            </DialogContentText>
             <Stack direction="row" alignItems="center">
               <TextField
                 label="Twitch channel"

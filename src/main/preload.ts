@@ -46,6 +46,8 @@ const electronHandler = {
     ipcRenderer.invoke('setTwitchSettings', newTwitchSettings),
   getTwitchTokens: (code: string): Promise<void> =>
     ipcRenderer.invoke('getTwitchTokens', code),
+  getTwitchBotStatus: (): Promise<{ connected: boolean; error: string }> =>
+    ipcRenderer.invoke('getTwitchBotStatus'),
   getDolphinVersion: (): Promise<string> =>
     ipcRenderer.invoke('getDolphinVersion'),
   getObsConnectionEnabled: (): Promise<boolean> =>
@@ -62,6 +64,8 @@ const electronHandler = {
   getVersion: (): Promise<string> => ipcRenderer.invoke('getVersion'),
   getLatestVersion: (): Promise<string> =>
     ipcRenderer.invoke('getLatestVersion'),
+  copyToClipboard: (text: string): Promise<void> =>
+    ipcRenderer.invoke('copyToClipboard', text),
   onDolphins: (
     callback: (event: IpcRendererEvent, numDolphins: number) => void,
   ) => {
@@ -83,6 +87,15 @@ const electronHandler = {
   ) => {
     ipcRenderer.removeAllListeners('playing');
     ipcRenderer.on('playing', callback);
+  },
+  onTwitchBotStatus: (
+    callback: (
+      event: IpcRendererEvent,
+      status: { connected: boolean; error: string },
+    ) => void,
+  ) => {
+    ipcRenderer.removeAllListeners('twitchBotStatus');
+    ipcRenderer.on('twitchBotStatus', callback);
   },
   onUnzip: (
     callback: (

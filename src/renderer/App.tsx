@@ -63,6 +63,8 @@ function Hello() {
   const [obsConnectionStatus, setObsConnectionStatus] = useState(
     OBSConnectionStatus.OBS_NOT_CONNECTED,
   );
+  const [twitchBotConnected, setTwitchBotConnected] = useState(false);
+  const [twitchBotError, setTwitchBotError] = useState('');
   const [gotSettings, setGotSettings] = useState(false);
   useEffect(() => {
     const inner = async () => {
@@ -81,6 +83,7 @@ function Hello() {
       const numDolphinsPromise = window.electron.getNumdolphins();
       const obsConnectionStatusPromise =
         window.electron.getObsConnectionStatus();
+      const twitchBotStatusPromise = window.electron.getTwitchBotStatus();
       setAppVersion(await appVersionPromise);
       setLatestAppVersion(await latestAppVersionPromise);
       setDolphinPath(await dolphinPathPromise);
@@ -97,6 +100,8 @@ function Hello() {
       setObsPassword((await obsSettingsPromise).password);
       setNumDolphins(await numDolphinsPromise);
       setObsConnectionStatus(await obsConnectionStatusPromise);
+      setTwitchBotConnected((await twitchBotStatusPromise).connected);
+      setTwitchBotError((await twitchBotStatusPromise).error);
       setGotSettings(true);
     };
     inner();
@@ -145,6 +150,10 @@ function Hello() {
         setRenderSets(newRenderSets);
       },
     );
+    window.electron.onTwitchBotStatus((event, { connected, error }) => {
+      setTwitchBotConnected(connected);
+      setTwitchBotError(error);
+    });
     window.electron.onUnzip(
       (
         event: IpcRendererEvent,
@@ -204,6 +213,8 @@ function Hello() {
           setTwitchChannel={setTwitchChannel}
           twitchSettings={twitchSettings}
           setTwitchSettings={setTwitchSettings}
+          twitchBotConnected={twitchBotConnected}
+          twitchBotError={twitchBotError}
           obsConnectionEnabled={obsConnectionEnabled}
           setObsConnectionEnabled={setObsConnectionEnabled}
           obsProtocol={obsProtocol}

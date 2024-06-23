@@ -3,6 +3,7 @@ import {
   BrowserWindow,
   IpcMainInvokeEvent,
   app,
+  clipboard,
   dialog,
   ipcMain,
   shell,
@@ -14,6 +15,7 @@ import { RefreshingAuthProvider } from '@twurple/auth';
 import { Bot, createBotCommand } from '@twurple/easy-bot';
 import { Ports } from '@slippi/slippi-js';
 import { spawn } from 'child_process';
+import { HttpStatusCodeError } from '@twurple/api-call';
 import unzip from './unzip';
 import {
   AvailableSet,
@@ -715,6 +717,7 @@ export default async function setupIPCs(
   ipcMain.handle('getTwitchChannel', () => twitchChannel);
 
   let twitchBot: Bot | null = null;
+  let twitchBotStatus = { connected: false, error: '' };
   const maybeStartTwitchBot = async (newTwitchSettings: TwitchSettings) => {
     if (
       !twitchChannel ||
@@ -736,54 +739,82 @@ export default async function setupIPCs(
       twitchSettings.refreshToken = token.refreshToken!;
       store.set('twitchSettings', newTwitchSettings);
     });
-    await authProvider.addUserForToken(
-      {
-        accessToken: newTwitchSettings.accessToken,
-        refreshToken: newTwitchSettings.refreshToken,
-        expiresIn: 0,
-        obtainmentTimestamp: 0,
-      },
-      ['chat'],
-    );
+    try {
+      await authProvider.addUserForToken(
+        {
+          accessToken: newTwitchSettings.accessToken,
+          refreshToken: newTwitchSettings.refreshToken,
+          expiresIn: 0,
+          obtainmentTimestamp: 0,
+        },
+        ['chat'],
+      );
 
-    if (twitchBot) {
-      twitchBot.chat.quit();
+      if (twitchBot) {
+        twitchBot.chat.quit();
+      }
+      twitchBotStatus = { connected: false, error: '' };
+      mainWindow.webContents.send('twitchBotStatus', twitchBotStatus);
+      twitchBot = new Bot({
+        authProvider,
+        channel: twitchChannel,
+        commands: [
+          createBotCommand('auto', (params, { say }) => {
+            say(
+              'This is an auto stream using Slippi replays. Powered by Replay Manager for Slippi and Auto SLP Player: https://github.com/jmlee337',
+            );
+          }),
+          createBotCommand('bracket', (params, { say }) => {
+            const playingSetsWithContextStartgg = Array.from(
+              playingSets.values(),
+            ).filter(
+              (playingSet) => playingSet.context && playingSet.context.startgg,
+            );
+            if (playingSetsWithContextStartgg.length === 0) {
+              return;
+            }
+            const representativeStartgg =
+              playingSetsWithContextStartgg[0].context!.startgg!;
+
+            const eventSlug = representativeStartgg.event.slug;
+            const phaseId = representativeStartgg.phase.id;
+            const phaseGroupId = representativeStartgg.phaseGroup.id;
+            say(
+              `SPOILERS: https://www.start.gg/${eventSlug}/brackets/${phaseId}/${phaseGroupId}`,
+            );
+          }),
+          createBotCommand('pronouns', (params, { say }) => {
+            say(
+              'Pronouns are pulled from start.gg. Update yours here: https://start.gg/admin/profile/profile-settings',
+            );
+          }),
+        ],
+      });
+      twitchBot.onAuthenticationFailure((text: string) => {
+        twitchBotStatus = { connected: false, error: text };
+        mainWindow.webContents.send('twitchBotStatus', twitchBotStatus);
+      });
+      twitchBot.onJoinFailure((event) => {
+        twitchBotStatus = { connected: false, error: event.reason };
+        mainWindow.webContents.send('twitchBotStatus', false, twitchBotStatus);
+      });
+      twitchBot.onTokenFetchFailure((error) => {
+        twitchBotStatus = { connected: false, error: error.message };
+        mainWindow.webContents.send('twitchBotStatus', false, twitchBotStatus);
+      });
+      twitchBot.onConnect(() => {
+        twitchBotStatus = { connected: true, error: '' };
+        mainWindow.webContents.send('twitchBotStatus', twitchBotStatus);
+      });
+    } catch (e: any) {
+      if (e instanceof HttpStatusCodeError) {
+        twitchBotStatus = { connected: false, error: e.body };
+      } else {
+        const error = e instanceof Error ? e.message : e;
+        twitchBotStatus = { connected: false, error };
+      }
+      mainWindow.webContents.send('twitchBotStatus', twitchBotStatus);
     }
-    twitchBot = new Bot({
-      authProvider,
-      channel: twitchChannel,
-      commands: [
-        createBotCommand('auto', (params, { say }) => {
-          say(
-            'This is an auto stream using Slippi replays. Powered by Replay Manager for Slippi and Auto SLP Player: https://github.com/jmlee337',
-          );
-        }),
-        createBotCommand('bracket', (params, { say }) => {
-          const playingSetsWithContextStartgg = Array.from(
-            playingSets.values(),
-          ).filter(
-            (playingSet) => playingSet.context && playingSet.context.startgg,
-          );
-          if (playingSetsWithContextStartgg.length === 0) {
-            return;
-          }
-          const representativeStartgg =
-            playingSetsWithContextStartgg[0].context!.startgg!;
-
-          const eventSlug = representativeStartgg.event.slug;
-          const phaseId = representativeStartgg.phase.id;
-          const phaseGroupId = representativeStartgg.phaseGroup.id;
-          say(
-            `SPOILERS: https://www.start.gg/${eventSlug}/brackets/${phaseId}/${phaseGroupId}`,
-          );
-        }),
-        createBotCommand('pronouns', (params, { say }) => {
-          say(
-            'Pronouns are pulled from start.gg. Update yours here: https://start.gg/admin/profile/profile-settings',
-          );
-        }),
-      ],
-    });
   };
 
   ipcMain.removeHandler('setTwitchChannel');
@@ -870,6 +901,9 @@ export default async function setupIPCs(
       maybeStartTwitchBot(twitchSettings);
     },
   );
+
+  ipcMain.removeHandler('getTwitchBotStatus');
+  ipcMain.handle('getTwitchBotStatus', () => twitchBotStatus);
   maybeStartTwitchBot(twitchSettings);
 
   ipcMain.removeHandler('getDolphinVersion');
@@ -936,4 +970,12 @@ export default async function setupIPCs(
     const json = await response.json();
     return json[0].tag_name;
   });
+
+  ipcMain.removeHandler('copyToClipboard');
+  ipcMain.handle(
+    'copyToClipboard',
+    (event: IpcMainInvokeEvent, text: string) => {
+      clipboard.writeText(text);
+    },
+  );
 }

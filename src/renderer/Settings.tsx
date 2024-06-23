@@ -21,7 +21,10 @@ import {
 } from '@mui/material';
 import { useMemo, useState } from 'react';
 import {
+  CheckCircle,
+  ContentCopy,
   DeleteForever,
+  Report,
   SdCard,
   Settings as SettingsIcon,
   Terminal,
@@ -116,6 +119,8 @@ export default function Settings({
   setTwitchChannel,
   twitchSettings,
   setTwitchSettings,
+  twitchBotConnected,
+  twitchBotError,
   obsConnectionEnabled,
   setObsConnectionEnabled,
   obsProtocol,
@@ -142,6 +147,8 @@ export default function Settings({
   setTwitchChannel: (twitchChannel: string) => void;
   twitchSettings: TwitchSettings;
   setTwitchSettings: (twitchSettings: TwitchSettings) => void;
+  twitchBotConnected: boolean;
+  twitchBotError: string;
   obsConnectionEnabled: boolean;
   setObsConnectionEnabled: (enabled: boolean) => void;
   obsProtocol: string;
@@ -159,6 +166,7 @@ export default function Settings({
   const [open, setOpen] = useState(false);
   const [hasAutoOpened, setHasAutoOpened] = useState(false);
   const [twitchTokenError, setTwitchTokenError] = useState('');
+  const [copied, setCopied] = useState(false);
 
   const needUpdate = useMemo(() => {
     if (!appVersion || !latestAppVersion) {
@@ -448,7 +456,7 @@ export default function Settings({
                     ). Then paste the client ID and client secret below:
                   </DialogContentText>
                 )}
-                <Stack direction="row" spacing="8px">
+                <Stack direction="row" alignItems="center" spacing="8px">
                   <TextField
                     defaultValue={twitchSettings.clientId}
                     label="Client ID"
@@ -463,7 +471,7 @@ export default function Settings({
                   />
                   <TextField
                     defaultValue={twitchSettings.clientSecret}
-                    label="Client Secret"
+                    label="Client Secret (Keep it private!)"
                     size="small"
                     type="password"
                     variant="standard"
@@ -474,6 +482,33 @@ export default function Settings({
                       );
                     }}
                   />
+                  <Button
+                    disabled={copied}
+                    endIcon={copied ? undefined : <ContentCopy />}
+                    onClick={async () => {
+                      await window.electron.copyToClipboard(
+                        twitchSettings.clientSecret,
+                      );
+                      setCopied(true);
+                      setTimeout(() => setCopied(false), 5000);
+                    }}
+                    variant="contained"
+                  >
+                    {copied ? 'Copied!' : 'Copy'}
+                  </Button>
+                  {twitchBotConnected && (
+                    <Tooltip arrow title="Connected!">
+                      <CheckCircle style={{ padding: '9px' }} />
+                    </Tooltip>
+                  )}
+                  {!twitchBotConnected && !twitchBotError && (
+                    <CircularProgress size="24px" />
+                  )}
+                  {!twitchBotConnected && twitchBotError && (
+                    <Tooltip arrow title={twitchBotError}>
+                      <Report style={{ padding: '9px' }} />
+                    </Tooltip>
+                  )}
                 </Stack>
                 {twitchSettings.clientId && twitchSettings.clientSecret && (
                   <IfClientIdAndScecretSet

@@ -235,7 +235,10 @@ export default async function setupIPCs(
   let queuedSet: AvailableSet | null = null;
   let lastTournamentName = '';
   let lastEventName = '';
+  let lastEventSlug = '';
   let lastPhaseName = '';
+  let lastPhaseId = 0;
+  let lastPhaseGroupId = 0;
   const writeOverlayJson = async () => {
     if (!generateOverlay) {
       return undefined;
@@ -249,19 +252,29 @@ export default async function setupIPCs(
     const sets: OverlaySet[] = [];
     const upcoming: { leftNames: string[]; rightNames: string[] }[] = [];
     let upcomingRoundName = '';
+
+    const eventSlugs = new Set<string>();
+    const phaseIds = new Set<number>();
+    const phaseGroupIds = new Set<number>();
     const entriesWithContexts = Array.from(playingSets.entries()).filter(
       ([, playingSet]) => playingSet.context,
     ) as [number, AvailableSet][];
+    entriesWithContexts.forEach(([, playingSet]) => {
+      const startgg = playingSet.context?.startgg;
+      if (startgg) {
+        eventSlugs.add(startgg.event.slug);
+        phaseIds.add(startgg.phase.id);
+        phaseGroupIds.add(startgg.phaseGroup.id);
+      }
+    });
     if (entriesWithContexts.length > 0) {
       const representativePlayingSet = entriesWithContexts[0][1];
       const representativeStartgg = representativePlayingSet.context?.startgg;
       if (representativeStartgg) {
         tournamentName = representativeStartgg.tournament.name;
-        lastTournamentName = representativeStartgg.tournament.name;
-        eventName = representativeStartgg.event.name;
-        lastEventName = representativeStartgg.event.name;
-        phaseName = representativeStartgg.phase.name;
-        lastPhaseName = representativeStartgg.phase.name;
+        eventName =
+          eventSlugs.size === 1 ? representativeStartgg.event.name : '';
+        phaseName = phaseIds.size === 1 ? representativeStartgg.phase.name : '';
 
         if (queuedSet) {
           const round = queuedSet.context?.startgg?.set.round;
@@ -308,18 +321,6 @@ export default async function setupIPCs(
           }
         }
       }
-
-      const eventSlugs = new Set<string>();
-      const phaseIds = new Set<number>();
-      const phaseGroupIds = new Set<number>();
-      entriesWithContexts.forEach(([, playingSet]) => {
-        const startgg = playingSet.context?.startgg;
-        if (startgg) {
-          eventSlugs.add(startgg.event.slug);
-          phaseIds.add(startgg.phase.id);
-          phaseGroupIds.add(startgg.phaseGroup.id);
-        }
-      });
       entriesWithContexts.forEach(([port, playingSet]) => {
         const { context } = playingSet;
         const gameIndex = gameIndices.get(port);
@@ -466,6 +467,15 @@ export default async function setupIPCs(
       const playingSet = playingSets.get(port);
       if (playingSet) {
         playingSet.playing = false;
+        const startgg = playingSet.context?.startgg;
+        if (startgg && playingSets.size === 1) {
+          lastTournamentName = startgg.tournament.name;
+          lastEventName = startgg.event.name;
+          lastEventSlug = startgg.event.slug;
+          lastPhaseName = startgg.phase.name;
+          lastPhaseId = startgg.phase.id;
+          lastPhaseGroupId = startgg.phaseGroup.id;
+        }
       }
 
       newDolphin.removeAllListeners();
@@ -529,6 +539,17 @@ export default async function setupIPCs(
             playDolphin(queuedSet, port);
             return;
           }
+        }
+
+        // no next set to play, playingSets will be empty after this
+        const startgg = playingSet.context?.startgg;
+        if (startgg && playingSets.size === 1) {
+          lastTournamentName = startgg.tournament.name;
+          lastEventName = startgg.event.name;
+          lastEventSlug = startgg.event.slug;
+          lastPhaseName = startgg.phase.name;
+          lastPhaseId = startgg.phase.id;
+          lastPhaseGroupId = startgg.phaseGroup.id;
         }
       }
       playingSets.delete(port);
@@ -810,9 +831,6 @@ export default async function setupIPCs(
 
   let twitchBot: Bot | null = null;
   let twitchBotStatus = { connected: false, error: '' };
-  let lastEventSlug = '';
-  let lastPhaseId = 0;
-  let lastPhaseGroupId = 0;
   const maybeStartTwitchBot = async (newTwitchSettings: TwitchSettings) => {
     if (
       !twitchChannel ||
@@ -860,32 +878,33 @@ export default async function setupIPCs(
             );
           }),
           createBotCommand('bracket', (params, { say }) => {
-            let eventSlug = lastEventSlug;
-            let phaseId = lastPhaseId;
-            let phaseGroupId = lastPhaseGroupId;
             const playingSetsWithContextStartgg = Array.from(
               playingSets.values(),
             ).filter(
               (playingSet) => playingSet.context && playingSet.context.startgg,
             );
-            if (playingSetsWithContextStartgg.length > 0) {
-              const representativeStartgg =
-                playingSetsWithContextStartgg[0].context!.startgg!;
-              eventSlug = representativeStartgg.event.slug;
-              lastEventSlug = representativeStartgg.event.slug;
-              phaseId = representativeStartgg.phase.id;
-              lastPhaseId = representativeStartgg.phase.id;
-              phaseGroupId = representativeStartgg.phaseGroup.id;
-              lastPhaseGroupId = representativeStartgg.phaseGroup.id;
-            }
-            if (eventSlug && phaseId && phaseGroupId) {
-              const prefix =
-                playingSets.size === 0 && tryingPorts.size === 0
-                  ? ''
-                  : 'SPOILERS: ';
+            const prefix =
+              playingSets.size === 0 && tryingPorts.size === 0
+                ? ''
+                : 'SPOILERS: ';
+            if (
+              playingSetsWithContextStartgg.length === 0 &&
+              lastEventSlug &&
+              lastPhaseId &&
+              lastPhaseGroupId
+            ) {
               say(
-                `${prefix}https://www.start.gg/${eventSlug}/brackets/${phaseId}/${phaseGroupId}`,
+                `${prefix}https://www.start.gg/${lastEventSlug}/brackets/${lastPhaseId}/${lastPhaseGroupId}`,
               );
+            } else {
+              const bracketUrls = new Set<string>();
+              playingSetsWithContextStartgg.forEach((set) => {
+                const startgg = set.context!.startgg!;
+                bracketUrls.add(
+                  `${prefix}https://www.start.gg/${startgg.event.slug}/brackets/${startgg.phase.id}/${startgg.phaseGroup.id}`,
+                );
+              });
+              say(Array.from(bracketUrls.values()).join(' '));
             }
           }),
           createBotCommand('pronouns', (params, { say }) => {

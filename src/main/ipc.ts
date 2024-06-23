@@ -714,8 +714,7 @@ export default async function setupIPCs(
   ipcMain.removeHandler('getTwitchChannel');
   ipcMain.handle('getTwitchChannel', () => twitchChannel);
 
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  let twitchBot: Bot | null;
+  let twitchBot: Bot | null = null;
   const maybeStartTwitchBot = async (newTwitchSettings: TwitchSettings) => {
     if (
       !twitchChannel ||
@@ -747,6 +746,9 @@ export default async function setupIPCs(
       ['chat'],
     );
 
+    if (twitchBot) {
+      twitchBot.chat.quit();
+    }
     twitchBot = new Bot({
       authProvider,
       channel: twitchChannel,
@@ -820,7 +822,10 @@ export default async function setupIPCs(
           refreshToken: twitchSettings.refreshToken,
         };
         if (!newTwitchSettings.enabled || clientIdDiff || clientSecretDiff) {
-          twitchBot = null;
+          if (twitchBot) {
+            twitchBot.chat.quit();
+            twitchBot = null;
+          }
           if (clientIdDiff || clientSecretDiff) {
             actualNewTwitchSettings.accessToken = '';
             actualNewTwitchSettings.refreshToken = '';

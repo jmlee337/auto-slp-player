@@ -610,12 +610,12 @@ export default async function setupIPCs(
             dirNameToPlayedMs,
             twitchChannel,
           );
-          if (
-            Array.from(playingSets.values()).find(
-              (playingSet) => newSet.dirName === playingSet.dirName,
-            )
-          ) {
+          const playingEntry = Array.from(playingSets.entries()).find(
+            ([, set]) => set.dirName === newSet.dirName,
+          );
+          if (playingEntry) {
             newSet.playing = true;
+            playingSets.set(playingEntry[0], newSet);
           }
           if (newSet.context && newSet.context.startgg) {
             const phaseRoundKey = `${newSet.context.startgg.phase.id}${newSet.context.startgg.set.fullRoundText}`;
@@ -630,6 +630,15 @@ export default async function setupIPCs(
           }
           availableSets.push(newSet);
           sortAvailableSets();
+          if (newSet.playing) {
+            mainWindow.webContents.send(
+              'unzip',
+              availableSets.map(toRenderSet),
+              queuedSet ? queuedSet.dirName : '',
+            );
+            return;
+          }
+
           const playingSetsArr = Array.from(playingSets.values());
           let canPlay = playingSetsArr.length === 0;
           let isNext = playingSetsArr.length === 0;

@@ -2,7 +2,7 @@
 All dolphins must be open before connecting to OBS.
 You can open dolphins with the "Open Dolphins" button in Auto SLP Player.
 Use `mode: "Capture specific window"`, `window match priority: "Window title must match"`, and `Capture Audio` for dolphin `Game Capture` sources and pre-assign dolphin windows.
-You must also use `Render to Main Window` in Dolphin `Graphics > General`.
+If you're not using `Render to Main Window` in Dolphin `Graphics > General` be sure to set the window to the main window eg. `Faster Melee - Slippi (3.4.2) - 51441` and **not** `Faster Melee - Slippi (3.4.2) - 51441 | JIT64 SC | Direct3D 11 | HLE | FPS: 60 - VPS: 60 - 100%`.
 
 Your OBS scene collection must have **at least** these scenes and each scene should have **at least** the listed inputs:
 ## Max Dolphins: 1

@@ -48,7 +48,7 @@ const electronHandler = {
     ipcRenderer.invoke('getTwitchTokens', code),
   getTwitchBotStatus: (): Promise<{ connected: boolean; error: string }> =>
     ipcRenderer.invoke('getTwitchBotStatus'),
-  getDolphinVersion: (): Promise<string> =>
+  getDolphinVersion: (): Promise<{ version: string; error: string }> =>
     ipcRenderer.invoke('getDolphinVersion'),
   getObsConnectionEnabled: (): Promise<boolean> =>
     ipcRenderer.invoke('getObsConnectionEnabled'),

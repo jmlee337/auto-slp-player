@@ -121,6 +121,10 @@ export default function Settings({
   setTwitchSettings,
   twitchBotConnected,
   twitchBotError,
+  dolphinVersion,
+  setDolphinVersion,
+  dolphinVersionError,
+  setDolphinVersionError,
   obsConnectionEnabled,
   setObsConnectionEnabled,
   obsProtocol,
@@ -149,6 +153,10 @@ export default function Settings({
   setTwitchSettings: (twitchSettings: TwitchSettings) => void;
   twitchBotConnected: boolean;
   twitchBotError: string;
+  dolphinVersion: string;
+  setDolphinVersion: (dolphinVersion: string) => void;
+  dolphinVersionError: string;
+  setDolphinVersionError: (dolphinVersionError: string) => void;
   obsConnectionEnabled: boolean;
   setObsConnectionEnabled: (enabled: boolean) => void;
   obsProtocol: string;
@@ -258,10 +266,24 @@ export default function Settings({
               value={dolphinPath || 'Set dolphin path...'}
               style={{ flexGrow: 1 }}
             />
+            {dolphinPath && dolphinVersion && (
+              <Tooltip arrow title={`Dolphin version: ${dolphinVersion}`}>
+                <CheckCircle style={{ padding: '9px' }} />
+              </Tooltip>
+            )}
+            {dolphinPath && dolphinVersionError && (
+              <Tooltip arrow title={dolphinVersionError}>
+                <Report style={{ padding: '9px' }} />
+              </Tooltip>
+            )}
             <Tooltip arrow title="Set dolphin path">
               <IconButton
                 onClick={async () => {
                   setDolphinPath(await window.electron.chooseDolphinPath());
+                  const { version, error } =
+                    await window.electron.getDolphinVersion();
+                  setDolphinVersion(version);
+                  setDolphinVersionError(error);
                 }}
               >
                 <Terminal />

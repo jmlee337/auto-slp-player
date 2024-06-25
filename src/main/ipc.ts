@@ -80,7 +80,10 @@ export default async function setupIPCs(
       }
     });
     process.on('close', () => {
-      reject();
+      reject(new Error('Valid dolphin path, but could not get version'));
+    });
+    process.on('error', (e) => {
+      reject(`Invalid dolphin path: ${e.message}`);
     });
   };
   let dolphinVersionPromise = dolphinPath
@@ -99,7 +102,7 @@ export default async function setupIPCs(
   ipcMain.removeHandler('chooseDolphinPath');
   ipcMain.handle('chooseDolphinPath', async (): Promise<string> => {
     const openDialogRes = await dialog.showOpenDialog({
-      properties: ['openFile', 'showHiddenFiles'],
+      properties: ['openFile', 'showHiddenFiles', 'treatPackageAsDirectory'],
     });
     if (openDialogRes.canceled) {
       return dolphinPath;
@@ -1031,7 +1034,15 @@ export default async function setupIPCs(
   maybeStartTwitchBot(twitchSettings);
 
   ipcMain.removeHandler('getDolphinVersion');
-  ipcMain.handle('getDolphinVersion', async () => dolphinVersionPromise ?? '');
+  ipcMain.handle('getDolphinVersion', async () => {
+    try {
+      const version = dolphinVersionPromise ? await dolphinVersionPromise : '';
+      return { version, error: '' };
+    } catch (e: any) {
+      const error = e instanceof Error ? e.message : (e.toString() as string);
+      return { version: '', error };
+    }
+  });
 
   ipcMain.removeHandler('getObsConnectionEnabled');
   ipcMain.handle('getObsConnectionEnabled', () => obsConnectionEnabled);
@@ -1102,4 +1113,12 @@ export default async function setupIPCs(
       clipboard.writeText(text);
     },
   );
+
+  if (process.platform === 'darwin') {
+    app.on('will-quit', () => {
+      Array.from(dolphins.values()).forEach((dolphin) => {
+        dolphin.close();
+      });
+    });
+  }
 }

@@ -54,6 +54,7 @@ function Hello() {
     clientSecret: '',
   });
   const [dolphinVersion, setDolphinVersion] = useState('');
+  const [dolphinVersionError, setDolphinVersionError] = useState('');
   const [obsConnectionEnabled, setObsConnectionEnabled] = useState(false);
   const [obsProtocol, setObsProtocol] = useState('');
   const [obsAddress, setObsAddress] = useState('');
@@ -92,7 +93,8 @@ function Hello() {
       setGenerateOverlay(await generateOverlayPromise);
       setTwitchChannel(await twitchChannelPromise);
       setTwitchSettings(await twitchSettingsPromise);
-      setDolphinVersion(await dolphinVersionPromise);
+      setDolphinVersion((await dolphinVersionPromise).version);
+      setDolphinVersionError((await dolphinVersionPromise).error);
       setObsConnectionEnabled(await obsConnectionEnabledPromise);
       setObsProtocol((await obsSettingsPromise).protocol);
       setObsAddress((await obsSettingsPromise).address);
@@ -215,6 +217,10 @@ function Hello() {
           setTwitchSettings={setTwitchSettings}
           twitchBotConnected={twitchBotConnected}
           twitchBotError={twitchBotError}
+          dolphinVersion={dolphinVersion}
+          setDolphinVersion={setDolphinVersion}
+          dolphinVersionError={dolphinVersionError}
+          setDolphinVersionError={setDolphinVersionError}
           obsConnectionEnabled={obsConnectionEnabled}
           setObsConnectionEnabled={setObsConnectionEnabled}
           obsProtocol={obsProtocol}

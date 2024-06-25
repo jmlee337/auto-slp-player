@@ -1,5 +1,6 @@
 import OBSWebSocket, { RequestBatchRequest } from 'obs-websocket-js';
 import { BrowserWindow } from 'electron';
+import { recordkit } from '@nonstrict/recordkit';
 import {
   AvailableSet,
   OBSConnectionStatus,
@@ -80,33 +81,67 @@ export default class OBSConnection {
       return;
     }
 
+    const portToUuid = new Map<number, string>();
+    let inputKind = '';
+    if (process.platform === 'win32') {
+      inputKind = 'game_capture';
+    } else if (process.platform === 'darwin') {
+      inputKind = 'screen_capture';
+    }
     const prefix = await this.getPrefix();
     const expectedPortStrs = new Set(
       this.dolphinPorts
         .slice(0, this.maxDolphins)
         .map((port) => port.toString()),
     );
-    const portToUuid = new Map<number, string>();
+    const windowToTitle = new Map<number, string>();
+    if (process.platform === 'darwin') {
+      try {
+        (await recordkit.getWindows()).forEach((window) => {
+          if (window.title && window.title.startsWith(prefix)) {
+            windowToTitle.set(window.id, window.title);
+          }
+        });
+      } catch (e: any) {
+        this.setConnectionStatus(
+          OBSConnectionStatus.OBS_NOT_SETUP,
+          'Auto SLP Player requires screen recording permission to integrate with OBS. Please grant permission in System Settings > Privacy & Security > Screen & System Audio Recording.',
+        );
+        return;
+      }
+    }
     const { inputs } = await this.obsWebSocket.call('GetInputList', {
-      inputKind: 'game_capture',
+      inputKind,
     });
     await Promise.all(
       inputs.map(async (input) => {
         const { inputUuid } = input as { inputUuid: string };
-        // {"capture_audio":true,"capture_mode":"window","priority":1,"window":"Faster Melee - Slippi (3.4.2) - Playback | 51441:wxWindowNR:Slippi Dolphin.exe"}
+        // windows {"capture_audio":true,"capture_mode":"window","priority":1,"window":"Faster Melee - Slippi (3.4.2) - Playback | 51441:wxWindowNR:Slippi Dolphin.exe"}
+        // mac {"application":"com.project-slippi.dolphin","show_cursor":false,"show_empty_names":false,"show_hidden_windows":false,"type":1,"window":15540}
         const { inputSettings } = await this.obsWebSocket!.call(
           'GetInputSettings',
           { inputUuid },
         );
-        if (
-          inputSettings.capture_audio &&
-          inputSettings.capture_mode === 'window' &&
-          inputSettings.priority === 1
-        ) {
-          const { window } = inputSettings as { window: string };
-          const endI = window.indexOf(':');
-          if (window.startsWith(prefix) && endI > prefix.length) {
-            const portStr = window.slice(prefix.length, endI);
+        if (process.platform === 'win32') {
+          if (
+            inputSettings.capture_audio &&
+            inputSettings.capture_mode === 'window' &&
+            inputSettings.priority === 1
+          ) {
+            const { window } = inputSettings as { window: string };
+            const endI = window.indexOf(':');
+            if (window.startsWith(prefix) && endI > prefix.length) {
+              const portStr = window.slice(prefix.length, endI);
+              if (expectedPortStrs.has(portStr)) {
+                expectedPortStrs.delete(portStr);
+                portToUuid.set(Number.parseInt(portStr, 10), inputUuid);
+              }
+            }
+          }
+        } else if (process.platform === 'darwin') {
+          const title = windowToTitle.get(inputSettings.window as number);
+          if (inputSettings.type === 1 && title && title.startsWith(prefix)) {
+            const portStr = title.slice(prefix.length);
             if (expectedPortStrs.has(portStr)) {
               expectedPortStrs.delete(portStr);
               portToUuid.set(Number.parseInt(portStr, 10), inputUuid);
@@ -117,9 +152,17 @@ export default class OBSConnection {
     );
     if (expectedPortStrs.size !== 0) {
       const notFound = Array.from(expectedPortStrs.keys()).sort().join(', ');
+      let detail = '';
+      if (process.platform === 'win32') {
+        detail =
+          ' Check the "Window", "Window match priority" ("Window title must match"), and "Capture Audio" (enabled) settings on your Game Capture inputs.';
+      } else if (process.platform === 'darwin') {
+        detail =
+          ' Check the "Window" and "Method" ("Window Capture") settings on your macOS Screen Capture inputs';
+      }
       this.setConnectionStatus(
         OBSConnectionStatus.OBS_NOT_SETUP,
-        `Inputs not found for dolphin(s): ${notFound}. Check the "Window", "Window match priority" ("Window title must match"), and "Capture Audio" (enabled) settings on your Game Capture inputs.`,
+        `Inputs not found for dolphin(s): ${notFound}.${detail}`,
       );
       return;
     }
@@ -159,7 +202,7 @@ export default class OBSConnection {
             { sceneName },
           );
           sceneItems
-            .filter((sceneItem) => sceneItem.inputKind === 'game_capture')
+            .filter((sceneItem) => sceneItem.inputKind === inputKind)
             .forEach(async (sceneItem) => {
               const { sourceUuid } = sceneItem as { sourceUuid: string };
               if (expectedUuids.has(sourceUuid)) {
@@ -307,9 +350,26 @@ export default class OBSConnection {
       this.obsWebSocket.on(
         'InputSettingsChanged',
         async ({ inputSettings }) => {
-          const { window } = inputSettings as { window: string };
-          if (window && window.startsWith(await this.getPrefix())) {
-            this.checkObsSetup();
+          const prefix = await this.getPrefix();
+          if (process.platform === 'win32') {
+            const { window } = inputSettings as { window: string };
+            if (window && window.startsWith(prefix)) {
+              this.checkObsSetup();
+            }
+          } else if (process.platform === 'darwin') {
+            const applicableWindows = new Set<number>();
+            try {
+              (await recordkit.getWindows()).forEach((window) => {
+                if (window.title && window.title.startsWith(prefix)) {
+                  applicableWindows.add(window.id);
+                }
+              });
+            } catch (e: any) {
+              /* empty */
+            }
+            if (applicableWindows.has(inputSettings.window as number)) {
+              this.checkObsSetup();
+            }
           }
         },
       );

@@ -16,6 +16,7 @@ import { Bot, createBotCommand } from '@twurple/easy-bot';
 import { Ports } from '@slippi/slippi-js';
 import { spawn } from 'child_process';
 import { HttpStatusCodeError } from '@twurple/api-call';
+import { recordkit } from '@nonstrict/recordkit';
 import unzip from './unzip';
 import {
   AvailableSet,
@@ -1050,9 +1051,12 @@ export default async function setupIPCs(
   ipcMain.removeHandler('setObsConnectionEnabled');
   ipcMain.handle(
     'setObsConnectionEnabled',
-    (event: IpcMainInvokeEvent, enabled: boolean) => {
+    async (event: IpcMainInvokeEvent, enabled: boolean) => {
       store.set('obsConnectionEnabled', enabled);
       obsConnectionEnabled = enabled;
+      if (enabled && !(await recordkit.getScreenRecordingAccess())) {
+        await recordkit.requestScreenRecordingAccess();
+      }
     },
   );
 

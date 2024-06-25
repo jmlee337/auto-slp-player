@@ -10,6 +10,7 @@
  */
 import path from 'path';
 import { app, BrowserWindow, shell } from 'electron';
+import { recordkit } from '@nonstrict/recordkit';
 import MenuBuilder from './menu';
 import { resolveHtmlPath } from './util';
 import setupIPCs from './ipc';
@@ -111,7 +112,13 @@ app.on('window-all-closed', () => {
 
 app
   .whenReady()
-  .then(() => {
+  .then(async () => {
+    if (process.platform === 'darwin') {
+      await recordkit.initialize({
+        rpcBinaryPath: path.join(process.resourcesPath, 'recordkit-rpc'),
+        fallbackToNodeModules: !app.isPackaged,
+      });
+    }
     createWindow();
     app.on('activate', () => {
       // On macOS it's common to re-create a window in the app when the

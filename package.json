@@ -100,6 +100,7 @@
     "@emotion/styled": "^11.11.5",
     "@mui/icons-material": "^5.15.14",
     "@mui/material": "^5.15.14",
+    "@nonstrict/recordkit": "^0.9.0",
     "@slippi/slippi-js": "^6.7.0",
     "@twurple/api-call": "^7.1.0",
     "@twurple/auth": "^7.1.0",
@@ -208,7 +209,8 @@
       "hardenedRuntime": true,
       "entitlements": "assets/entitlements.mac.plist",
       "entitlementsInherit": "assets/entitlements.mac.plist",
-      "gatekeeperAssess": false
+      "gatekeeperAssess": false,
+      "extraResources": "node_modules/@nonstrict/recordkit/bin/recordkit-rpc"
     },
     "dmg": {
       "contents": [

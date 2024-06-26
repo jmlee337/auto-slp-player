@@ -200,17 +200,18 @@
     "mac": {
       "target": {
         "target": "default",
-        "arch": [
-          "arm64",
-          "x64"
-        ]
+        "arch": "universal"
       },
       "type": "distribution",
       "hardenedRuntime": true,
       "entitlements": "assets/entitlements.mac.plist",
       "entitlementsInherit": "assets/entitlements.mac.plist",
       "gatekeeperAssess": false,
-      "extraResources": "node_modules/@nonstrict/recordkit/bin/recordkit-rpc"
+      "extraResources": {
+        "from": "node_modules/@nonstrict/recordkit/bin/recordkit-rpc",
+        "to": "recordkit-rpc"
+      },
+      "x64ArchFiles": "Contents/Resources/recordkit-rpc"
     },
     "dmg": {
       "contents": [

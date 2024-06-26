@@ -1118,7 +1118,7 @@ export default async function setupIPCs(
     },
   );
 
-  if (process.platform === 'darwin') {
+  if (process.platform !== 'win32') {
     app.on('will-quit', () => {
       Array.from(dolphins.values()).forEach((dolphin) => {
         dolphin.close();

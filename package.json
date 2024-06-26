@@ -92,7 +92,6 @@
     "@emotion/styled": "^11.11.5",
     "@mui/icons-material": "^5.15.14",
     "@mui/material": "^5.15.14",
-    "@nonstrict/recordkit": "^0.9.0",
     "@slippi/slippi-js": "^6.7.0",
     "@twurple/api-call": "^7.1.0",
     "@twurple/auth": "^7.1.0",
@@ -199,11 +198,21 @@
       "entitlements": "assets/entitlements.mac.plist",
       "entitlementsInherit": "assets/entitlements.mac.plist",
       "gatekeeperAssess": false,
-      "extraResources": {
-        "from": "node_modules/@nonstrict/recordkit/bin/recordkit-rpc",
-        "to": "recordkit-rpc"
-      },
-      "x64ArchFiles": "Contents/Resources/recordkit-rpc"
+      "files": [
+        "**/*",
+        "!**/node_modules/*/{CHANGELOG.md,README.md,README,readme.md,readme}",
+        "!**/node_modules/*/{test,__tests__,tests,powered-test,example,examples}",
+        "!**/node_modules/*.d.ts",
+        "!**/node_modules/.bin",
+        "!**/node_modules/magic-active-win/build-tmp*",
+        "!**/*.{iml,o,hprof,orig,pyc,pyo,rbc,swp,csproj,sln,xproj}",
+        "!.editorconfig",
+        "!**/._*",
+        "!**/{.DS_Store,.git,.hg,.svn,CVS,RCS,SCCS,.gitignore,.gitattributes}",
+        "!**/{__pycache__,thumbs.db,.flowconfig,.idea,.vs,.nyc_output}",
+        "!**/{appveyor.yml,.travis.yml,circle.yml}",
+        "!**/{npm-debug.log,yarn.lock,.yarn-integrity,.yarn-metadata.json}"
+      ]
     },
     "dmg": {
       "contents": [

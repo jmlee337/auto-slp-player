@@ -19,6 +19,8 @@ export enum DolphinEvent {
 }
 
 export class Dolphin extends EventEmitter {
+  pid: number;
+
   private commPath: string;
 
   private commNum: number;
@@ -48,6 +50,8 @@ export class Dolphin extends EventEmitter {
     port: number,
   ) {
     super();
+    this.pid = 0;
+
     this.commNum = 0;
     this.dolphinPath = dolphinPath;
     this.isoPath = isoPath;
@@ -194,6 +198,7 @@ export class Dolphin extends EventEmitter {
     }
 
     this.process.on('spawn', async () => {
+      this.pid = this.process!.pid!;
       try {
         await this.connectToDolphin();
         this.emit(DolphinEvent.START_READY);

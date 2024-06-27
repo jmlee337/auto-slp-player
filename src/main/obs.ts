@@ -91,15 +91,14 @@ export default class OBSConnection {
     } else if (process.platform === 'darwin') {
       inputKind = 'screen_capture';
     }
+    const truncPorts = this.dolphinPorts.slice(0, this.maxDolphins);
     const { inputs } = await this.obsWebSocket.call('GetInputList', {
       inputKind,
     });
     if (process.platform === 'win32') {
       const prefix = await this.getPrefix();
       const expectedPortStrs = new Set(
-        this.dolphinPorts
-          .slice(0, this.maxDolphins)
-          .map((port) => port.toString()),
+        truncPorts.map((port) => port.toString()),
       );
       await Promise.all(
         inputs.map(async (input) => {
@@ -135,7 +134,12 @@ export default class OBSConnection {
         return;
       }
     } else if (process.platform === 'darwin') {
-      const expectedPids = new Set(this.pidToPort.keys());
+      const expectedPorts = new Set(truncPorts);
+      const expectedPids = new Set(
+        Array.from(this.pidToPort.entries())
+          .filter(([, port]) => expectedPorts.has(port))
+          .map(([pid]) => pid),
+      );
       await Promise.all(
         inputs.map(async (input) => {
           const { inputUuid } = input as { inputUuid: string };

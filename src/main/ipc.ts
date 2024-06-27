@@ -9,7 +9,15 @@ import {
   shell,
 } from 'electron';
 import Store from 'electron-store';
-import { access, mkdir, readdir, rm, unlink, writeFile } from 'fs/promises';
+import {
+  access,
+  copyFile,
+  mkdir,
+  readdir,
+  rm,
+  unlink,
+  writeFile,
+} from 'fs/promises';
 import path from 'path';
 import { RefreshingAuthProvider } from '@twurple/auth';
 import { Bot, createBotCommand } from '@twurple/easy-bot';
@@ -67,6 +75,34 @@ export default async function setupIPCs(
   let obsSettings: OBSSettings = store.has('obsSettings')
     ? (store.get('obsSettings') as OBSSettings)
     : { protocol: 'ws', address: '127.0.0.1', port: '4455', password: '' };
+
+  const overlayPath = path.join(
+    app.getPath('documents'),
+    'AutoSLPPlayer',
+    'overlay',
+  );
+  const initOverlayDir = async () => {
+    await mkdir(overlayPath, { recursive: true });
+    const files = new Set(await readdir(overlayPath));
+    await Promise.all(
+      [
+        'default.html',
+        'default 2.html',
+        'default 34.html',
+        'RobotoCJKSC-Regular.ttf',
+      ].map(async (fileName) => {
+        if (!files.has(fileName)) {
+          const srcPath = path.join(resourcesPath, 'overlay', fileName);
+          const dstPath = path.join(overlayPath, fileName);
+          return copyFile(srcPath, dstPath);
+        }
+        return Promise.resolve();
+      }),
+    );
+  };
+  if (generateOverlay) {
+    await initOverlayDir();
+  }
 
   const dolphinVersionPromiseFn = (
     resolve: (value: string) => void,
@@ -247,8 +283,7 @@ export default async function setupIPCs(
       return undefined;
     }
 
-    const overlayPath = path.join(resourcesPath, 'overlay', 'overlay.json');
-
+    const overlayFilePath = path.join(overlayPath, 'overlay.json');
     let tournamentName = lastTournamentName;
     let eventName = lastEventName;
     let phaseName = lastPhaseName;
@@ -368,7 +403,7 @@ export default async function setupIPCs(
       upcoming,
       upcomingRoundName,
     };
-    return writeFile(overlayPath, JSON.stringify(overlayContext));
+    return writeFile(overlayFilePath, JSON.stringify(overlayContext));
   };
   const failedPorts = new Set<number>();
   const tryingPorts = new Set<number>();
@@ -820,11 +855,12 @@ export default async function setupIPCs(
   ipcMain.removeHandler('setGenerateOverlay');
   ipcMain.handle(
     'setGenerateOverlay',
-    (event: IpcMainInvokeEvent, newGenerateOverlay: boolean) => {
+    async (event: IpcMainInvokeEvent, newGenerateOverlay: boolean) => {
       store.set('generateOverlay', newGenerateOverlay);
       generateOverlay = newGenerateOverlay;
       if (generateOverlay) {
-        writeOverlayJson();
+        await initOverlayDir();
+        await writeOverlayJson();
       }
     },
   );
@@ -1070,7 +1106,7 @@ export default async function setupIPCs(
 
   ipcMain.removeHandler('openOverlayDir');
   ipcMain.handle('openOverlayDir', () => {
-    shell.openPath(path.join(resourcesPath, 'overlay'));
+    shell.openPath(overlayPath);
   });
 
   ipcMain.removeHandler('openTempDir');

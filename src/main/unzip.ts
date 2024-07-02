@@ -31,10 +31,12 @@ export default async function unzip(
     replayPaths.sort();
     const dirName = path.basename(unzipDir);
     const streamedTwitchChannel = context?.startgg?.set.twitchStream;
-    if (
+    const wasStreamedOnAnotherChannel =
       twitchChannel &&
       streamedTwitchChannel &&
-      twitchChannel !== streamedTwitchChannel &&
+      twitchChannel !== streamedTwitchChannel;
+    if (
+      (!context || wasStreamedOnAnotherChannel) &&
       !dirNameToPlayedMs.has(dirName)
     ) {
       dirNameToPlayedMs.set(dirName, context?.startMs ?? Date.now());

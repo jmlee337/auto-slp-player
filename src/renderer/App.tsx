@@ -365,13 +365,20 @@ function Hello() {
                     )}
                   <ListItemText sx={{ flexGrow: 0, flexShrink: 0 }}>
                     {renderSet.context.startgg &&
-                      renderSet.context.startgg.fullRoundText}{' '}
+                      `${renderSet.context.startgg.fullRoundText} `}
+                    {renderSet.context.challonge &&
+                      `${renderSet.context.challonge.fullRoundText} `}
                     (BO{renderSet.context.bestOf})
                   </ListItemText>
                   {renderSet.context.startgg && (
                     <ListItemText sx={{ flexGrow: 0, flexShrink: 0 }}>
                       {renderSet.context.startgg.eventName},{' '}
                       {renderSet.context.startgg.phaseName}
+                    </ListItemText>
+                  )}
+                  {renderSet.context.challonge && (
+                    <ListItemText sx={{ flexGrow: 0, flexShrink: 0 }}>
+                      {renderSet.context.challonge.tournamentName}
                     </ListItemText>
                   )}
                   <ListItemText sx={{ flexGrow: 0, flexShrink: 0 }}>

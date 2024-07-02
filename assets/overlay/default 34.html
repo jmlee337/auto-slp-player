@@ -142,8 +142,21 @@
         const response = await fetch('./overlay.json');
         const newContext = await response.json();
         if (JSON.stringify(context) !== JSON.stringify(newContext)) {
-          replace('tournament-name', newContext.tournamentName);
-          replace('event-phase-name', newContext.eventName && newContext.phaseName ? `${newContext.eventName}, ${newContext.phaseName}` : '');
+          if (newContext.startgg) {
+            replace('tournament-name', newContext.startgg.tournamentName);
+            replace(
+              'event-phase-name',
+              newContext.startgg.eventName &&
+                newContext.startgg.phaseName ?
+                  `${newContext.startgg.eventName}, ${newContext.startgg.phaseName}`
+                : '');
+          } else if (newContext.challonge) {
+            replace('tournament-name', newContext.challonge.tournamentName);
+            replace('event-phase-name', '');
+          } else {
+            replace('tournament-name', '');
+            replace('event-phase-name', '');
+          }
 
           for (let i = 0; i < 4; i++) {
             const setEl = getElementByClassName(`set-${i}`);

@@ -58,53 +58,77 @@ export function toMainContext(context: Context): MainContext | undefined {
     startMs: startMs!,
   };
 
-  const tournamentName = context.startgg?.tournament?.name;
-  const eventName = context.startgg?.event?.name;
-  const eventSlug = context.startgg?.event?.slug;
-  const phaseId = context.startgg?.phase?.id;
-  const phaseName = context.startgg?.phase?.name;
-  const phaseGroupId = context.startgg?.phaseGroup?.id;
-  const phaseGroupName = context.startgg?.phaseGroup?.name;
-  const fullRoundText = context.startgg?.set?.fullRoundText;
-  const round = context.startgg?.set?.round;
-  const twitchStream = context.startgg?.set?.twitchStream;
+  const startggTournamentName = context.startgg?.tournament?.name;
+  const startggEventName = context.startgg?.event?.name;
+  const startggEventSlug = context.startgg?.event?.slug;
+  const startggPhaseId = context.startgg?.phase?.id;
+  const startggPhaseName = context.startgg?.phase?.name;
+  const startggPhaseGroupId = context.startgg?.phaseGroup?.id;
+  const startggPhaseGroupName = context.startgg?.phaseGroup?.name;
+  const startggFullRoundText = context.startgg?.set?.fullRoundText;
+  const startggRound = context.startgg?.set?.round;
+  const startggTwitchStream = context.startgg?.set?.twitchStream;
   if (
-    typeof tournamentName !== 'string' ||
-    typeof eventName !== 'string' ||
-    typeof eventSlug !== 'string' ||
-    !Number.isInteger(phaseId) ||
-    typeof phaseName !== 'string' ||
-    !Number.isInteger(phaseGroupId) ||
-    typeof phaseGroupName !== 'string' ||
-    typeof fullRoundText !== 'string' ||
-    !Number.isInteger(round) ||
-    (twitchStream !== null && typeof twitchStream !== 'string')
+    typeof startggTournamentName === 'string' &&
+    typeof startggEventName === 'string' &&
+    typeof startggEventSlug === 'string' &&
+    Number.isInteger(startggPhaseId) &&
+    typeof startggPhaseName === 'string' &&
+    Number.isInteger(startggPhaseGroupId) &&
+    typeof startggPhaseGroupName === 'string' &&
+    typeof startggFullRoundText === 'string' &&
+    Number.isInteger(startggRound) &&
+    (startggTwitchStream === null || typeof startggTwitchStream === 'string')
   ) {
-    return mainContext;
+    mainContext.startgg = {
+      tournament: {
+        name: startggTournamentName,
+      },
+      event: {
+        name: startggEventName,
+        slug: startggEventSlug,
+      },
+      phase: {
+        id: startggPhaseId!,
+        name: startggPhaseName,
+      },
+      phaseGroup: {
+        id: startggPhaseGroupId!,
+        name: startggPhaseGroupName,
+      },
+      set: {
+        fullRoundText: startggFullRoundText,
+        round: startggRound!,
+        twitchStream: startggTwitchStream,
+      },
+    };
   }
 
-  mainContext.startgg = {
-    tournament: {
-      name: tournamentName,
-    },
-    event: {
-      name: eventName,
-      slug: eventSlug,
-    },
-    phase: {
-      id: phaseId!,
-      name: phaseName,
-    },
-    phaseGroup: {
-      id: phaseGroupId!,
-      name: phaseGroupName,
-    },
-    set: {
-      fullRoundText,
-      round: round!,
-      twitchStream,
-    },
-  };
+  const challongeTournamentName = context.challonge?.tournament.name;
+  const challongeTournamentSlug = context.challonge?.tournament.slug;
+  const challongeFullRoundText = context.challonge?.set.fullRoundText;
+  const challongeRound = context.challonge?.set.round;
+  const challongeOrdinal = context.challonge?.set.ordinal;
+  if (
+    typeof challongeTournamentName === 'string' &&
+    typeof challongeTournamentSlug === 'string' &&
+    typeof challongeFullRoundText === 'string' &&
+    Number.isInteger(challongeRound) &&
+    Number.isInteger(challongeOrdinal)
+  ) {
+    mainContext.challonge = {
+      tournament: {
+        name: challongeTournamentName,
+        slug: challongeTournamentSlug,
+      },
+      set: {
+        fullRoundText: challongeFullRoundText,
+        round: challongeRound!,
+        ordinal: challongeOrdinal!,
+      },
+    };
+  }
+
   return mainContext;
 }
 
@@ -129,6 +153,12 @@ export function toRenderSet(set: AvailableSet): RenderSet {
         phaseName: set.context.startgg.phase.name,
         phaseGroupName: set.context.startgg.phaseGroup.name,
         twitchStream: set.context.startgg.set.twitchStream ?? '',
+      };
+    }
+    if (set.context.challonge) {
+      renderSet.context.challonge = {
+        tournamentName: set.context.challonge.tournament.name,
+        fullRoundText: set.context.challonge.set.fullRoundText,
       };
     }
   }

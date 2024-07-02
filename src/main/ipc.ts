@@ -42,6 +42,33 @@ import OBSConnection from './obs';
 const SEMVER_REGEX =
   /(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(?:-((?:0|[1-9][0-9]*|[0-9]*[a-zA-Z-][0-9a-zA-Z-]*)(?:\.(?:0|[1-9][0-9]*|[0-9]*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\+([0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?/;
 
+function willNotSpoil(setA: AvailableSet, setB: AvailableSet) {
+  const aStartgg = setA.context?.startgg;
+  const bStartgg = setB.context?.startgg;
+  const aChallonge = setA.context?.challonge;
+  const bChallonge = setB.context?.challonge;
+  if (!aStartgg && !bStartgg && !aChallonge && !bChallonge) {
+    return true;
+  }
+  if (aStartgg && bStartgg && aStartgg.phase.id === bStartgg.phase.id) {
+    if (aStartgg.phaseGroup.id !== bStartgg.phaseGroup.id) {
+      return true;
+    }
+    if (aStartgg.set.round === bStartgg.set.round) {
+      return true;
+    }
+  }
+  if (
+    aChallonge &&
+    bChallonge &&
+    aChallonge.tournament.slug === bChallonge.tournament.slug &&
+    aChallonge.set.round === bChallonge.set.round
+  ) {
+    return true;
+  }
+  return false;
+}
+
 export default async function setupIPCs(
   mainWindow: BrowserWindow,
   resourcesPath: string,
@@ -83,21 +110,18 @@ export default async function setupIPCs(
   );
   const initOverlayDir = async () => {
     await mkdir(overlayPath, { recursive: true });
-    const files = new Set(await readdir(overlayPath));
     await Promise.all(
       [
         'default.html',
         'default 2.html',
         'default 34.html',
         'RobotoCJKSC-Regular.ttf',
-      ].map(async (fileName) => {
-        if (!files.has(fileName)) {
-          const srcPath = path.join(resourcesPath, 'overlay', fileName);
-          const dstPath = path.join(overlayPath, fileName);
-          return copyFile(srcPath, dstPath);
-        }
-        return Promise.resolve();
-      }),
+      ].map(async (fileName) =>
+        copyFile(
+          path.join(resourcesPath, 'overlay', fileName),
+          path.join(overlayPath, fileName),
+        ),
+      ),
     );
   };
   if (generateOverlay) {
@@ -258,6 +282,29 @@ export default async function setupIPCs(
         }
         return b.context.durationMs - a.context.durationMs;
       }
+      if (a.context?.challonge && b.context?.challonge) {
+        const aChallonge = a.context.challonge;
+        const bChallonge = b.context.challonge;
+        const tournamentNameCompare = aChallonge.tournament.name.localeCompare(
+          bChallonge.tournament.name,
+        );
+        if (tournamentNameCompare) {
+          return tournamentNameCompare;
+        }
+        if (aChallonge.set.round !== bChallonge.set.round) {
+          return aChallonge.set.ordinal - bChallonge.set.ordinal;
+        }
+        if (a.playedMs && b.playedMs) {
+          return a.playedMs - b.playedMs;
+        }
+        if (a.playedMs && !b.playedMs) {
+          return -1;
+        }
+        if (!a.playedMs && b.playedMs) {
+          return 1;
+        }
+        return b.context.durationMs - a.context.durationMs;
+      }
       if (!a.context && b.context) {
         return -1;
       }
@@ -268,25 +315,34 @@ export default async function setupIPCs(
     });
   };
 
-  const dolphins: Map<number, Dolphin> = new Map();
   const playingSets: Map<number, AvailableSet> = new Map();
+  const willNotSpoilPlayingSets = (prospectiveSet: AvailableSet) => {
+    return Array.from(playingSets.values()).every((playingSet) =>
+      willNotSpoil(playingSet, prospectiveSet),
+    );
+  };
+
+  const dolphins: Map<number, Dolphin> = new Map();
   const gameIndices: Map<number, number> = new Map();
   let queuedSet: AvailableSet | null = null;
-  let lastTournamentName = '';
-  let lastEventName = '';
-  let lastEventSlug = '';
-  let lastPhaseName = '';
-  let lastPhaseId = 0;
-  let lastPhaseGroupId = 0;
+  let lastStartggTournamentName = '';
+  let lastStartggEventName = '';
+  let lastStartggEventSlug = '';
+  let lastStartggPhaseName = '';
+  let lastStartggPhaseId = 0;
+  let lastStartggPhaseGroupId = 0;
+  let lastChallongeTournamentName = '';
+  let lastChallongeTournamentSlug = '';
   const writeOverlayJson = async () => {
     if (!generateOverlay) {
       return undefined;
     }
 
     const overlayFilePath = path.join(overlayPath, 'overlay.json');
-    let tournamentName = lastTournamentName;
-    let eventName = lastEventName;
-    let phaseName = lastPhaseName;
+    let startggTournamentName = lastStartggTournamentName;
+    let startggEventName = lastStartggEventName;
+    let startggPhaseName = lastStartggPhaseName;
+    let challongeTournamentName = lastChallongeTournamentName;
     const sets: OverlaySet[] = [];
     const upcoming: { leftNames: string[]; rightNames: string[] }[] = [];
     let upcomingRoundName = '';
@@ -308,11 +364,14 @@ export default async function setupIPCs(
     if (entriesWithContexts.length > 0) {
       const representativePlayingSet = entriesWithContexts[0][1];
       const representativeStartgg = representativePlayingSet.context?.startgg;
+      const representativeChallonge =
+        representativePlayingSet.context?.challonge;
       if (representativeStartgg) {
-        tournamentName = representativeStartgg.tournament.name;
-        eventName =
+        startggTournamentName = representativeStartgg.tournament.name;
+        startggEventName =
           eventSlugs.size === 1 ? representativeStartgg.event.name : '';
-        phaseName = phaseIds.size === 1 ? representativeStartgg.phase.name : '';
+        startggPhaseName =
+          phaseIds.size === 1 ? representativeStartgg.phase.name : '';
 
         if (queuedSet) {
           const round = queuedSet.context?.startgg?.set.round;
@@ -358,6 +417,38 @@ export default async function setupIPCs(
             upcomingRoundName = `${prefix}${roundName}`;
           }
         }
+      } else if (representativeChallonge) {
+        challongeTournamentName = representativeChallonge.tournament.name;
+        if (queuedSet) {
+          const round = queuedSet.context?.challonge?.set.round;
+          if (round === representativeChallonge.set.round) {
+            const sameRoundSets = availableSets.filter(
+              (availableSet) =>
+                availableSet.context?.challonge?.set.round === round,
+            );
+            const startI = sameRoundSets.findIndex(
+              (set) => set.dirName === queuedSet!.dirName,
+            );
+            upcoming.push({
+              leftNames:
+                sameRoundSets[startI].context!.scores[0].slots[0].displayNames,
+              rightNames:
+                sameRoundSets[startI].context!.scores[0].slots[1].displayNames,
+            });
+            for (let i = startI + 1; i < sameRoundSets.length; i += 1) {
+              if (sameRoundSets[i].playedMs === 0) {
+                upcoming.push({
+                  leftNames:
+                    sameRoundSets[i].context!.scores[0].slots[0].displayNames,
+                  rightNames:
+                    sameRoundSets[i].context!.scores[0].slots[1].displayNames,
+                });
+              }
+            }
+          } else if (queuedSet.context?.challonge?.set.fullRoundText) {
+            upcomingRoundName = queuedSet.context.challonge.set.fullRoundText;
+          }
+        }
       }
       entriesWithContexts.forEach(([port, playingSet]) => {
         const { context } = playingSet;
@@ -378,6 +469,8 @@ export default async function setupIPCs(
             if (eventSlugs.size > 1) {
               roundName = `${context.startgg.event.name}, ${roundName}`;
             }
+          } else if (context.challonge) {
+            roundName = context.challonge.set.fullRoundText;
           }
           const { slots } = context.scores[gameIndex];
           sets[setIndex] = {
@@ -395,13 +488,25 @@ export default async function setupIPCs(
         }
       });
     }
+    const startgg =
+      startggTournamentName && startggEventName && startggPhaseName
+        ? {
+            tournamentName: startggTournamentName,
+            eventName: startggEventName,
+            phaseName: startggPhaseName,
+          }
+        : undefined;
+    const challonge = challongeTournamentName
+      ? {
+          tournamentName: challongeTournamentName,
+        }
+      : undefined;
     const overlayContext: OverlayContext = {
-      tournamentName,
-      eventName,
-      phaseName,
       sets,
       upcoming,
       upcomingRoundName,
+      startgg,
+      challonge,
     };
     return writeFile(overlayFilePath, JSON.stringify(overlayContext));
   };
@@ -503,27 +608,37 @@ export default async function setupIPCs(
     const newDolphin = new Dolphin(dolphinPath, isoPath, tempDir, port);
     newDolphin.on(DolphinEvent.CLOSE, () => {
       const playingSet = playingSets.get(port);
-      if (playingSet) {
-        playingSet.playing = false;
+      if (!playingSet) {
+        throw new Error(`playingSet not found for ${port} on CLOSE`);
+      }
+
+      playingSet.playing = false;
+      playingSets.delete(port);
+      if (playingSets.size === 0) {
         const startgg = playingSet.context?.startgg;
-        if (startgg && playingSets.size === 1) {
-          lastTournamentName = startgg.tournament.name;
-          lastEventName = startgg.event.name;
-          lastEventSlug = startgg.event.slug;
-          lastPhaseName = startgg.phase.name;
-          lastPhaseId = startgg.phase.id;
-          lastPhaseGroupId = startgg.phaseGroup.id;
+        const challonge = playingSet.context?.challonge;
+        if (startgg) {
+          lastStartggTournamentName = startgg.tournament.name;
+          lastStartggEventName = startgg.event.name;
+          lastStartggEventSlug = startgg.event.slug;
+          lastStartggPhaseName = startgg.phase.name;
+          lastStartggPhaseId = startgg.phase.id;
+          lastStartggPhaseGroupId = startgg.phaseGroup.id;
+        } else if (challonge) {
+          lastChallongeTournamentName = challonge.tournament.name;
+          lastChallongeTournamentSlug = challonge.tournament.slug;
         }
       }
 
       newDolphin.removeAllListeners();
       gameIndices.delete(port);
-      playingSets.delete(port);
       dolphins.delete(port);
       if (dolphins.size === 0) {
         queuedSet = null;
       }
       obsConnection.setDolphins(dolphins);
+
+      writeOverlayJson();
       obsConnection.transition(playingSets);
       mainWindow.webContents.send('dolphins', dolphins.size);
       mainWindow.webContents.send(
@@ -538,59 +653,51 @@ export default async function setupIPCs(
     });
     newDolphin.on(DolphinEvent.ENDED, async (failureReason: string) => {
       const playingSet = playingSets.get(port);
-      if (playingSet) {
-        playingSet.playing = false;
-        if (failureReason) {
-          playingSet.invalidReason = failureReason;
-        }
-        if (queuedSet) {
-          const currentPhaseId = playingSet.context?.startgg?.phase.id;
-          const currentPhaseGroupId =
-            playingSet.context?.startgg?.phaseGroup.id;
-          const currentRound = playingSet.context?.startgg?.set.round;
-          const nextPhaseId = queuedSet.context?.startgg?.phase.id;
-          const nextPhaseGroupId = queuedSet.context?.startgg?.phaseGroup.id;
-          const nextRound = queuedSet.context?.startgg?.set.round;
-          if (playingSets.size === 1) {
-            playingSets.delete(port);
-            do {
-              // eslint-disable-next-line no-await-in-loop
-              await playDolphin(queuedSet);
-            } while (
-              queuedSet &&
-              playingSets.size + tryingPorts.size < maxDolphins &&
-              nextPhaseId === queuedSet.context?.startgg?.phase.id &&
-              (nextPhaseGroupId !== queuedSet.context?.startgg?.phaseGroup.id ||
-                (nextPhaseGroupId ===
-                  queuedSet.context?.startgg?.phaseGroup.id &&
-                  nextRound === queuedSet.context?.startgg?.set.round))
-            );
-            obsConnection.transition(playingSets);
-            return;
-          }
-          if (
-            currentPhaseId === nextPhaseId &&
-            (currentPhaseGroupId !== nextPhaseGroupId ||
-              (currentPhaseGroupId === nextPhaseGroupId &&
-                currentRound === nextRound))
-          ) {
-            playDolphin(queuedSet, port);
-            return;
-          }
-        }
+      if (!playingSet) {
+        throw new Error(`playingSet not found for ${port} on ENDED`);
+      }
 
-        // no next set to play, playingSets will be empty after this
-        const startgg = playingSet.context?.startgg;
-        if (startgg && playingSets.size === 1) {
-          lastTournamentName = startgg.tournament.name;
-          lastEventName = startgg.event.name;
-          lastEventSlug = startgg.event.slug;
-          lastPhaseName = startgg.phase.name;
-          lastPhaseId = startgg.phase.id;
-          lastPhaseGroupId = startgg.phaseGroup.id;
-        }
+      playingSet.playing = false;
+      if (failureReason) {
+        playingSet.invalidReason = failureReason;
       }
       playingSets.delete(port);
+      if (queuedSet) {
+        if (playingSets.size === 0) {
+          do {
+            // eslint-disable-next-line no-await-in-loop
+            await playDolphin(queuedSet);
+          } while (
+            queuedSet &&
+            playingSets.size + tryingPorts.size < maxDolphins &&
+            willNotSpoilPlayingSets(queuedSet)
+          );
+          obsConnection.transition(playingSets);
+          return;
+        }
+        if (willNotSpoilPlayingSets(queuedSet)) {
+          playDolphin(queuedSet, port);
+          return;
+        }
+      }
+
+      // if we reach here, there's no next set to play
+      if (playingSets.size === 0) {
+        const startgg = playingSet.context?.startgg;
+        const challonge = playingSet.context?.challonge;
+        if (startgg) {
+          lastStartggTournamentName = startgg.tournament.name;
+          lastStartggEventName = startgg.event.name;
+          lastStartggEventSlug = startgg.event.slug;
+          lastStartggPhaseName = startgg.phase.name;
+          lastStartggPhaseId = startgg.phase.id;
+          lastStartggPhaseGroupId = startgg.phaseGroup.id;
+        } else if (challonge) {
+          lastChallongeTournamentName = challonge.tournament.name;
+          lastChallongeTournamentSlug = challonge.tournament.slug;
+        }
+      }
+
       writeOverlayJson();
       setTimeout(() => {
         obsConnection.transition(playingSets);
@@ -629,12 +736,7 @@ export default async function setupIPCs(
     for (let i = 0; i < toOpen; i += 1) {
       // eslint-disable-next-line no-await-in-loop
       const port = await startDolphinWithoutPort();
-      if (
-        playingSets.size > 0 &&
-        queuedSet &&
-        queuedSet.context?.startgg?.set.round ===
-          Array.from(playingSets.values())[0].context?.startgg?.set.round
-      ) {
+      if (queuedSet && willNotSpoilPlayingSets(queuedSet)) {
         // eslint-disable-next-line no-await-in-loop
         await playDolphin(queuedSet, port);
       }
@@ -698,35 +800,7 @@ export default async function setupIPCs(
             return;
           }
 
-          const playingSetsArr = Array.from(playingSets.values());
-          let canPlay = playingSetsArr.length === 0;
-          let isNext = playingSetsArr.length === 0;
-          playingSetsArr.forEach((set) => {
-            if (!set.context?.startgg && !newSet.context?.startgg) {
-              canPlay = true;
-              return;
-            }
-            if (
-              set.context?.startgg?.phase.id ===
-              newSet.context?.startgg?.phase.id
-            ) {
-              if (
-                set.context?.startgg?.phaseGroup.id ===
-                newSet.context?.startgg?.phaseGroup.id
-              ) {
-                // If same group must be same round to not spoil.
-                if (
-                  set.context?.startgg?.set.round ===
-                  newSet.context?.startgg?.set.round
-                ) {
-                  canPlay = true;
-                }
-              } else {
-                // Same phase different group: can never spoil.
-                canPlay = true;
-              }
-            }
-          });
+          let isNext = playingSets.size === 0;
           const newSetI = availableSets.indexOf(newSet);
           if (newSetI < 0) {
             throw new Error('could not find newSet in availableSets');
@@ -745,8 +819,8 @@ export default async function setupIPCs(
           }
           if (
             playingSets.size + tryingPorts.size < maxDolphins &&
-            canPlay &&
-            isNext
+            isNext &&
+            willNotSpoilPlayingSets(newSet)
           ) {
             await playDolphin(newSet);
             obsConnection.transition(playingSets);
@@ -922,20 +996,17 @@ export default async function setupIPCs(
             ).filter(
               (playingSet) => playingSet.context && playingSet.context.startgg,
             );
+            const playingSetsWithContextChallonge = Array.from(
+              playingSets.values(),
+            ).filter(
+              (playingSet) =>
+                playingSet.context && playingSet.context.challonge,
+            );
             const prefix =
               playingSets.size === 0 && tryingPorts.size === 0
                 ? ''
                 : 'SPOILERS: ';
-            if (
-              playingSetsWithContextStartgg.length === 0 &&
-              lastEventSlug &&
-              lastPhaseId &&
-              lastPhaseGroupId
-            ) {
-              say(
-                `${prefix}https://www.start.gg/${lastEventSlug}/brackets/${lastPhaseId}/${lastPhaseGroupId}`,
-              );
-            } else {
+            if (playingSetsWithContextStartgg.length > 0) {
               const bracketUrls = new Set<string>();
               playingSetsWithContextStartgg.forEach((set) => {
                 const startgg = set.context!.startgg!;
@@ -944,6 +1015,27 @@ export default async function setupIPCs(
                 );
               });
               say(Array.from(bracketUrls.values()).join(' '));
+            } else if (playingSetsWithContextChallonge.length > 0) {
+              const bracketUrls = new Set<string>();
+              playingSetsWithContextChallonge.forEach((set) => {
+                const challonge = set.context!.challonge!;
+                bracketUrls.add(
+                  `${prefix}https://challonge.com/${challonge.tournament.slug}`,
+                );
+              });
+              say(Array.from(bracketUrls.values()).join(' '));
+            } else if (
+              lastStartggEventSlug &&
+              lastStartggPhaseId &&
+              lastStartggPhaseGroupId
+            ) {
+              say(
+                `${prefix}https://www.start.gg/${lastStartggEventSlug}/brackets/${lastStartggPhaseId}/${lastStartggPhaseGroupId}`,
+              );
+            } else if (lastChallongeTournamentSlug) {
+              say(
+                `${prefix}https://challonge.com/${lastChallongeTournamentSlug}`,
+              );
             }
           }),
           createBotCommand('pronouns', (params, { say }) => {

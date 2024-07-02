@@ -7,8 +7,7 @@ export type ContextSlot = {
 };
 
 export type ContextScore = {
-  // slots.length === 2
-  slots?: ContextSlot[];
+  slots?: [ContextSlot, ContextSlot];
 };
 
 export type Context = {
@@ -37,6 +36,18 @@ export type Context = {
       fullRoundText?: string;
       round?: number;
       twitchStream?: string | null;
+    };
+  };
+  challonge?: {
+    tournament: {
+      name: string;
+      slug: string;
+    };
+    set: {
+      id: number;
+      fullRoundText: string;
+      round: number;
+      ordinal: number;
     };
   };
   startMs?: number;
@@ -80,6 +91,17 @@ export type MainContext = {
       twitchStream: string | null;
     };
   };
+  challonge?: {
+    tournament: {
+      name: string;
+      slug: string;
+    };
+    set: {
+      fullRoundText: string;
+      round: number;
+      ordinal: number;
+    };
+  };
   startMs: number;
 };
 
@@ -103,6 +125,10 @@ export type RenderContext = {
     phaseGroupName: string;
     fullRoundText: string;
     twitchStream: string;
+  };
+  challonge?: {
+    tournamentName: string;
+    fullRoundText: string;
   };
 };
 
@@ -143,12 +169,17 @@ export type OverlaySet = {
 };
 
 export type OverlayContext = {
-  tournamentName: string;
-  eventName: string;
-  phaseName: string;
   sets: OverlaySet[];
   upcoming: { leftNames: string[]; rightNames: string[] }[];
   upcomingRoundName: string;
+  startgg?: {
+    tournamentName: string;
+    eventName: string;
+    phaseName: string;
+  };
+  challonge?: {
+    tournamentName: string;
+  };
 };
 
 export enum OBSConnectionStatus {

@@ -140,13 +140,6 @@ export type RenderSet = {
   playing: boolean;
 };
 
-export type DolphinComm = {
-  mode: 'queue';
-  commandId: string;
-  gameStation: string;
-  queue: { path: string }[];
-};
-
 export type TwitchSettings = {
   enabled: boolean;
   clientId: string;

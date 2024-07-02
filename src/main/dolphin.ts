@@ -8,7 +8,6 @@ import {
   DolphinConnection,
   DolphinMessageType,
 } from '@slippi/slippi-js';
-import { DolphinComm } from '../common/types';
 
 export enum DolphinEvent {
   CLOSE = 'close',
@@ -43,6 +42,8 @@ export class Dolphin extends EventEmitter {
 
   private waitingForStart: boolean;
 
+  private timeout: NodeJS.Timeout | null;
+
   constructor(
     dolphinPath: string,
     isoPath: string,
@@ -61,6 +62,7 @@ export class Dolphin extends EventEmitter {
     this.replayPaths = [];
     this.ignoreEndGame = false;
     this.waitingForStart = false;
+    this.timeout = null;
 
     this.commPath = path.join(tempDir, `${port}.json`);
     this.dolphinConnection = new DolphinConnection();
@@ -98,8 +100,33 @@ export class Dolphin extends EventEmitter {
     });
   }
 
+  private async writeCommEmpty() {
+    if (this.timeout) {
+      clearTimeout(this.timeout);
+    }
+
+    // dolphin will only stop the current playback if replay is non-empty.
+    const comm = {
+      commandId: this.commNum.toString(),
+      gameStation: `${this.port}`,
+      replay: 'invalidpath',
+    };
+    this.commNum += 1;
+    await writeFile(this.commPath, JSON.stringify(comm));
+    // If we interrupt a replay in progress Dolphin will emit an END_GAME event.
+    // We don't actually want that here.
+    this.ignoreEndGame = true;
+    this.timeout = setTimeout(() => {
+      this.ignoreEndGame = false;
+    }, 5000);
+  }
+
   private async writeComm(replayPaths: string[]) {
-    const comm: DolphinComm = {
+    if (this.timeout) {
+      clearTimeout(this.timeout);
+    }
+
+    const comm = {
       mode: 'queue',
       commandId: this.commNum.toString(),
       gameStation: `${this.port}`,
@@ -114,7 +141,7 @@ export class Dolphin extends EventEmitter {
     // ignore that.
     this.ignoreEndGame = true;
     this.waitingForStart = true;
-    setTimeout(() => {
+    this.timeout = setTimeout(() => {
       this.ignoreEndGame = false;
       if (replayPaths.length > 0 && this.waitingForStart) {
         this.emit(
@@ -178,7 +205,7 @@ export class Dolphin extends EventEmitter {
       return;
     }
 
-    await this.writeComm([]);
+    await this.writeCommEmpty();
     const params = [
       '-b',
       '-e',
@@ -220,6 +247,14 @@ export class Dolphin extends EventEmitter {
     }
 
     return this.writeComm(replayPaths);
+  }
+
+  public async stop() {
+    if (!this.process) {
+      throw new Error('dolphin not open');
+    }
+
+    return this.writeCommEmpty();
   }
 
   public close() {

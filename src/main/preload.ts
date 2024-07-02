@@ -23,6 +23,7 @@ const electronHandler = {
   connectObs: (): Promise<void> => ipcRenderer.invoke('connectObs'),
   watch: (start: boolean): Promise<void> => ipcRenderer.invoke('watch', start),
   play: (dirName: string): Promise<void> => ipcRenderer.invoke('play', dirName),
+  stop: (dirName: string): Promise<void> => ipcRenderer.invoke('stop', dirName),
   queue: (dirName: string): Promise<void> =>
     ipcRenderer.invoke('queue', dirName),
   markPlayed: (

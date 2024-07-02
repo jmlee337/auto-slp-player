@@ -229,8 +229,17 @@ export default async function setupIPCs(
     }
   }
 
-  const dirNameToPlayedMs = new Map<string, number>();
   const availableSets: AvailableSet[] = [];
+  let queuedSet: AvailableSet | null = null;
+  const sendPlaying = () => {
+    mainWindow.webContents.send(
+      'playing',
+      availableSets.map(toRenderSet),
+      queuedSet ? queuedSet.dirName : '',
+    );
+  };
+
+  const dirNameToPlayedMs = new Map<string, number>();
   const earliestForPhaseRound = new Map<string, number>();
   const sortAvailableSets = () => {
     availableSets.sort((a, b) => {
@@ -324,7 +333,6 @@ export default async function setupIPCs(
 
   const dolphins: Map<number, Dolphin> = new Map();
   const gameIndices: Map<number, number> = new Map();
-  let queuedSet: AvailableSet | null = null;
   let lastStartggTournamentName = '';
   let lastStartggEventName = '';
   let lastStartggEventSlug = '';
@@ -594,11 +602,7 @@ export default async function setupIPCs(
     );
 
     await dolphins.get(actualPort)!.play(set.replayPaths);
-    mainWindow.webContents.send(
-      'playing',
-      availableSets.map(toRenderSet),
-      queuedSet ? queuedSet.dirName : '',
-    );
+    sendPlaying();
   };
   startDolphin = async (port: number) => {
     if (dolphins.get(port)) {
@@ -641,11 +645,7 @@ export default async function setupIPCs(
       writeOverlayJson();
       obsConnection.transition(playingSets);
       mainWindow.webContents.send('dolphins', dolphins.size);
-      mainWindow.webContents.send(
-        'playing',
-        availableSets.map(toRenderSet),
-        queuedSet ? queuedSet.dirName : '',
-      );
+      sendPlaying();
     });
     newDolphin.on(DolphinEvent.PLAYING, (newGameIndex: number) => {
       gameIndices.set(port, newGameIndex);
@@ -702,11 +702,7 @@ export default async function setupIPCs(
       setTimeout(() => {
         obsConnection.transition(playingSets);
       }, 1000);
-      mainWindow.webContents.send(
-        'playing',
-        availableSets.map(toRenderSet),
-        queuedSet ? queuedSet.dirName : '',
-      );
+      sendPlaying();
     });
     return new Promise<void>((resolve, reject) => {
       newDolphin.on(DolphinEvent.START_FAILED, (connectFailed: boolean) => {
@@ -906,6 +902,28 @@ export default async function setupIPCs(
     if (playingSets.size + tryingPorts.size < maxDolphins) {
       await playDolphin(setToPlay);
       obsConnection.transition(playingSets);
+    }
+  });
+
+  ipcMain.removeHandler('stop');
+  ipcMain.handle('stop', async (event: IpcMainInvokeEvent, dirName: string) => {
+    const setToStop = availableSets.find((set) => set.dirName === dirName);
+    if (!setToStop) {
+      throw new Error(`no such set to stop: ${dirName}`);
+    }
+
+    if (setToStop.playing) {
+      const entry = Array.from(playingSets.entries()).find(
+        ([, set]) => set === setToStop,
+      )!;
+      const [port] = entry;
+      await dolphins.get(port)!.stop();
+      setToStop.playing = false;
+      playingSets.delete(port);
+
+      writeOverlayJson();
+      obsConnection.transition(playingSets);
+      sendPlaying();
     }
   });
 

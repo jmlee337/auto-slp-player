@@ -25,6 +25,7 @@ import {
   PlaylistAddCheck,
   PriorityHigh,
   Report,
+  Stop,
   StopCircle,
   SubdirectoryArrowRight,
   Visibility,
@@ -390,16 +391,28 @@ function Hello() {
               )}
               {!renderSet.invalidReason && (
                 <>
-                  <Tooltip arrow title="Play next">
-                    <IconButton
-                      onClick={async () => {
-                        window.electron.queue(renderSet.dirName);
-                        setQueuedSetDirName(renderSet.dirName);
-                      }}
-                    >
-                      <SubdirectoryArrowRight />
-                    </IconButton>
-                  </Tooltip>
+                  {renderSet.playing ? (
+                    <Tooltip arrow title="Stop">
+                      <IconButton
+                        onClick={async () => {
+                          window.electron.stop(renderSet.dirName);
+                        }}
+                      >
+                        <Stop />
+                      </IconButton>
+                    </Tooltip>
+                  ) : (
+                    <Tooltip arrow title="Play next">
+                      <IconButton
+                        onClick={async () => {
+                          window.electron.queue(renderSet.dirName);
+                          setQueuedSetDirName(renderSet.dirName);
+                        }}
+                      >
+                        <SubdirectoryArrowRight />
+                      </IconButton>
+                    </Tooltip>
+                  )}
                   <Tooltip arrow title="Play now">
                     <IconButton
                       onClick={() => {

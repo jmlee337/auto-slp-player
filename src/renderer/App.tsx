@@ -9,6 +9,7 @@ import {
   CircularProgress,
   Dialog,
   DialogContent,
+  DialogTitle,
   IconButton,
   InputBase,
   List,
@@ -40,6 +41,13 @@ import {
 import Settings from './Settings';
 
 function Hello() {
+  const [appError, setAppError] = useState('');
+  const [appErrorDialogOpen, setAppErrorDialogOpen] = useState(false);
+  const showAppErrorDialog = (message: string) => {
+    setAppError(message);
+    setAppErrorDialogOpen(true);
+  };
+
   const [appVersion, setAppVersion] = useState('');
   const [latestAppVersion, setLatestAppVersion] = useState('');
   const [dolphinPath, setDolphinPath] = useState('');
@@ -71,7 +79,6 @@ function Hello() {
   useEffect(() => {
     const inner = async () => {
       const appVersionPromise = window.electron.getVersion();
-      const latestAppVersionPromise = window.electron.getLatestVersion();
       const dolphinPathPromise = window.electron.getDolphinPath();
       const isoPathPromise = window.electron.getIsoPath();
       const maxDolphinsPromise = window.electron.getMaxDolphins();
@@ -86,8 +93,11 @@ function Hello() {
       const obsConnectionStatusPromise =
         window.electron.getObsConnectionStatus();
       const twitchBotStatusPromise = window.electron.getTwitchBotStatus();
+
+      // req network
+      const latestAppVersionPromise = window.electron.getLatestVersion();
+
       setAppVersion(await appVersionPromise);
-      setLatestAppVersion(await latestAppVersionPromise);
       setDolphinPath(await dolphinPathPromise);
       setIsoPath(await isoPathPromise);
       setMaxDolphins(await maxDolphinsPromise);
@@ -105,6 +115,16 @@ function Hello() {
       setObsConnectionStatus(await obsConnectionStatusPromise);
       setTwitchBotConnected((await twitchBotStatusPromise).connected);
       setTwitchBotError((await twitchBotStatusPromise).error);
+
+      // req network
+      try {
+        setLatestAppVersion(await latestAppVersionPromise);
+      } catch {
+        showAppErrorDialog(
+          'Unable to check for updates. Are you connected to the internet?',
+        );
+      }
+
       setGotSettings(true);
     };
     inner();
@@ -448,6 +468,18 @@ function Hello() {
       >
         <DialogContent>
           <Alert severity="error">{obsError}</Alert>
+        </DialogContent>
+      </Dialog>
+      <Dialog
+        open={appErrorDialogOpen}
+        onClose={() => {
+          setAppError('');
+          setAppErrorDialogOpen(false);
+        }}
+      >
+        <DialogTitle>Error! (You may want to copy this message)</DialogTitle>
+        <DialogContent>
+          <Alert severity="error">{appError}</Alert>
         </DialogContent>
       </Dialog>
     </>

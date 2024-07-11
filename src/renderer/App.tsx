@@ -9,6 +9,7 @@ import {
   CircularProgress,
   Dialog,
   DialogContent,
+  DialogContentText,
   DialogTitle,
   IconButton,
   InputBase,
@@ -477,8 +478,11 @@ function Hello() {
           setAppErrorDialogOpen(false);
         }}
       >
-        <DialogTitle>Error! (You may want to copy this message)</DialogTitle>
+        <DialogTitle>Error!</DialogTitle>
         <DialogContent>
+          <DialogContentText>
+            You may want to copy or screenshot this error:
+          </DialogContentText>
           <Alert severity="error">{appError}</Alert>
         </DialogContent>
       </Dialog>

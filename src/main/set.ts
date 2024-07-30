@@ -114,7 +114,7 @@ export function toMainContext(context: Context): MainContext | undefined {
     typeof challongeTournamentSlug === 'string' &&
     typeof challongeFullRoundText === 'string' &&
     Number.isInteger(challongeRound) &&
-    Number.isInteger(challongeOrdinal)
+    (challongeOrdinal === null || Number.isInteger(challongeOrdinal))
   ) {
     mainContext.challonge = {
       tournament: {
@@ -124,7 +124,7 @@ export function toMainContext(context: Context): MainContext | undefined {
       set: {
         fullRoundText: challongeFullRoundText,
         round: challongeRound!,
-        ordinal: challongeOrdinal!,
+        ordinal: challongeOrdinal as number | null,
       },
     };
   }

@@ -301,7 +301,12 @@ export default async function setupIPCs(
           return tournamentNameCompare;
         }
         if (aChallonge.set.round !== bChallonge.set.round) {
-          return aChallonge.set.ordinal - bChallonge.set.ordinal;
+          if (
+            aChallonge.set.ordinal !== null &&
+            bChallonge.set.ordinal !== null
+          ) {
+            return aChallonge.set.ordinal - bChallonge.set.ordinal;
+          }
         }
         if (a.playedMs && b.playedMs) {
           return a.playedMs - b.playedMs;

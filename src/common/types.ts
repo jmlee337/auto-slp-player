@@ -32,7 +32,7 @@ export type Context = {
       name?: string;
     };
     set?: {
-      id: number;
+      id?: number;
       fullRoundText?: string;
       round?: number;
       twitchStream?: string | null;
@@ -44,10 +44,10 @@ export type Context = {
       slug: string;
     };
     set: {
-      id: number;
+      id?: number;
       fullRoundText: string;
       round: number;
-      ordinal: number;
+      ordinal: number | null;
     };
   };
   startMs?: number;
@@ -99,7 +99,7 @@ export type MainContext = {
     set: {
       fullRoundText: string;
       round: number;
-      ordinal: number;
+      ordinal: number | null;
     };
   };
   startMs: number;

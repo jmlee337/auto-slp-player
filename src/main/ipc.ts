@@ -617,25 +617,23 @@ export default async function setupIPCs(
     const newDolphin = new Dolphin(dolphinPath, isoPath, tempDir, port);
     newDolphin.on(DolphinEvent.CLOSE, () => {
       const playingSet = playingSets.get(port);
-      if (!playingSet) {
-        throw new Error(`playingSet not found for ${port} on CLOSE`);
-      }
-
-      playingSet.playing = false;
-      playingSets.delete(port);
-      if (playingSets.size === 0) {
-        const startgg = playingSet.context?.startgg;
-        const challonge = playingSet.context?.challonge;
-        if (startgg) {
-          lastStartggTournamentName = startgg.tournament.name;
-          lastStartggEventName = startgg.event.name;
-          lastStartggEventSlug = startgg.event.slug;
-          lastStartggPhaseName = startgg.phase.name;
-          lastStartggPhaseId = startgg.phase.id;
-          lastStartggPhaseGroupId = startgg.phaseGroup.id;
-        } else if (challonge) {
-          lastChallongeTournamentName = challonge.tournament.name;
-          lastChallongeTournamentSlug = challonge.tournament.slug;
+      if (playingSet) {
+        playingSet.playing = false;
+        playingSets.delete(port);
+        if (playingSets.size === 0) {
+          const startgg = playingSet.context?.startgg;
+          const challonge = playingSet.context?.challonge;
+          if (startgg) {
+            lastStartggTournamentName = startgg.tournament.name;
+            lastStartggEventName = startgg.event.name;
+            lastStartggEventSlug = startgg.event.slug;
+            lastStartggPhaseName = startgg.phase.name;
+            lastStartggPhaseId = startgg.phase.id;
+            lastStartggPhaseGroupId = startgg.phaseGroup.id;
+          } else if (challonge) {
+            lastChallongeTournamentName = challonge.tournament.name;
+            lastChallongeTournamentSlug = challonge.tournament.slug;
+          }
         }
       }
 

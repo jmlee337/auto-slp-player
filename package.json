@@ -181,7 +181,10 @@
     "productName": "AutoSLPPlayer",
     "appId": "org.jmlee337.AutoSLPPlayer",
     "asar": true,
-    "asarUnpack": ["**\\*.{node,dll}", "!dist/main/*.node"],
+    "asarUnpack": [
+      "**\\*.{node,dll}",
+      "!dist/main/*.node"
+    ],
     "files": [
       "dist",
       "node_modules",

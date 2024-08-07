@@ -8,6 +8,7 @@ import {
   DolphinConnection,
   DolphinMessageType,
 } from '@slippi/slippi-js';
+import { kill, stderr, stdout } from 'process';
 
 export enum DolphinEvent {
   CLOSE = 'close',
@@ -215,17 +216,26 @@ export class Dolphin extends EventEmitter {
       '--slippi-spectator-port',
       `${this.port}`,
     ];
-    if (process.platform === 'darwin') {
+    if (process.platform === 'win32') {
+      this.process = spawn(this.dolphinPath, params);
+    } else if (process.platform === 'darwin') {
       this.process = execFile(this.dolphinPath, params, {
         // 100MB
         maxBuffer: 1000 * 1000 * 100,
       });
+    } else if (process.platform === 'linux') {
+      const { env } = process;
+      env.OBS_VKCAPTURE = '1';
+      // eslint-disable-next-line prettier/prettier
+      this.process = spawn(this.dolphinPath, params, { env, detached: true });
     } else {
-      this.process = spawn(this.dolphinPath, params);
+      throw new Error('unreachable: unsupported platform');
     }
 
     this.process.on('spawn', async () => {
       this.pid = this.process!.pid!;
+      this.process!.stderr!.pipe(stderr);
+      this.process!.stdout!.pipe(stdout);
       try {
         await this.connectToDolphin();
         this.emit(DolphinEvent.START_READY);
@@ -261,6 +271,9 @@ export class Dolphin extends EventEmitter {
     if (!this.process) {
       return true;
     }
-    return this.process.kill();
+    if (process.platform !== 'linux') {
+      return this.process.kill();
+    }
+    return kill(-this.pid);
   }
 }

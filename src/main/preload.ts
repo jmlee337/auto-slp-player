@@ -53,8 +53,6 @@ const electronHandler = {
     ipcRenderer.invoke('getDolphinVersion'),
   getObsConnectionEnabled: (): Promise<boolean> =>
     ipcRenderer.invoke('getObsConnectionEnabled'),
-  setObsConnectionEnabled: (enabled: boolean) =>
-    ipcRenderer.invoke('setObsConnectionEnabled', enabled),
   getObsSettings: (): Promise<OBSSettings> =>
     ipcRenderer.invoke('getObsSettings'),
   setObsSettings: (settings: OBSSettings) =>

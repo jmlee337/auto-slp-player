@@ -224,10 +224,7 @@ export class Dolphin extends EventEmitter {
         maxBuffer: 1000 * 1000 * 100,
       });
     } else if (process.platform === 'linux') {
-      const { env } = process;
-      env.OBS_VKCAPTURE = '1';
-      // eslint-disable-next-line prettier/prettier
-      this.process = spawn(this.dolphinPath, params, { env, detached: true });
+      this.process = spawn(this.dolphinPath, params, { detached: true });
     } else {
       throw new Error('unreachable: unsupported platform');
     }

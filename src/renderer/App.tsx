@@ -244,7 +244,6 @@ function Hello() {
           dolphinVersionError={dolphinVersionError}
           setDolphinVersionError={setDolphinVersionError}
           obsConnectionEnabled={obsConnectionEnabled}
-          setObsConnectionEnabled={setObsConnectionEnabled}
           obsProtocol={obsProtocol}
           setObsProtocol={setObsProtocol}
           obsAddress={obsAddress}
@@ -275,39 +274,43 @@ function Hello() {
           {numDolphins === maxDolphins ? 'Dolphins Open' : 'Open Dolphins'}{' '}
           {`(${numDolphins})`}
         </Button>
-        <Button
-          disabled={
-            !dolphinVersion ||
-            !obsConnectionEnabled ||
-            (numDolphins < maxDolphins &&
-              obsConnectionStatus === OBSConnectionStatus.OBS_NOT_CONNECTED) ||
-            obsConnectionStatus === OBSConnectionStatus.READY
-          }
-          endIcon={obsButtonIcon}
-          onClick={async () => {
-            if (obsConnectionStatus === OBSConnectionStatus.OBS_NOT_CONNECTED) {
-              try {
-                setObsConnecting(true);
-                await window.electron.connectObs();
-              } catch (e: any) {
-                const message = e instanceof Error ? e.message : e;
-                setObsError(message);
-                setObsErrorDialogOpen(true);
-              } finally {
-                setObsConnecting(false);
-              }
-            } else if (
-              obsConnectionStatus === OBSConnectionStatus.OBS_NOT_SETUP
-            ) {
-              setObsErrorDialogOpen(true);
+        {obsConnectionEnabled && (
+          <Button
+            disabled={
+              !dolphinVersion ||
+              (numDolphins < maxDolphins &&
+                obsConnectionStatus ===
+                  OBSConnectionStatus.OBS_NOT_CONNECTED) ||
+              obsConnectionStatus === OBSConnectionStatus.READY
             }
-          }}
-          variant="contained"
-        >
-          {obsConnectionStatus === OBSConnectionStatus.OBS_NOT_CONNECTED
-            ? 'Connect to OBS'
-            : 'OBS Connected'}
-        </Button>
+            endIcon={obsButtonIcon}
+            onClick={async () => {
+              if (
+                obsConnectionStatus === OBSConnectionStatus.OBS_NOT_CONNECTED
+              ) {
+                try {
+                  setObsConnecting(true);
+                  await window.electron.connectObs();
+                } catch (e: any) {
+                  const message = e instanceof Error ? e.message : e;
+                  setObsError(message);
+                  setObsErrorDialogOpen(true);
+                } finally {
+                  setObsConnecting(false);
+                }
+              } else if (
+                obsConnectionStatus === OBSConnectionStatus.OBS_NOT_SETUP
+              ) {
+                setObsErrorDialogOpen(true);
+              }
+            }}
+            variant="contained"
+          >
+            {obsConnectionStatus === OBSConnectionStatus.OBS_NOT_CONNECTED
+              ? 'Connect to OBS'
+              : 'OBS Connected'}
+          </Button>
+        )}
         <Button
           disabled={!dolphinPath || !isoPath || !watchDir}
           endIcon={watching ? <StopCircle /> : <PlayCircle />}

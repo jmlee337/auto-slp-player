@@ -9,9 +9,11 @@ import {
   DialogContent,
   DialogContentText,
   DialogTitle,
+  FormControl,
   FormControlLabel,
   IconButton,
   InputBase,
+  InputLabel,
   MenuItem,
   Select,
   Stack,
@@ -54,7 +56,7 @@ function IfClientIdAndScecretSet({
 
   return (
     (!twitchSettings.accessToken || !twitchSettings.refreshToken) && (
-      <>
+      <Box marginTop="8px">
         <DialogContentText>
           <a
             href={`https://id.twitch.tv/oauth2/authorize?client_id=${twitchSettings.clientId}&redirect_uri=http://localhost&response_type=code&scope=chat:read+chat:edit`}
@@ -91,7 +93,7 @@ function IfClientIdAndScecretSet({
             }
           }}
         >
-          <TextField label="code" name="code" size="small" variant="standard" />
+          <TextField label="code" name="code" size="small" variant="filled" />
           <Button
             disabled={getting}
             endIcon={getting && <CircularProgress size={24} />}
@@ -101,7 +103,7 @@ function IfClientIdAndScecretSet({
             Go!
           </Button>
         </Form>
-      </>
+      </Box>
     )
   );
 }
@@ -126,7 +128,6 @@ export default function Settings({
   dolphinVersionError,
   setDolphinVersionError,
   obsConnectionEnabled,
-  setObsConnectionEnabled,
   obsProtocol,
   setObsProtocol,
   obsAddress,
@@ -158,7 +159,6 @@ export default function Settings({
   dolphinVersionError: string;
   setDolphinVersionError: (dolphinVersionError: string) => void;
   obsConnectionEnabled: boolean;
-  setObsConnectionEnabled: (enabled: boolean) => void;
   obsProtocol: string;
   setObsProtocol: (protocol: string) => void;
   obsAddress: string;
@@ -307,27 +307,6 @@ export default function Settings({
               </IconButton>
             </Tooltip>
           </Stack>
-          <Stack direction="row" alignItems="center" spacing="8px">
-            <Select
-              value={maxDolphins}
-              onChange={async (event) => {
-                const newMaxDolphins = event.target.value;
-                if (Number.isInteger(newMaxDolphins)) {
-                  await window.electron.setMaxDolphins(
-                    newMaxDolphins as number,
-                  );
-                  setMaxDolphins(newMaxDolphins as number);
-                }
-              }}
-              size="small"
-            >
-              <MenuItem value={1}>1</MenuItem>
-              <MenuItem value={2}>2</MenuItem>
-              <MenuItem value={3}>3</MenuItem>
-              <MenuItem value={4}>4</MenuItem>
-            </Select>
-            <Typography variant="body1">Max Dolphins</Typography>
-          </Stack>
           <Box>
             <FormControlLabel
               control={
@@ -345,28 +324,34 @@ export default function Settings({
               label="Generate Overlay"
             />
           </Box>
-          <Stack>
-            <Stack
-              alignItems="center"
-              direction="row"
-              marginLeft="-11px"
-              spacing="8px"
-            >
-              <FormControlLabel
-                control={
-                  <Checkbox
-                    checked={obsConnectionEnabled}
-                    onChange={async (event) => {
-                      const newEnabled = event.target.checked;
-                      await window.electron.setObsConnectionEnabled(newEnabled);
-                      setObsConnectionEnabled(newEnabled);
-                    }}
-                  />
+          <FormControl variant="filled">
+            <InputLabel id="max-dolphins-select-label">Max Dolphins</InputLabel>
+            <Select
+              value={maxDolphins}
+              onChange={async (event) => {
+                const newMaxDolphins = event.target.value;
+                if (Number.isInteger(newMaxDolphins)) {
+                  await window.electron.setMaxDolphins(
+                    newMaxDolphins as number,
+                  );
+                  setMaxDolphins(newMaxDolphins as number);
                 }
-                label="OBS Connection Enabled"
-              />
+              }}
+              labelId="max-dolphins-select-label"
+              size="small"
+              style={{ width: '120px' }}
+              variant="filled"
+            >
+              <MenuItem value={1}>1</MenuItem>
+              <MenuItem value={2}>2</MenuItem>
+              <MenuItem value={3}>3</MenuItem>
+              <MenuItem value={4}>4</MenuItem>
+            </Select>
+          </FormControl>
+          {obsConnectionEnabled && (
+            <Stack marginTop="8px">
               <DialogContentText>
-                (Scene/Source setup info{' '}
+                OBS Scene/Source setup info{' '}
                 <a
                   href={`https://github.com/jmlee337/auto-slp-player/blob/${appVersion}/src/docs/obs.md`}
                   target="_blank"
@@ -374,10 +359,7 @@ export default function Settings({
                 >
                   here
                 </a>
-                )
               </DialogContentText>
-            </Stack>
-            {obsConnectionEnabled && (
               <Stack direction="row" spacing="8px">
                 <Select
                   label="OBS Protocol"
@@ -400,7 +382,7 @@ export default function Settings({
                   }}
                   size="small"
                   value={obsAddress}
-                  variant="standard"
+                  variant="filled"
                 />
                 <TextField
                   inputProps={{ min: 1024, max: 65535 }}
@@ -412,7 +394,7 @@ export default function Settings({
                   size="small"
                   type="number"
                   value={obsPort}
-                  variant="standard"
+                  variant="filled"
                 />
                 <TextField
                   label="OBS Password"
@@ -423,17 +405,17 @@ export default function Settings({
                   size="small"
                   type="password"
                   value={obsPassword}
-                  variant="standard"
+                  variant="filled"
                 />
               </Stack>
-            )}
-          </Stack>
-          <Stack>
+            </Stack>
+          )}
+          <Stack marginTop="8px">
             <DialogContentText>
-              If Twitch channel is set, will automatically unqueue any sets that
-              were marked on start.gg as being streamed on a different channel
+              Will automatically unqueue any sets that were marked on start.gg
+              as streamed elsewhere
             </DialogContentText>
-            <Stack direction="row" alignItems="center">
+            <Stack direction="row" alignItems="center" spacing="8px">
               <TextField
                 label="Twitch channel"
                 onChange={(event) => {
@@ -441,12 +423,13 @@ export default function Settings({
                 }}
                 size="small"
                 value={twitchChannel}
-                variant="standard"
+                variant="filled"
               />
               <FormControlLabel
                 control={
                   <Checkbox
                     checked={twitchSettings.enabled}
+                    disabled={!twitchChannel}
                     onChange={async (event) => {
                       twitchSettings.enabled = event.target.checked;
                       setTwitchSettings(
@@ -455,11 +438,11 @@ export default function Settings({
                     }}
                   />
                 }
-                label="Twitch Bot"
+                label="Twitch Bot (!auto, !bracket, !pronouns)"
               />
             </Stack>
-            {twitchSettings.enabled && (
-              <>
+            {twitchSettings.enabled && twitchChannel && (
+              <Box marginTop="8px">
                 {(!twitchSettings.clientId || !twitchSettings.clientSecret) && (
                   <DialogContentText>
                     Create an application from the{' '}
@@ -487,7 +470,7 @@ export default function Settings({
                     defaultValue={twitchSettings.clientId}
                     label="Client ID"
                     size="small"
-                    variant="standard"
+                    variant="filled"
                     onChange={async (event) => {
                       twitchSettings.clientId = event.target.value;
                       setTwitchSettings(
@@ -500,7 +483,7 @@ export default function Settings({
                     label="Client Secret (Keep it private!)"
                     size="small"
                     type="password"
-                    variant="standard"
+                    variant="filled"
                     onChange={async (event) => {
                       twitchSettings.clientSecret = event.target.value;
                       setTwitchSettings(
@@ -544,7 +527,7 @@ export default function Settings({
                     setTwitchTokenError={setTwitchTokenError}
                   />
                 )}
-              </>
+              </Box>
             )}
           </Stack>
           {needUpdate && (

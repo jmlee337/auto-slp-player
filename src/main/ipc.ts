@@ -83,7 +83,7 @@ export default async function setupIPCs(
     : 1;
   let generateOverlay = store.has('generateOverlay')
     ? (store.get('generateOverlay') as boolean)
-    : false;
+    : true;
   let twitchChannel = store.has('twitchChannel')
     ? (store.get('twitchChannel') as string)
     : '';
@@ -96,9 +96,6 @@ export default async function setupIPCs(
         clientId: '',
         clientSecret: '',
       };
-  let obsConnectionEnabled = store.has('obsConnectionEnabled')
-    ? (store.get('obsConnectionEnabled') as boolean)
-    : false;
   let obsSettings: OBSSettings = store.has('obsSettings')
     ? (store.get('obsSettings') as OBSSettings)
     : { protocol: 'ws', address: '127.0.0.1', port: '4455', password: '' };
@@ -1193,17 +1190,9 @@ export default async function setupIPCs(
     }
   });
 
+  const obsConnectionEnabled = process.platform !== 'linux';
   ipcMain.removeHandler('getObsConnectionEnabled');
   ipcMain.handle('getObsConnectionEnabled', () => obsConnectionEnabled);
-
-  ipcMain.removeHandler('setObsConnectionEnabled');
-  ipcMain.handle(
-    'setObsConnectionEnabled',
-    async (event: IpcMainInvokeEvent, enabled: boolean) => {
-      store.set('obsConnectionEnabled', enabled);
-      obsConnectionEnabled = enabled;
-    },
-  );
 
   ipcMain.removeHandler('getObsSettings');
   ipcMain.handle('getObsSettings', () => obsSettings);

@@ -10,6 +10,11 @@ export type ContextScore = {
   slots?: [ContextSlot, ContextSlot];
 };
 
+export type Stream = {
+  domain: string;
+  path: string;
+};
+
 export type Context = {
   bestOf?: number;
   durationMs?: number;
@@ -35,19 +40,20 @@ export type Context = {
       id?: number;
       fullRoundText?: string;
       round?: number;
-      twitchStream?: string | null;
+      stream?: Stream | null;
     };
   };
   challonge?: {
-    tournament: {
-      name: string;
-      slug: string;
+    tournament?: {
+      name?: string;
+      slug?: string;
     };
-    set: {
+    set?: {
       id?: number;
-      fullRoundText: string;
-      round: number;
-      ordinal: number | null;
+      fullRoundText?: string;
+      ordinal?: number | null;
+      round?: number;
+      stream?: Stream | null;
     };
   };
   startMs?: number;
@@ -88,7 +94,7 @@ export type MainContext = {
     set: {
       fullRoundText: string;
       round: number;
-      twitchStream: string | null;
+      stream: Stream | null;
     };
   };
   challonge?: {
@@ -98,8 +104,9 @@ export type MainContext = {
     };
     set: {
       fullRoundText: string;
-      round: number;
       ordinal: number | null;
+      round: number;
+      stream: Stream | null;
     };
   };
   startMs: number;
@@ -124,11 +131,12 @@ export type RenderContext = {
     phaseName: string;
     phaseGroupName: string;
     fullRoundText: string;
-    twitchStream: string;
+    stream: Stream | null;
   };
   challonge?: {
     tournamentName: string;
     fullRoundText: string;
+    stream: Stream | null;
   };
 };
 

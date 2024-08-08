@@ -19,6 +19,7 @@ export default async function unzip(
   dirNameToPlayedMs: Map<string, number>,
   twitchChannel: string,
 ): Promise<AvailableSet> {
+  const twitchChannelLower = twitchChannel.toLowerCase();
   const unzipDir = path.join(tempDir, path.basename(zipPath, '.zip'));
   try {
     await access(unzipDir);
@@ -30,11 +31,13 @@ export default async function unzip(
       .map((slpPath) => path.join(unzipDir, slpPath));
     replayPaths.sort();
     const dirName = path.basename(unzipDir);
-    const streamedTwitchChannel = context?.startgg?.set.twitchStream;
+    const stream =
+      context?.startgg?.set.stream || context?.challonge?.set.stream;
     const wasStreamedOnAnotherChannel =
-      twitchChannel &&
-      streamedTwitchChannel &&
-      twitchChannel !== streamedTwitchChannel;
+      twitchChannelLower &&
+      stream &&
+      (stream.domain !== 'twitch' ||
+        stream.path.toLowerCase() !== twitchChannelLower);
     if (
       (!context || wasStreamedOnAnotherChannel) &&
       !dirNameToPlayedMs.has(dirName)
@@ -71,11 +74,15 @@ export default async function unzip(
             : undefined;
           replayPaths.sort();
           const dirName = path.basename(unzipDir);
-          const streamedTwitchChannel = context?.startgg?.set.twitchStream;
+          const stream =
+            context?.startgg?.set.stream || context?.challonge?.set.stream;
+          const wasStreamedOnAnotherChannel =
+            twitchChannelLower &&
+            stream &&
+            (stream.domain !== 'twitch' ||
+              stream.path.toLowerCase() !== twitchChannelLower);
           if (
-            twitchChannel &&
-            streamedTwitchChannel &&
-            twitchChannel !== streamedTwitchChannel &&
+            (!context || wasStreamedOnAnotherChannel) &&
             !dirNameToPlayedMs.has(dirName)
           ) {
             dirNameToPlayedMs.set(dirName, context?.startMs ?? Date.now());

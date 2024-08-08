@@ -67,7 +67,9 @@ export function toMainContext(context: Context): MainContext | undefined {
   const startggPhaseGroupName = context.startgg?.phaseGroup?.name;
   const startggFullRoundText = context.startgg?.set?.fullRoundText;
   const startggRound = context.startgg?.set?.round;
-  const startggTwitchStream = context.startgg?.set?.twitchStream;
+  const startggStream = context.startgg?.set?.stream;
+  const startggStreamDomain = context.startgg?.set?.stream?.domain;
+  const startggStreamPath = context.startgg?.set?.stream?.path;
   if (
     typeof startggTournamentName === 'string' &&
     typeof startggEventName === 'string' &&
@@ -78,7 +80,10 @@ export function toMainContext(context: Context): MainContext | undefined {
     typeof startggPhaseGroupName === 'string' &&
     typeof startggFullRoundText === 'string' &&
     Number.isInteger(startggRound) &&
-    (startggTwitchStream === null || typeof startggTwitchStream === 'string')
+    startggStream !== undefined &&
+    (startggStream === null ||
+      (typeof startggStreamDomain === 'string' &&
+        typeof startggStreamPath === 'string'))
   ) {
     mainContext.startgg = {
       tournament: {
@@ -99,22 +104,29 @@ export function toMainContext(context: Context): MainContext | undefined {
       set: {
         fullRoundText: startggFullRoundText,
         round: startggRound!,
-        twitchStream: startggTwitchStream,
+        stream: startggStream,
       },
     };
   }
 
-  const challongeTournamentName = context.challonge?.tournament.name;
-  const challongeTournamentSlug = context.challonge?.tournament.slug;
-  const challongeFullRoundText = context.challonge?.set.fullRoundText;
-  const challongeRound = context.challonge?.set.round;
-  const challongeOrdinal = context.challonge?.set.ordinal;
+  const challongeTournamentName = context.challonge?.tournament?.name;
+  const challongeTournamentSlug = context.challonge?.tournament?.slug;
+  const challongeFullRoundText = context.challonge?.set?.fullRoundText;
+  const challongeRound = context.challonge?.set?.round;
+  const challongeOrdinal = context.challonge?.set?.ordinal;
+  const challongeStream = context.challonge?.set?.stream;
+  const challongeStreamDomain = context.challonge?.set?.stream?.domain;
+  const challongeStreamPath = context.challonge?.set?.stream?.path;
   if (
     typeof challongeTournamentName === 'string' &&
     typeof challongeTournamentSlug === 'string' &&
     typeof challongeFullRoundText === 'string' &&
     Number.isInteger(challongeRound) &&
-    (challongeOrdinal === null || Number.isInteger(challongeOrdinal))
+    (challongeOrdinal === null || Number.isInteger(challongeOrdinal)) &&
+    challongeStream !== undefined &&
+    (challongeStream === null ||
+      (typeof challongeStreamDomain === 'string' &&
+        typeof challongeStreamPath === 'string'))
   ) {
     mainContext.challonge = {
       tournament: {
@@ -123,8 +135,9 @@ export function toMainContext(context: Context): MainContext | undefined {
       },
       set: {
         fullRoundText: challongeFullRoundText,
-        round: challongeRound!,
         ordinal: challongeOrdinal as number | null,
+        round: challongeRound!,
+        stream: challongeStream,
       },
     };
   }
@@ -152,13 +165,14 @@ export function toRenderSet(set: AvailableSet): RenderSet {
         eventName: set.context.startgg.event.name,
         phaseName: set.context.startgg.phase.name,
         phaseGroupName: set.context.startgg.phaseGroup.name,
-        twitchStream: set.context.startgg.set.twitchStream ?? '',
+        stream: set.context.startgg.set.stream,
       };
     }
     if (set.context.challonge) {
       renderSet.context.challonge = {
         tournamentName: set.context.challonge.tournament.name,
         fullRoundText: set.context.challonge.set.fullRoundText,
+        stream: set.context.challonge.set.stream,
       };
     }
   }

@@ -37,9 +37,31 @@ import { IpcRendererEvent } from 'electron';
 import {
   OBSConnectionStatus,
   RenderSet,
+  Stream,
   TwitchSettings,
 } from '../common/types';
 import Settings from './Settings';
+
+function TwitchStreamIcon({ stream }: { stream: Stream }) {
+  return (
+    <Tooltip arrow title={stream.path}>
+      <SvgIcon>
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          width="24"
+          height="24"
+          viewBox="0 0 24 24"
+        >
+          <path
+            d="M2.149 0l-1.612 4.119v16.836h5.731v3.045h3.224l3.045-3.045h4.657l6.269-6.269v-14.686h-21.314zm19.164 13.612l-3.582 3.582h-5.731l-3.045 3.045v-3.045h-4.836v-15.045h17.194v11.463zm-3.582-7.343v6.262h-2.149v-6.262h2.149zm-5.731 0v6.262h-2.149v-6.262h2.149z"
+            fillRule="evenodd"
+            clipRule="evenodd"
+          />
+        </svg>
+      </SvgIcon>
+    </Tooltip>
+  );
+}
 
 function Hello() {
   const [appError, setAppError] = useState('');
@@ -365,28 +387,22 @@ function Hello() {
                     {renderSet.context.namesRight}
                   </ListItemText>
                   {twitchChannel &&
-                    renderSet.context.startgg?.twitchStream &&
-                    twitchChannel !==
-                      renderSet.context.startgg?.twitchStream && (
-                      <Tooltip
-                        arrow
-                        title={renderSet.context.startgg?.twitchStream}
-                      >
-                        <SvgIcon>
-                          <svg
-                            xmlns="http://www.w3.org/2000/svg"
-                            width="24"
-                            height="24"
-                            viewBox="0 0 24 24"
-                          >
-                            <path
-                              d="M2.149 0l-1.612 4.119v16.836h5.731v3.045h3.224l3.045-3.045h4.657l6.269-6.269v-14.686h-21.314zm19.164 13.612l-3.582 3.582h-5.731l-3.045 3.045v-3.045h-4.836v-15.045h17.194v11.463zm-3.582-7.343v6.262h-2.149v-6.262h2.149zm-5.731 0v6.262h-2.149v-6.262h2.149z"
-                              fillRule="evenodd"
-                              clipRule="evenodd"
-                            />
-                          </svg>
-                        </SvgIcon>
-                      </Tooltip>
+                    renderSet.context.startgg?.stream &&
+                    (renderSet.context.startgg.stream.domain !== 'twitch' ||
+                      renderSet.context.startgg.stream.path !==
+                        twitchChannel) && (
+                      <TwitchStreamIcon
+                        stream={renderSet.context.startgg.stream}
+                      />
+                    )}
+                  {twitchChannel &&
+                    renderSet.context.challonge?.stream &&
+                    (renderSet.context.challonge.stream.domain !== 'twitch' ||
+                      renderSet.context.challonge.stream.path !==
+                        twitchChannel) && (
+                      <TwitchStreamIcon
+                        stream={renderSet.context.challonge.stream}
+                      />
                     )}
                   <ListItemText sx={{ flexGrow: 0, flexShrink: 0 }}>
                     {renderSet.context.startgg &&

@@ -111,7 +111,7 @@ app.on('window-all-closed', () => {
 
 app
   .whenReady()
-  .then(async () => {
+  .then(() => {
     createWindow();
     app.on('activate', () => {
       // On macOS it's common to re-create a window in the app when the

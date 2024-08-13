@@ -237,7 +237,6 @@ export default async function setupIPCs(
   };
 
   const dirNameToPlayedMs = new Map<string, number>();
-  const earliestForPhaseRound = new Map<string, number>();
   const sortAvailableSets = () => {
     availableSets.sort((a, b) => {
       if (a.invalidReason && !b.invalidReason) {
@@ -264,18 +263,12 @@ export default async function setupIPCs(
         }
         const aRound = aStartgg.set.round;
         const bRound = bStartgg.set.round;
-        if (Math.sign(aRound) === Math.sign(bRound) && aRound !== bRound) {
-          return Math.abs(aRound) - Math.abs(bRound);
-        }
-        const roundCompare =
-          earliestForPhaseRound.get(
-            `${aStartgg.phase.id}${aStartgg.set.fullRoundText}`,
-          )! -
-          earliestForPhaseRound.get(
-            `${bStartgg.phase.id}${bStartgg.set.fullRoundText}`,
-          )!;
-        if (roundCompare) {
-          return roundCompare;
+        if (aRound !== bRound) {
+          if (aStartgg.set.ordinal !== null && bStartgg.set.ordinal !== null) {
+            return aStartgg.set.ordinal - bStartgg.set.ordinal;
+          }
+          // only non-DE so this comparison is safe
+          return aRound - bRound;
         }
         if (a.playedMs && b.playedMs) {
           return a.playedMs - b.playedMs;
@@ -297,13 +290,16 @@ export default async function setupIPCs(
         if (tournamentNameCompare) {
           return tournamentNameCompare;
         }
-        if (aChallonge.set.round !== bChallonge.set.round) {
-          if (
-            aChallonge.set.ordinal !== null &&
-            bChallonge.set.ordinal !== null
-          ) {
-            return aChallonge.set.ordinal - bChallonge.set.ordinal;
+        const aRound = aChallonge.set.round;
+        const bRound = bChallonge.set.round;
+        if (aRound !== bRound) {
+          const aOrdinal = aChallonge.set.ordinal;
+          const bOrdinal = bChallonge.set.ordinal;
+          if (aOrdinal !== null && bOrdinal !== null) {
+            return aOrdinal - bOrdinal;
           }
+          // only if swiss so this comparison is safe
+          return aRound - bRound;
         }
         if (a.playedMs && b.playedMs) {
           return a.playedMs - b.playedMs;
@@ -773,17 +769,6 @@ export default async function setupIPCs(
           if (playingEntry) {
             newSet.playing = true;
             playingSets.set(playingEntry[0], newSet);
-          }
-          if (newSet.context && newSet.context.startgg) {
-            const phaseRoundKey = `${newSet.context.startgg.phase.id}${newSet.context.startgg.set.fullRoundText}`;
-            const { startMs } = newSet.context;
-            if (earliestForPhaseRound.has(phaseRoundKey)) {
-              if (startMs < earliestForPhaseRound.get(phaseRoundKey)!) {
-                earliestForPhaseRound.set(phaseRoundKey, startMs);
-              }
-            } else {
-              earliestForPhaseRound.set(phaseRoundKey, startMs);
-            }
           }
           availableSets.push(newSet);
           sortAvailableSets();

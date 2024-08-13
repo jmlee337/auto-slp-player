@@ -39,6 +39,7 @@ export type Context = {
     set?: {
       id?: number;
       fullRoundText?: string;
+      ordinal?: number | null;
       round?: number;
       stream?: Stream | null;
     };
@@ -93,6 +94,7 @@ export type MainContext = {
     };
     set: {
       fullRoundText: string;
+      ordinal: number | null;
       round: number;
       stream: Stream | null;
     };

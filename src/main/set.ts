@@ -67,6 +67,7 @@ export function toMainContext(context: Context): MainContext | undefined {
   const startggPhaseGroupName = context.startgg?.phaseGroup?.name;
   const startggFullRoundText = context.startgg?.set?.fullRoundText;
   const startggRound = context.startgg?.set?.round;
+  const startggOrdinal = context.startgg?.set?.ordinal;
   const startggStream = context.startgg?.set?.stream;
   const startggStreamDomain = context.startgg?.set?.stream?.domain;
   const startggStreamPath = context.startgg?.set?.stream?.path;
@@ -80,6 +81,7 @@ export function toMainContext(context: Context): MainContext | undefined {
     typeof startggPhaseGroupName === 'string' &&
     typeof startggFullRoundText === 'string' &&
     Number.isInteger(startggRound) &&
+    (startggOrdinal === null || Number.isFinite(startggOrdinal)) &&
     startggStream !== undefined &&
     (startggStream === null ||
       (typeof startggStreamDomain === 'string' &&
@@ -104,6 +106,7 @@ export function toMainContext(context: Context): MainContext | undefined {
       set: {
         fullRoundText: startggFullRoundText,
         round: startggRound!,
+        ordinal: startggOrdinal as number | null,
         stream: startggStream,
       },
     };

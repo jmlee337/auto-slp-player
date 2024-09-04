@@ -54,6 +54,12 @@ function willNotSpoil(setA: AvailableSet, setB: AvailableSet) {
     if (aStartgg.phaseGroup.id !== bStartgg.phaseGroup.id) {
       return true;
     }
+    if (
+      aStartgg.phaseGroup.bracketType === 3 &&
+      bStartgg.phaseGroup.bracketType === 3
+    ) {
+      return true;
+    }
     if (aStartgg.set.round === bStartgg.set.round) {
       return true;
     }
@@ -61,10 +67,17 @@ function willNotSpoil(setA: AvailableSet, setB: AvailableSet) {
   if (
     aChallonge &&
     bChallonge &&
-    aChallonge.tournament.slug === bChallonge.tournament.slug &&
-    aChallonge.set.round === bChallonge.set.round
+    aChallonge.tournament.slug === bChallonge.tournament.slug
   ) {
-    return true;
+    if (
+      aChallonge.tournament.tournamentType === 'round robin' &&
+      bChallonge.tournament.tournamentType === 'round robin'
+    ) {
+      return true;
+    }
+    if (aChallonge.set.round === bChallonge.set.round) {
+      return true;
+    }
   }
   return false;
 }

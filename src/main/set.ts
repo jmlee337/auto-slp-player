@@ -65,6 +65,7 @@ export function toMainContext(context: Context): MainContext | undefined {
   const startggPhaseName = context.startgg?.phase?.name;
   const startggPhaseGroupId = context.startgg?.phaseGroup?.id;
   const startggPhaseGroupName = context.startgg?.phaseGroup?.name;
+  const startggPhaseGroupBracketType = context.startgg?.phaseGroup?.bracketType;
   const startggFullRoundText = context.startgg?.set?.fullRoundText;
   const startggRound = context.startgg?.set?.round;
   const startggOrdinal = context.startgg?.set?.ordinal;
@@ -79,6 +80,7 @@ export function toMainContext(context: Context): MainContext | undefined {
     typeof startggPhaseName === 'string' &&
     Number.isInteger(startggPhaseGroupId) &&
     typeof startggPhaseGroupName === 'string' &&
+    Number.isInteger(startggPhaseGroupBracketType) &&
     typeof startggFullRoundText === 'string' &&
     Number.isInteger(startggRound) &&
     (startggOrdinal === null || Number.isFinite(startggOrdinal)) &&
@@ -102,6 +104,7 @@ export function toMainContext(context: Context): MainContext | undefined {
       phaseGroup: {
         id: startggPhaseGroupId!,
         name: startggPhaseGroupName,
+        bracketType: startggPhaseGroupBracketType!,
       },
       set: {
         fullRoundText: startggFullRoundText,
@@ -114,6 +117,7 @@ export function toMainContext(context: Context): MainContext | undefined {
 
   const challongeTournamentName = context.challonge?.tournament?.name;
   const challongeTournamentSlug = context.challonge?.tournament?.slug;
+  const challongeTournamentType = context.challonge?.tournament?.tournamentType;
   const challongeFullRoundText = context.challonge?.set?.fullRoundText;
   const challongeRound = context.challonge?.set?.round;
   const challongeOrdinal = context.challonge?.set?.ordinal;
@@ -123,6 +127,7 @@ export function toMainContext(context: Context): MainContext | undefined {
   if (
     typeof challongeTournamentName === 'string' &&
     typeof challongeTournamentSlug === 'string' &&
+    typeof challongeTournamentType === 'string' &&
     typeof challongeFullRoundText === 'string' &&
     Number.isInteger(challongeRound) &&
     (challongeOrdinal === null || Number.isInteger(challongeOrdinal)) &&
@@ -135,6 +140,7 @@ export function toMainContext(context: Context): MainContext | undefined {
       tournament: {
         name: challongeTournamentName,
         slug: challongeTournamentSlug,
+        tournamentType: challongeTournamentType,
       },
       set: {
         fullRoundText: challongeFullRoundText,

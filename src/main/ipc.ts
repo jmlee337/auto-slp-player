@@ -261,6 +261,14 @@ export default async function setupIPCs(
         if (phaseIdCompare) {
           return phaseIdCompare;
         }
+        if (
+          aStartgg.phaseGroup.bracketType === 3 &&
+          bStartgg.phaseGroup.bracketType === 3
+        ) {
+          // RR pools may not actually be played in round order,
+          // and there's also no inter-round dependencies
+          return a.context.startMs - b.context.startMs;
+        }
         const aRound = aStartgg.set.round;
         const bRound = bStartgg.set.round;
         if (aRound !== bRound) {
@@ -289,6 +297,14 @@ export default async function setupIPCs(
         );
         if (tournamentNameCompare) {
           return tournamentNameCompare;
+        }
+        if (
+          aChallonge.tournament.tournamentType === 'round robin' &&
+          bChallonge.tournament.tournamentType === 'round robin'
+        ) {
+          // RR pools may not actually be played in round order,
+          // and there's also no inter-round dependencies
+          return a.context.startMs - b.context.startMs;
         }
         const aRound = aChallonge.set.round;
         const bRound = bChallonge.set.round;

@@ -35,6 +35,7 @@ export type Context = {
     phaseGroup?: {
       id?: number;
       name?: string;
+      bracketType?: number;
     };
     set?: {
       id?: number;
@@ -48,6 +49,7 @@ export type Context = {
     tournament?: {
       name?: string;
       slug?: string;
+      tournamentType?: string;
     };
     set?: {
       id?: number;
@@ -91,6 +93,14 @@ export type MainContext = {
     phaseGroup: {
       id: number;
       name: string;
+      /**
+       * 1: SINGLE_ELIMINATION
+       * 2: DOUBLE_ELIMINATION
+       * 3: ROUND_ROBIN
+       * 4: SWISS
+       * https://developer.start.gg/reference/brackettype.doc
+       */
+      bracketType: number;
     };
     set: {
       fullRoundText: string;
@@ -103,6 +113,8 @@ export type MainContext = {
     tournament: {
       name: string;
       slug: string;
+      // can be 'swiss' or 'round robin' among others
+      tournamentType: string;
     };
     set: {
       fullRoundText: string;

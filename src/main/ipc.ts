@@ -280,7 +280,11 @@ export default async function setupIPCs(
         ) {
           // RR pools may not actually be played in round order,
           // and there's also no inter-round dependencies
-          return a.context.startMs - b.context.startMs;
+          return (
+            a.context.startMs +
+            a.context.durationMs -
+            (b.context.startMs - b.context.durationMs)
+          );
         }
         const aRound = aStartgg.set.round;
         const bRound = bStartgg.set.round;
@@ -317,7 +321,11 @@ export default async function setupIPCs(
         ) {
           // RR pools may not actually be played in round order,
           // and there's also no inter-round dependencies
-          return a.context.startMs - b.context.startMs;
+          return (
+            a.context.startMs +
+            a.context.durationMs -
+            (b.context.startMs - b.context.durationMs)
+          );
         }
         const aRound = aChallonge.set.round;
         const bRound = bChallonge.set.round;

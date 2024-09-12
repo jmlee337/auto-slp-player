@@ -349,6 +349,13 @@ export default async function setupIPCs(
         }
         return b.context.durationMs - a.context.durationMs;
       }
+      if (a.context && b.context) {
+        return (
+          a.context.startMs +
+          a.context.durationMs -
+          (b.context.startMs - b.context.durationMs)
+        );
+      }
       if (!a.context && b.context) {
         return -1;
       }

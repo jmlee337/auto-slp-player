@@ -852,6 +852,8 @@ export default async function setupIPCs(
           } else {
             if (
               isNext &&
+              newSet.playedMs === 0 &&
+              !newSet.invalidReason &&
               (!queuedSet ||
                 (newSet.context &&
                   queuedSet.context &&

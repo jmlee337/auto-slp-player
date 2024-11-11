@@ -116,7 +116,7 @@ export default class OBSConnection {
             const { window } = inputSettings as { window: string };
             const endI = window.indexOf(':');
             if (window.startsWith(prefix) && endI > prefix.length) {
-              const portStr = window.slice(prefix.length, endI);
+              const portStr = window.slice(endI - 5, endI);
               if (expectedPortStrs.has(portStr)) {
                 expectedPortStrs.delete(portStr);
                 portToUuid.set(Number.parseInt(portStr, 10), inputUuid);

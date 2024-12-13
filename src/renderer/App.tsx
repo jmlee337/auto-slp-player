@@ -99,6 +99,7 @@ function Hello() {
   const [isoPath, setIsoPath] = useState('');
   const [maxDolphins, setMaxDolphins] = useState(1);
   const [generateOverlay, setGenerateOverlay] = useState(false);
+  const [generateTimestamps, setGenerateTimestamps] = useState(false);
   const [twitchChannel, setTwitchChannel] = useState('');
   const [twitchSettings, setTwitchSettings] = useState<TwitchSettings>({
     enabled: false,
@@ -128,6 +129,7 @@ function Hello() {
       const isoPathPromise = window.electron.getIsoPath();
       const maxDolphinsPromise = window.electron.getMaxDolphins();
       const generateOverlayPromise = window.electron.getGenerateOverlay();
+      const generateTimestampsPromise = window.electron.getGenerateTimestamps();
       const twitchChannelPromise = window.electron.getTwitchChannel();
       const twitchSettingsPromise = window.electron.getTwitchSettings();
       const dolphinVersionPromise = window.electron.getDolphinVersion();
@@ -147,6 +149,7 @@ function Hello() {
       setIsoPath(await isoPathPromise);
       setMaxDolphins(await maxDolphinsPromise);
       setGenerateOverlay(await generateOverlayPromise);
+      setGenerateTimestamps(await generateTimestampsPromise);
       setTwitchChannel(await twitchChannelPromise);
       setTwitchSettings(await twitchSettingsPromise);
       setDolphinVersion((await dolphinVersionPromise).version);
@@ -275,6 +278,8 @@ function Hello() {
           setIsoPath={setIsoPath}
           generateOverlay={generateOverlay}
           setGenerateOverlay={setGenerateOverlay}
+          generateTimestamps={generateTimestamps}
+          setGenerateTimestamps={setGenerateTimestamps}
           maxDolphins={maxDolphins}
           setMaxDolphins={setMaxDolphins}
           twitchChannel={twitchChannel}

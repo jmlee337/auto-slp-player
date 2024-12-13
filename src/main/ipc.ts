@@ -13,6 +13,7 @@ import {
   access,
   copyFile,
   mkdir,
+  open,
   readdir,
   rm,
   unlink,
@@ -96,6 +97,9 @@ export default async function setupIPCs(
     : 1;
   let generateOverlay = store.has('generateOverlay')
     ? (store.get('generateOverlay') as boolean)
+    : true;
+  let generateTimestamps = store.has('generateTimestamps')
+    ? (store.get('generateTimestamps') as boolean)
     : true;
   let twitchChannel = store.has('twitchChannel')
     ? (store.get('twitchChannel') as string)
@@ -644,6 +648,23 @@ export default async function setupIPCs(
     );
 
     await dolphins.get(actualPort)!.play(set.replayPaths);
+
+    if (generateTimestamps) {
+      const writeTimestamps = async () => {
+        const timecode = await obsConnection.getTimecode();
+        if (timecode) {
+          const rendererSet = toRenderSet(set);
+          const desc = rendererSet.context
+            ? `${rendererSet.context.namesLeft} vs ${rendererSet.context.namesRight}`
+            : rendererSet.dirName;
+          const file = await open(path.join(tempDir, 'timestamps.txt'), 'a');
+          await file.write(`${timecode} ${desc}\n`);
+          await file.close();
+        }
+      };
+      writeTimestamps();
+    }
+
     sendPlaying();
   };
   startDolphin = async (port: number) => {
@@ -985,6 +1006,18 @@ export default async function setupIPCs(
         await initOverlayDir();
         await writeOverlayJson();
       }
+    },
+  );
+
+  ipcMain.removeHandler('getGenerateTimestamps');
+  ipcMain.handle('getGenerateTimestamps', () => generateTimestamps);
+
+  ipcMain.removeHandler('setGenerateTimestamps');
+  ipcMain.handle(
+    'setGenerateTimestamps',
+    async (event: IpcMainInvokeEvent, newGenerateTimestamps: boolean) => {
+      store.set('generateTimestamps', newGenerateTimestamps);
+      generateTimestamps = newGenerateTimestamps;
     },
   );
 

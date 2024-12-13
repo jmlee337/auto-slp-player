@@ -117,6 +117,8 @@ export default function Settings({
   setMaxDolphins,
   generateOverlay,
   setGenerateOverlay,
+  generateTimestamps,
+  setGenerateTimestamps,
   twitchChannel,
   setTwitchChannel,
   twitchSettings,
@@ -148,6 +150,8 @@ export default function Settings({
   setMaxDolphins: (maxDolphins: number) => void;
   generateOverlay: boolean;
   setGenerateOverlay: (generateOverlay: boolean) => void;
+  generateTimestamps: boolean;
+  setGenerateTimestamps: (generateTimestamps: boolean) => void;
   twitchChannel: string;
   setTwitchChannel: (twitchChannel: string) => void;
   twitchSettings: TwitchSettings;
@@ -322,6 +326,23 @@ export default function Settings({
                 />
               }
               label="Generate Overlay"
+            />
+          </Box>
+          <Box>
+            <FormControlLabel
+              control={
+                <Checkbox
+                  checked={generateTimestamps}
+                  onChange={async (event) => {
+                    const newGenerateTimestamps = event.target.checked;
+                    await window.electron.setGenerateTimestamps(
+                      newGenerateTimestamps,
+                    );
+                    setGenerateTimestamps(newGenerateTimestamps);
+                  }}
+                />
+              }
+              label="Generate Timestamps"
             />
           </Box>
           <FormControl variant="filled">

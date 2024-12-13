@@ -475,4 +475,29 @@ export default class OBSConnection {
     }
     await this.obsWebSocket.callBatch(requests);
   }
+
+  // unused
+  async startStream() {
+    if (
+      !this.obsWebSocket ||
+      this.connectionStatus === OBSConnectionStatus.OBS_NOT_CONNECTED
+    ) {
+      return;
+    }
+
+    await this.obsWebSocket.call('StartStream');
+  }
+
+  // 00:01:02.116
+  async getTimecode() {
+    if (
+      !this.obsWebSocket ||
+      this.connectionStatus === OBSConnectionStatus.OBS_NOT_CONNECTED
+    ) {
+      return '';
+    }
+
+    const { outputTimecode } = await this.obsWebSocket.call('GetStreamStatus');
+    return outputTimecode.slice(0, -4);
+  }
 }

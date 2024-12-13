@@ -428,12 +428,25 @@ export default async function setupIPCs(
           phaseIds.size === 1 ? representativeStartgg.phase.name : '';
 
         if (queuedSet) {
-          const round = queuedSet.context?.startgg?.set.round;
-          if (round === representativeStartgg.set.round) {
-            const sameRoundSets = availableSets.filter(
-              (availableSet) =>
-                availableSet.context?.startgg?.set.round === round,
-            );
+          const queuedSetStartgg = queuedSet.context?.startgg;
+          const round = queuedSetStartgg?.set.round;
+          const sameRound = round === representativeStartgg.set.round;
+          const phaseId = queuedSetStartgg?.phase.id;
+          const samePhaseRR =
+            queuedSetStartgg?.phaseGroup.bracketType === 3 &&
+            representativeStartgg.phaseGroup.bracketType === 3 &&
+            phaseId === representativeStartgg.phase.id;
+          if (sameRound || samePhaseRR) {
+            const sameRoundSets = samePhaseRR
+              ? availableSets.filter(
+                  (availableSet) =>
+                    availableSet.context?.startgg?.phaseGroup.bracketType ===
+                      3 && availableSet.context?.startgg?.phase.id === phaseId,
+                )
+              : availableSets.filter(
+                  (availableSet) =>
+                    availableSet.context?.startgg?.set.round === round,
+                );
             const startI = sameRoundSets.findIndex(
               (set) => set.dirName === queuedSet!.dirName,
             );

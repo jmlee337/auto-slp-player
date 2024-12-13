@@ -513,7 +513,10 @@ export default async function setupIPCs(
         if (context && gameIndex !== undefined && setIndex >= 0) {
           let roundName = '';
           if (context.startgg) {
-            roundName = context.startgg.set.fullRoundText;
+            roundName =
+              context.startgg.phaseGroup.bracketType === 3
+                ? 'Round Robin'
+                : context.startgg.set.fullRoundText;
             if (phaseGroupIds.size > 1) {
               roundName = `Pool ${context.startgg.phaseGroup.name}, ${roundName}`;
             }

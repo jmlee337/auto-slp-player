@@ -256,15 +256,6 @@ export default async function setupIPCs(
   const dirNameToPlayedMs = new Map<string, number>();
   const sortAvailableSets = () => {
     availableSets.sort((a, b) => {
-      if (a.invalidReason && !b.invalidReason) {
-        return -1;
-      }
-      if (!a.invalidReason && b.invalidReason) {
-        return 1;
-      }
-      if (a.invalidReason && b.invalidReason) {
-        return a.dirName.localeCompare(b.dirName);
-      }
       if (a.context?.startgg && b.context?.startgg) {
         const aStartgg = a.context.startgg;
         const bStartgg = b.context.startgg;
@@ -637,6 +628,7 @@ export default async function setupIPCs(
 
     gameIndices.set(actualPort, 0);
     playingSets.set(actualPort, set);
+    set.invalidReason = '';
     set.playedMs = Date.now();
     set.playing = true;
     dirNameToPlayedMs.set(set.dirName, set.playedMs);
@@ -648,10 +640,7 @@ export default async function setupIPCs(
       }
 
       for (let i = startI + 1; i < availableSets.length; i += 1) {
-        if (
-          availableSets[i].playedMs === 0 &&
-          !availableSets[i].invalidReason
-        ) {
+        if (availableSets[i].playedMs === 0) {
           queuedSet = availableSets[i];
           return;
         }
@@ -870,10 +859,7 @@ export default async function setupIPCs(
           for (let i = newSetI - 1; i >= 0; i -= 1) {
             if (availableSets[i].playing) {
               isNext = true;
-            } else if (
-              availableSets[i].playedMs !== 0 ||
-              availableSets[i].invalidReason
-            ) {
+            } else if (availableSets[i].playedMs !== 0) {
               // eslint-disable-next-line no-continue
               continue;
             }
@@ -890,7 +876,6 @@ export default async function setupIPCs(
             if (
               isNext &&
               newSet.playedMs === 0 &&
-              !newSet.invalidReason &&
               (!queuedSet ||
                 (newSet.context &&
                   queuedSet.context &&
@@ -932,10 +917,7 @@ export default async function setupIPCs(
         if (availableSets[i].playing) {
           queuedSet = null;
           for (let j = i + 1; j < availableSets.length; j += 1) {
-            if (
-              availableSets[j].playedMs === 0 &&
-              !availableSets[j].invalidReason
-            ) {
+            if (availableSets[j].playedMs === 0) {
               queuedSet = availableSets[j];
               break;
             }
@@ -956,9 +938,6 @@ export default async function setupIPCs(
     const setToPlay = availableSets.find((set) => set.dirName === dirName);
     if (!setToPlay) {
       throw new Error(`no such set to play: ${dirName}`);
-    }
-    if (setToPlay.invalidReason) {
-      throw new Error(`cannot play set: ${setToPlay.invalidReason}`);
     }
 
     if (playingSets.size === 1 && maxDolphins === 1 && tryingPorts.size === 0) {
@@ -1000,9 +979,6 @@ export default async function setupIPCs(
     const setToQueue = availableSets.find((set) => set.dirName === dirName);
     if (!setToQueue) {
       throw new Error(`no such set to queue: ${dirName}`);
-    }
-    if (setToQueue.invalidReason) {
-      throw new Error(`cannot queue set: ${setToQueue.invalidReason}`);
     }
 
     queuedSet = setToQueue;

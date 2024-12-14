@@ -127,6 +127,11 @@ export class Dolphin extends EventEmitter {
       clearTimeout(this.timeout);
     }
 
+    if (replayPaths.length === 0) {
+      this.emit(DolphinEvent.ENDED, 'No replays');
+      return;
+    }
+
     const comm = {
       mode: 'queue',
       commandId: this.commNum.toString(),

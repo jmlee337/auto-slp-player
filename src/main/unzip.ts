@@ -1,5 +1,5 @@
 import { createWriteStream } from 'fs';
-import { access, mkdir, readFile, readdir, rmdir } from 'fs/promises';
+import { access, mkdir, readFile, readdir, rm } from 'fs/promises';
 import path from 'path';
 import yauzl from 'yauzl';
 import { AvailableSet, Context } from '../common/types';
@@ -48,7 +48,10 @@ export default async function unzip(
       context,
       dirName,
       invalidReason: replayPaths.length === 0 ? 'No replays' : '',
-      playedMs: dirNameToPlayedMs.get(dirName) ?? 0,
+      playedMs:
+        replayPaths.length === 0
+          ? Date.now()
+          : dirNameToPlayedMs.get(dirName) ?? 0,
       playing: false,
       replayPaths,
     };
@@ -91,7 +94,10 @@ export default async function unzip(
             context,
             dirName,
             invalidReason: replayPaths.length === 0 ? 'No replays' : '',
-            playedMs: dirNameToPlayedMs.get(dirName) ?? 0,
+            playedMs:
+              replayPaths.length === 0
+                ? Date.now()
+                : dirNameToPlayedMs.get(dirName) ?? 0,
             playing: false,
             replayPaths,
           });
@@ -107,7 +113,7 @@ export default async function unzip(
             async (openReadStreamErr, readStream) => {
               if (openReadStreamErr) {
                 failureReason = `failed to unzip file: ${entry.fileName}, ${openReadStreamErr.message}`;
-                await rmdir(unzipDir);
+                await rm(unzipDir, { recursive: true, force: true });
                 zipFile.close();
                 return;
               }
@@ -127,7 +133,7 @@ export default async function unzip(
           );
         } else {
           failureReason = `invalid zip contents: ${entry.fileName}`;
-          await rmdir(unzipDir);
+          await rm(unzipDir, { recursive: true, force: true });
           zipFile.close();
         }
       });

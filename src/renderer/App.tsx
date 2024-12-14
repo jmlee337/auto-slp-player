@@ -382,32 +382,30 @@ function Hello() {
               key={renderSet.dirName}
               style={{
                 gap: '8px',
-                opacity:
-                  renderSet.invalidReason || renderSet.played ? '50%' : '100%',
+                opacity: renderSet.played ? '50%' : '100%',
               }}
             >
-              {renderSet.invalidReason ? (
+              <Checkbox
+                checked={!renderSet.played}
+                disableRipple
+                onClick={async () => {
+                  const {
+                    renderSets: newRenderSets,
+                    queuedSetDirName: newQueuedSetDirName,
+                  } = await window.electron.markPlayed(
+                    renderSet.dirName,
+                    !renderSet.played,
+                  );
+                  setRenderSets(newRenderSets);
+                  setQueuedSetDirName(newQueuedSetDirName);
+                }}
+              />
+              {renderSet.invalidReason && (
                 <Tooltip arrow title={renderSet.invalidReason}>
                   <Report style={{ padding: '9px' }} />
                 </Tooltip>
-              ) : (
-                <Checkbox
-                  checked={!renderSet.played}
-                  disableRipple
-                  onClick={async () => {
-                    const {
-                      renderSets: newRenderSets,
-                      queuedSetDirName: newQueuedSetDirName,
-                    } = await window.electron.markPlayed(
-                      renderSet.dirName,
-                      !renderSet.played,
-                    );
-                    setRenderSets(newRenderSets);
-                    setQueuedSetDirName(newQueuedSetDirName);
-                  }}
-                />
               )}
-              {renderSet.context && !renderSet.invalidReason ? (
+              {renderSet.context ? (
                 <Stack direction="row" flexGrow={1} spacing="8px">
                   <ListItemText primaryTypographyProps={{ noWrap: true }}>
                     {renderSet.context.namesLeft} vs{' '}
@@ -456,41 +454,37 @@ function Hello() {
               ) : (
                 <ListItemText>{renderSet.dirName}</ListItemText>
               )}
-              {!renderSet.invalidReason && (
-                <>
-                  {renderSet.playing ? (
-                    <Tooltip arrow title="Stop">
-                      <IconButton
-                        onClick={async () => {
-                          window.electron.stop(renderSet.dirName);
-                        }}
-                      >
-                        <Stop />
-                      </IconButton>
-                    </Tooltip>
-                  ) : (
-                    <Tooltip arrow title="Play next">
-                      <IconButton
-                        onClick={async () => {
-                          window.electron.queue(renderSet.dirName);
-                          setQueuedSetDirName(renderSet.dirName);
-                        }}
-                      >
-                        <SubdirectoryArrowRight />
-                      </IconButton>
-                    </Tooltip>
-                  )}
-                  <Tooltip arrow title="Play now">
-                    <IconButton
-                      onClick={() => {
-                        window.electron.play(renderSet.dirName);
-                      }}
-                    >
-                      <PlayArrow />
-                    </IconButton>
-                  </Tooltip>
-                </>
+              {renderSet.playing ? (
+                <Tooltip arrow title="Stop">
+                  <IconButton
+                    onClick={async () => {
+                      window.electron.stop(renderSet.dirName);
+                    }}
+                  >
+                    <Stop />
+                  </IconButton>
+                </Tooltip>
+              ) : (
+                <Tooltip arrow title="Play next">
+                  <IconButton
+                    onClick={async () => {
+                      window.electron.queue(renderSet.dirName);
+                      setQueuedSetDirName(renderSet.dirName);
+                    }}
+                  >
+                    <SubdirectoryArrowRight />
+                  </IconButton>
+                </Tooltip>
               )}
+              <Tooltip arrow title="Play now">
+                <IconButton
+                  onClick={() => {
+                    window.electron.play(renderSet.dirName);
+                  }}
+                >
+                  <PlayArrow />
+                </IconButton>
+              </Tooltip>
               <Box padding="8px" height="24px" width="24px">
                 {renderSet.playing && (
                   <Tooltip arrow title="Playing...">

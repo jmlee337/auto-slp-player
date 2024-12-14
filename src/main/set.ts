@@ -61,11 +61,14 @@ export function toMainContext(context: Context): MainContext | undefined {
   const startggTournamentName = context.startgg?.tournament?.name;
   const startggEventName = context.startgg?.event?.name;
   const startggEventSlug = context.startgg?.event?.slug;
+  const startggEventHasSiblings = context.startgg?.event?.hasSiblings;
   const startggPhaseId = context.startgg?.phase?.id;
   const startggPhaseName = context.startgg?.phase?.name;
+  const startggPhaseHasSiblings = context.startgg?.phase?.hasSiblings;
   const startggPhaseGroupId = context.startgg?.phaseGroup?.id;
   const startggPhaseGroupName = context.startgg?.phaseGroup?.name;
   const startggPhaseGroupBracketType = context.startgg?.phaseGroup?.bracketType;
+  const startggPhaseGroupHasSiblings = context.startgg?.phaseGroup?.hasSiblings;
   const startggFullRoundText = context.startgg?.set?.fullRoundText;
   const startggRound = context.startgg?.set?.round;
   const startggOrdinal = context.startgg?.set?.ordinal;
@@ -76,11 +79,14 @@ export function toMainContext(context: Context): MainContext | undefined {
     typeof startggTournamentName === 'string' &&
     typeof startggEventName === 'string' &&
     typeof startggEventSlug === 'string' &&
+    typeof startggEventHasSiblings === 'boolean' &&
     Number.isInteger(startggPhaseId) &&
     typeof startggPhaseName === 'string' &&
+    typeof startggPhaseHasSiblings === 'boolean' &&
     Number.isInteger(startggPhaseGroupId) &&
     typeof startggPhaseGroupName === 'string' &&
     Number.isInteger(startggPhaseGroupBracketType) &&
+    typeof startggPhaseGroupHasSiblings === 'boolean' &&
     typeof startggFullRoundText === 'string' &&
     Number.isInteger(startggRound) &&
     (startggOrdinal === null || Number.isFinite(startggOrdinal)) &&
@@ -96,15 +102,18 @@ export function toMainContext(context: Context): MainContext | undefined {
       event: {
         name: startggEventName,
         slug: startggEventSlug,
+        hasSiblings: startggEventHasSiblings,
       },
       phase: {
         id: startggPhaseId!,
         name: startggPhaseName,
+        hasSiblings: startggPhaseHasSiblings,
       },
       phaseGroup: {
         id: startggPhaseGroupId!,
         name: startggPhaseGroupName,
         bracketType: startggPhaseGroupBracketType!,
+        hasSiblings: startggPhaseGroupHasSiblings,
       },
       set: {
         fullRoundText: startggFullRoundText,

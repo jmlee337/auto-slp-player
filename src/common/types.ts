@@ -27,15 +27,18 @@ export type Context = {
       id?: number;
       name?: string;
       slug?: string;
+      hasSiblings?: boolean;
     };
     phase?: {
       id?: number;
       name?: string;
+      hasSiblings?: boolean;
     };
     phaseGroup?: {
       id?: number;
       name?: string;
       bracketType?: number;
+      hasSiblings?: boolean;
     };
     set?: {
       id?: number;
@@ -85,10 +88,12 @@ export type MainContext = {
     event: {
       name: string;
       slug: string;
+      hasSiblings: boolean;
     };
     phase: {
       id: number;
       name: string;
+      hasSiblings: boolean;
     };
     phaseGroup: {
       id: number;
@@ -101,6 +106,7 @@ export type MainContext = {
        * https://developer.start.gg/reference/brackettype.doc
        */
       bracketType: number;
+      hasSiblings: boolean;
     };
     set: {
       fullRoundText: string;

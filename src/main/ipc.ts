@@ -393,7 +393,9 @@ export default async function setupIPCs(
     let upcomingRoundName = '';
 
     const eventSlugs = new Set<string>();
+    let eventHasSiblings = false;
     const phaseIds = new Set<number>();
+    let phaseHasSiblings = false;
     const phaseGroupIds = new Set<number>();
     const entriesWithContexts = Array.from(playingSets.entries()).filter(
       ([, playingSet]) => playingSet.context,
@@ -402,7 +404,9 @@ export default async function setupIPCs(
       const startgg = playingSet.context?.startgg;
       if (startgg) {
         eventSlugs.add(startgg.event.slug);
+        eventHasSiblings = startgg.event.hasSiblings;
         phaseIds.add(startgg.phase.id);
+        phaseHasSiblings = startgg.phase.hasSiblings;
         phaseGroupIds.add(startgg.phaseGroup.id);
       }
     });
@@ -414,9 +418,13 @@ export default async function setupIPCs(
       if (representativeStartgg) {
         startggTournamentName = representativeStartgg.tournament.name;
         startggEventName =
-          eventSlugs.size === 1 ? representativeStartgg.event.name : '';
+          eventSlugs.size === 1 && eventHasSiblings
+            ? representativeStartgg.event.name
+            : '';
         startggPhaseName =
-          phaseIds.size === 1 ? representativeStartgg.phase.name : '';
+          phaseIds.size === 1 && phaseHasSiblings
+            ? representativeStartgg.phase.name
+            : '';
 
         if (queuedSet) {
           const queuedSetStartgg = queuedSet.context?.startgg;
@@ -521,13 +529,16 @@ export default async function setupIPCs(
               context.startgg.phaseGroup.bracketType === 3
                 ? 'Round Robin'
                 : context.startgg.set.fullRoundText;
-            if (phaseGroupIds.size > 1) {
+            if (
+              phaseGroupIds.size > 1 &&
+              context.startgg.phaseGroup.hasSiblings
+            ) {
               roundName = `Pool ${context.startgg.phaseGroup.name}, ${roundName}`;
             }
-            if (phaseIds.size > 1) {
+            if (phaseIds.size > 1 && context.startgg.phase.hasSiblings) {
               roundName = `${context.startgg.phase.name}, ${roundName}`;
             }
-            if (eventSlugs.size > 1) {
+            if (eventSlugs.size > 1 && context.startgg.event.hasSiblings) {
               roundName = `${context.startgg.event.name}, ${roundName}`;
             }
           } else if (context.challonge) {

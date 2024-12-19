@@ -23,12 +23,10 @@ import {
 import {
   Check,
   PlayArrow,
-  PlayCircle,
   PlaylistAddCheck,
   PriorityHigh,
   Report,
   Stop,
-  StopCircle,
   SubdirectoryArrowRight,
   Tv,
   Visibility,
@@ -179,7 +177,6 @@ function Hello() {
   }, []);
 
   const [watchDir, setWatchDir] = useState('');
-  const [watching, setWatching] = useState(false);
   const [dolphinsOpening, setDolphinsOpening] = useState(false);
   const [queuedSetDirName, setQueuedSetDirName] = useState('');
   const [renderSets, setRenderSets] = useState<RenderSet[]>([]);
@@ -246,17 +243,27 @@ function Hello() {
   } else if (obsConnectionStatus === OBSConnectionStatus.READY) {
     obsButtonIcon = <Check />;
   }
+
+  let watchFolderMsg = 'Set watch folder...';
+  if (!dolphinPath && !isoPath) {
+    watchFolderMsg = 'Must set dolphin path and ISO path';
+  } else if (!dolphinPath) {
+    watchFolderMsg = 'Must set dolphin path';
+  } else if (!isoPath) {
+    watchFolderMsg = 'Must set ISO path';
+  }
   return (
     <>
       <Stack direction="row">
         <InputBase
           disabled
           size="small"
-          value={watchDir || 'Set watch folder...'}
+          value={watchDir || watchFolderMsg}
           style={{ flexGrow: 1 }}
         />
-        <Tooltip arrow title="Set watch folder">
+        <Tooltip arrow title={watchFolderMsg}>
           <IconButton
+            disabled={!dolphinPath || !isoPath}
             onClick={async () => {
               setWatchDir(await window.electron.chooseWatchDir());
             }}
@@ -360,18 +367,6 @@ function Hello() {
               : 'OBS Connected'}
           </Button>
         )}
-        <Button
-          disabled={!dolphinPath || !isoPath || !watchDir}
-          endIcon={watching ? <StopCircle /> : <PlayCircle />}
-          onClick={async () => {
-            const newWatching = !watching;
-            await window.electron.watch(newWatching);
-            setWatching(newWatching);
-          }}
-          variant="contained"
-        >
-          {watching ? 'Stop Folder Watch' : 'Start Folder Watch'}
-        </Button>
       </Stack>
       {renderSets && (
         <List>

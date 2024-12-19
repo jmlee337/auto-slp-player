@@ -220,20 +220,6 @@ export default async function setupIPCs(
     obsConnection.setMaxDolphins(maxDolphins);
   });
 
-  let watchDir = '';
-  ipcMain.removeHandler('chooseWatchDir');
-  ipcMain.handle('chooseWatchDir', async (): Promise<string> => {
-    const openDialogRes = await dialog.showOpenDialog({
-      properties: ['openDirectory', 'showHiddenFiles'],
-    });
-    if (openDialogRes.canceled) {
-      return watchDir;
-    }
-    [watchDir] = openDialogRes.filePaths;
-    return watchDir;
-  });
-
-  let watcher: FSWatcher | undefined;
   const tempDir = path.join(app.getPath('temp'), 'auto-slp-player');
   try {
     await access(tempDir).catch(() => mkdir(tempDir));
@@ -829,86 +815,97 @@ export default async function setupIPCs(
   ipcMain.handle('connectObs', async () => {
     await obsConnection.connect(obsSettings);
   });
-  ipcMain.removeHandler('watch');
-  ipcMain.handle('watch', async (event: IpcMainInvokeEvent, start: boolean) => {
-    if (start) {
-      availableSets.length = 0;
-      const normalizedDir =
-        process.platform === 'win32'
-          ? watchDir.split(path.win32.sep).join(path.posix.sep)
-          : watchDir;
-      const glob = `${normalizedDir}/*.zip`;
-      watcher = watch(glob, { awaitWriteFinish: true });
-      watcher.on('add', async (newZipPath) => {
-        try {
-          const newSet = await unzip(
-            newZipPath,
-            tempDir,
-            dirNameToPlayedMs,
-            twitchChannel,
-          );
-          const playingEntry = Array.from(playingSets.entries()).find(
-            ([, set]) => set.dirName === newSet.dirName,
-          );
-          if (playingEntry) {
-            newSet.playing = true;
-            playingSets.set(playingEntry[0], newSet);
-          }
-          availableSets.push(newSet);
-          sortAvailableSets();
-          if (newSet.playing) {
-            mainWindow.webContents.send(
-              'unzip',
-              availableSets.map(toRenderSet),
-              queuedSet ? queuedSet.dirName : '',
-            );
-            return;
-          }
 
-          let isNext = playingSets.size === 0;
-          const newSetI = availableSets.indexOf(newSet);
-          if (newSetI < 0) {
-            throw new Error('could not find newSet in availableSets');
-          }
-          for (let i = newSetI - 1; i >= 0; i -= 1) {
-            if (availableSets[i].playing) {
-              isNext = true;
-            } else if (availableSets[i].playedMs !== 0) {
-              // eslint-disable-next-line no-continue
-              continue;
-            }
-            break;
-          }
-          if (
-            playingSets.size + tryingPorts.size < maxDolphins &&
-            isNext &&
-            willNotSpoilPlayingSets(newSet)
-          ) {
-            await playDolphin(newSet);
-            obsConnection.transition(playingSets);
-          } else {
-            if (
-              isNext &&
-              newSet.playedMs === 0 &&
-              (queuedSet === null || !wasManuallyQueued)
-            ) {
-              queuedSet = newSet;
-            }
-            writeOverlayJson();
-            mainWindow.webContents.send(
-              'unzip',
-              availableSets.map(toRenderSet),
-              queuedSet ? queuedSet.dirName : '',
-            );
-          }
-        } catch (e: any) {
-          // const message = e instanceof Error ? e.message : e;
-          // console.error(message);
-        }
-      });
-    } else if (watcher) {
+  let watcher: FSWatcher | undefined;
+  let watchDir = '';
+  ipcMain.removeHandler('chooseWatchDir');
+  ipcMain.handle('chooseWatchDir', async (): Promise<string> => {
+    const openDialogRes = await dialog.showOpenDialog({
+      properties: ['openDirectory', 'showHiddenFiles'],
+    });
+    if (openDialogRes.canceled) {
+      return watchDir;
+    }
+    [watchDir] = openDialogRes.filePaths;
+
+    if (watcher) {
       await watcher.close();
     }
+    const normalizedDir =
+      process.platform === 'win32'
+        ? watchDir.split(path.win32.sep).join(path.posix.sep)
+        : watchDir;
+    const glob = `${normalizedDir}/*.zip`;
+    watcher = watch(glob, { awaitWriteFinish: true });
+    watcher.on('add', async (newZipPath) => {
+      try {
+        const newSet = await unzip(
+          newZipPath,
+          tempDir,
+          dirNameToPlayedMs,
+          twitchChannel,
+        );
+        const playingEntry = Array.from(playingSets.entries()).find(
+          ([, set]) => set.dirName === newSet.dirName,
+        );
+        if (playingEntry) {
+          newSet.playing = true;
+          playingSets.set(playingEntry[0], newSet);
+        }
+        availableSets.push(newSet);
+        sortAvailableSets();
+        if (newSet.playing) {
+          mainWindow.webContents.send(
+            'unzip',
+            availableSets.map(toRenderSet),
+            queuedSet ? queuedSet.dirName : '',
+          );
+          return;
+        }
+
+        let isNext = playingSets.size === 0;
+        const newSetI = availableSets.indexOf(newSet);
+        if (newSetI < 0) {
+          throw new Error('could not find newSet in availableSets');
+        }
+        for (let i = newSetI - 1; i >= 0; i -= 1) {
+          if (availableSets[i].playing) {
+            isNext = true;
+          } else if (availableSets[i].playedMs !== 0) {
+            // eslint-disable-next-line no-continue
+            continue;
+          }
+          break;
+        }
+        if (
+          playingSets.size + tryingPorts.size < maxDolphins &&
+          isNext &&
+          willNotSpoilPlayingSets(newSet)
+        ) {
+          await playDolphin(newSet);
+          obsConnection.transition(playingSets);
+        } else {
+          if (
+            isNext &&
+            newSet.playedMs === 0 &&
+            (queuedSet === null || !wasManuallyQueued)
+          ) {
+            queuedSet = newSet;
+          }
+          writeOverlayJson();
+          mainWindow.webContents.send(
+            'unzip',
+            availableSets.map(toRenderSet),
+            queuedSet ? queuedSet.dirName : '',
+          );
+        }
+      } catch (e: any) {
+        // const message = e instanceof Error ? e.message : e;
+        // console.error(message);
+      }
+    });
+
+    return watchDir;
   });
 
   ipcMain.removeHandler('markPlayed');

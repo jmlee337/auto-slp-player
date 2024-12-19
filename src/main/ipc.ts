@@ -245,6 +245,7 @@ export default async function setupIPCs(
 
   const availableSets: AvailableSet[] = [];
   let queuedSet: AvailableSet | null = null;
+  let wasManuallyQueued = false;
   const sendPlaying = () => {
     mainWindow.webContents.send(
       'playing',
@@ -645,6 +646,7 @@ export default async function setupIPCs(
     dirNameToPlayedMs.set(set.dirName, set.playedMs);
 
     const queueNextSet = (startI: number) => {
+      wasManuallyQueued = false;
       if (startI < 0) {
         queuedSet = null;
         return;
@@ -715,6 +717,7 @@ export default async function setupIPCs(
       gameIndices.delete(port);
       dolphins.delete(port);
       if (dolphins.size === 0) {
+        wasManuallyQueued = false;
         queuedSet = null;
       }
       obsConnection.setDolphins(dolphins);
@@ -887,10 +890,7 @@ export default async function setupIPCs(
             if (
               isNext &&
               newSet.playedMs === 0 &&
-              (!queuedSet ||
-                (newSet.context &&
-                  queuedSet.context &&
-                  newSet.context.durationMs > queuedSet.context.durationMs))
+              (queuedSet === null || !wasManuallyQueued)
             ) {
               queuedSet = newSet;
             }
@@ -924,16 +924,19 @@ export default async function setupIPCs(
       set.playedMs = played ? Date.now() : 0;
       dirNameToPlayedMs.set(set.dirName, set.playedMs);
       sortAvailableSets();
-      for (let i = availableSets.length - 2; i >= 0; i -= 1) {
-        if (availableSets[i].playing) {
-          queuedSet = null;
-          for (let j = i + 1; j < availableSets.length; j += 1) {
-            if (availableSets[j].playedMs === 0) {
-              queuedSet = availableSets[j];
-              break;
+      if (!wasManuallyQueued || (dirName === queuedSet?.dirName && played)) {
+        for (let i = availableSets.length - 2; i >= 0; i -= 1) {
+          if (availableSets[i].playing) {
+            queuedSet = null;
+            for (let j = i + 1; j < availableSets.length; j += 1) {
+              if (availableSets[j].playedMs === 0) {
+                queuedSet = availableSets[j];
+                break;
+              }
             }
+            wasManuallyQueued = false;
+            break;
           }
-          break;
         }
       }
       writeOverlayJson();
@@ -993,6 +996,7 @@ export default async function setupIPCs(
     }
 
     queuedSet = setToQueue;
+    wasManuallyQueued = true;
     writeOverlayJson();
   });
 

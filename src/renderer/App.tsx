@@ -109,7 +109,6 @@ function Hello() {
   });
   const [dolphinVersion, setDolphinVersion] = useState('');
   const [dolphinVersionError, setDolphinVersionError] = useState('');
-  const [obsConnectionEnabled, setObsConnectionEnabled] = useState(false);
   const [obsProtocol, setObsProtocol] = useState('');
   const [obsAddress, setObsAddress] = useState('');
   const [obsPort, setObsPort] = useState('');
@@ -133,8 +132,6 @@ function Hello() {
       const twitchChannelPromise = window.electron.getTwitchChannel();
       const twitchSettingsPromise = window.electron.getTwitchSettings();
       const dolphinVersionPromise = window.electron.getDolphinVersion();
-      const obsConnectionEnabledPromise =
-        window.electron.getObsConnectionEnabled();
       const obsSettingsPromise = window.electron.getObsSettings();
       const numDolphinsPromise = window.electron.getNumdolphins();
       const obsConnectionStatusPromise =
@@ -155,7 +152,6 @@ function Hello() {
       setTwitchSettings(await twitchSettingsPromise);
       setDolphinVersion((await dolphinVersionPromise).version);
       setDolphinVersionError((await dolphinVersionPromise).error);
-      setObsConnectionEnabled(await obsConnectionEnabledPromise);
       setObsProtocol((await obsSettingsPromise).protocol);
       setObsAddress((await obsSettingsPromise).address);
       setObsPort((await obsSettingsPromise).port);
@@ -313,7 +309,6 @@ function Hello() {
           setDolphinVersion={setDolphinVersion}
           dolphinVersionError={dolphinVersionError}
           setDolphinVersionError={setDolphinVersionError}
-          obsConnectionEnabled={obsConnectionEnabled}
           obsProtocol={obsProtocol}
           setObsProtocol={setObsProtocol}
           obsAddress={obsAddress}

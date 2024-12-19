@@ -85,7 +85,8 @@ export default class OBSConnection {
     if (
       this.obsWebSocket === null ||
       this.connectionStatus === OBSConnectionStatus.OBS_NOT_CONNECTED ||
-      !this.dolphinVersionPromise
+      !this.dolphinVersionPromise ||
+      !(process.platform === 'win32' || process.platform === 'darwin')
     ) {
       return;
     }
@@ -337,56 +338,64 @@ export default class OBSConnection {
       this.obsWebSocket.on('ConnectionClosed', () => {
         this.setConnectionStatus(OBSConnectionStatus.OBS_NOT_CONNECTED);
       });
-      this.obsWebSocket.on('CurrentSceneCollectionChanged', () => {
-        this.checkObsSetup();
-      });
-      this.obsWebSocket.on('SceneListChanged', () => {
-        this.checkObsSetup();
-      });
-      this.obsWebSocket.on('SceneItemRemoved', ({ sceneName, sourceUuid }) => {
-        if (
-          expectedSceneNames.has(sceneName) &&
-          new Set(this.portToUuid.values()).has(sourceUuid)
-        ) {
+      if (process.platform === 'win32' || process.platform === 'darwin') {
+        this.obsWebSocket.on('CurrentSceneCollectionChanged', () => {
           this.checkObsSetup();
-        }
-      });
-      this.obsWebSocket.on('SceneItemCreated', ({ sceneName, sourceUuid }) => {
-        if (
-          expectedSceneNames.has(sceneName) &&
-          new Set(this.portToUuid.values()).has(sourceUuid)
-        ) {
+        });
+        this.obsWebSocket.on('SceneListChanged', () => {
           this.checkObsSetup();
-        }
-      });
-      this.obsWebSocket.on(
-        'InputSettingsChanged',
-        async ({ inputSettings, inputUuid }) => {
-          if (new Set(this.portToUuid.values()).has(inputUuid)) {
-            this.checkObsSetup();
-          } else if (process.platform === 'win32') {
-            const { window } = inputSettings as { window: string };
-            if (window && window.startsWith(await this.getPrefix())) {
+        });
+        this.obsWebSocket.on(
+          'SceneItemRemoved',
+          ({ sceneName, sourceUuid }) => {
+            if (
+              expectedSceneNames.has(sceneName) &&
+              new Set(this.portToUuid.values()).has(sourceUuid)
+            ) {
               this.checkObsSetup();
             }
-          } else if (process.platform === 'darwin') {
-            const applicableWindows = new Set<number>();
-            (
-              await getOpenWindows({
-                accessibilityPermission: false,
-                screenRecordingPermission: false,
-              })
-            ).forEach((window) => {
-              if (this.pidToPort.has(window.owner.processId)) {
-                applicableWindows.add(window.id);
+          },
+        );
+        this.obsWebSocket.on(
+          'SceneItemCreated',
+          ({ sceneName, sourceUuid }) => {
+            if (
+              expectedSceneNames.has(sceneName) &&
+              new Set(this.portToUuid.values()).has(sourceUuid)
+            ) {
+              this.checkObsSetup();
+            }
+          },
+        );
+        this.obsWebSocket.on(
+          'InputSettingsChanged',
+          async ({ inputSettings, inputUuid }) => {
+            if (new Set(this.portToUuid.values()).has(inputUuid)) {
+              this.checkObsSetup();
+            } else if (process.platform === 'win32') {
+              const { window } = inputSettings as { window: string };
+              if (window && window.startsWith(await this.getPrefix())) {
+                this.checkObsSetup();
               }
-            });
-            if (applicableWindows.has(inputSettings.window as number)) {
-              this.checkObsSetup();
+            } else if (process.platform === 'darwin') {
+              const applicableWindows = new Set<number>();
+              (
+                await getOpenWindows({
+                  accessibilityPermission: false,
+                  screenRecordingPermission: false,
+                })
+              ).forEach((window) => {
+                if (this.pidToPort.has(window.owner.processId)) {
+                  applicableWindows.add(window.id);
+                }
+              });
+              if (applicableWindows.has(inputSettings.window as number)) {
+                this.checkObsSetup();
+              }
             }
-          }
-        },
-      );
+          },
+        );
+      }
       this.obsWebSocket.on('StreamStateChanged', ({ outputState }) => {
         this.streamingState = outputState;
         this.mainWindow.webContents.send('streaming', outputState);

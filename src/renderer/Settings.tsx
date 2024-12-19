@@ -129,7 +129,6 @@ export default function Settings({
   setDolphinVersion,
   dolphinVersionError,
   setDolphinVersionError,
-  obsConnectionEnabled,
   obsProtocol,
   setObsProtocol,
   obsAddress,
@@ -162,7 +161,6 @@ export default function Settings({
   setDolphinVersion: (dolphinVersion: string) => void;
   dolphinVersionError: string;
   setDolphinVersionError: (dolphinVersionError: string) => void;
-  obsConnectionEnabled: boolean;
   obsProtocol: string;
   setObsProtocol: (protocol: string) => void;
   obsAddress: string;
@@ -369,68 +367,66 @@ export default function Settings({
               <MenuItem value={4}>4</MenuItem>
             </Select>
           </FormControl>
-          {obsConnectionEnabled && (
-            <Stack marginTop="8px">
-              <DialogContentText>
-                OBS Scene/Source setup info{' '}
-                <a
-                  href={`https://github.com/jmlee337/auto-slp-player/blob/${appVersion}/src/docs/obs.md`}
-                  target="_blank"
-                  rel="noreferrer"
-                >
-                  here
-                </a>
-              </DialogContentText>
-              <Stack direction="row" spacing="8px">
-                <Select
-                  label="OBS Protocol"
-                  name="protocol"
-                  onChange={(event) => {
-                    setObsProtocol(event.target.value);
-                  }}
-                  size="small"
-                  value={obsProtocol}
-                >
-                  <MenuItem value="ws">ws://</MenuItem>
-                  <MenuItem value="wss">wss://</MenuItem>
-                </Select>
-                <TextField
-                  inputProps={{ maxLength: 15 }}
-                  label="OBS Address"
-                  name="address"
-                  onChange={(event) => {
-                    setObsAddress(event.target.value);
-                  }}
-                  size="small"
-                  value={obsAddress}
-                  variant="filled"
-                />
-                <TextField
-                  inputProps={{ min: 1024, max: 65535 }}
-                  label="OBS Port"
-                  name="port"
-                  onChange={(event) => {
-                    setObsPort(event.target.value);
-                  }}
-                  size="small"
-                  type="number"
-                  value={obsPort}
-                  variant="filled"
-                />
-                <TextField
-                  label="OBS Password"
-                  name="password"
-                  onChange={(event) => {
-                    setObsPassword(event.target.value);
-                  }}
-                  size="small"
-                  type="password"
-                  value={obsPassword}
-                  variant="filled"
-                />
-              </Stack>
+          <Stack marginTop="8px">
+            <DialogContentText>
+              OBS Scene/Source setup info{' '}
+              <a
+                href={`https://github.com/jmlee337/auto-slp-player/blob/${appVersion}/src/docs/obs.md`}
+                target="_blank"
+                rel="noreferrer"
+              >
+                here
+              </a>
+            </DialogContentText>
+            <Stack direction="row" spacing="8px">
+              <Select
+                label="OBS Protocol"
+                name="protocol"
+                onChange={(event) => {
+                  setObsProtocol(event.target.value);
+                }}
+                size="small"
+                value={obsProtocol}
+              >
+                <MenuItem value="ws">ws://</MenuItem>
+                <MenuItem value="wss">wss://</MenuItem>
+              </Select>
+              <TextField
+                inputProps={{ maxLength: 15 }}
+                label="OBS Address"
+                name="address"
+                onChange={(event) => {
+                  setObsAddress(event.target.value);
+                }}
+                size="small"
+                value={obsAddress}
+                variant="filled"
+              />
+              <TextField
+                inputProps={{ min: 1024, max: 65535 }}
+                label="OBS Port"
+                name="port"
+                onChange={(event) => {
+                  setObsPort(event.target.value);
+                }}
+                size="small"
+                type="number"
+                value={obsPort}
+                variant="filled"
+              />
+              <TextField
+                label="OBS Password"
+                name="password"
+                onChange={(event) => {
+                  setObsPassword(event.target.value);
+                }}
+                size="small"
+                type="password"
+                value={obsPassword}
+                variant="filled"
+              />
             </Stack>
-          )}
+          </Stack>
           <Stack marginTop="8px">
             <DialogContentText>
               Will automatically unqueue any sets that were marked on start.gg

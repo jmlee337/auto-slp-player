@@ -57,8 +57,6 @@ const electronHandler = {
     ipcRenderer.invoke('getTwitchBotStatus'),
   getDolphinVersion: (): Promise<{ version: string; error: string }> =>
     ipcRenderer.invoke('getDolphinVersion'),
-  getObsConnectionEnabled: (): Promise<boolean> =>
-    ipcRenderer.invoke('getObsConnectionEnabled'),
   getObsSettings: (): Promise<OBSSettings> =>
     ipcRenderer.invoke('getObsSettings'),
   setObsSettings: (settings: OBSSettings) =>

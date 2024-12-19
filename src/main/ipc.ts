@@ -1263,10 +1263,6 @@ export default async function setupIPCs(
     }
   });
 
-  const obsConnectionEnabled = process.platform !== 'linux';
-  ipcMain.removeHandler('getObsConnectionEnabled');
-  ipcMain.handle('getObsConnectionEnabled', () => obsConnectionEnabled);
-
   ipcMain.removeHandler('getObsSettings');
   ipcMain.handle('getObsSettings', () => obsSettings);
 

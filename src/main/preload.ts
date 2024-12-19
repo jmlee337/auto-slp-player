@@ -20,7 +20,10 @@ const electronHandler = {
   openDolphins: (): Promise<void> => ipcRenderer.invoke('openDolphins'),
   getObsConnectionStatus: (): Promise<OBSConnectionStatus> =>
     ipcRenderer.invoke('getObsConnectionStatus'),
+  getStreamingState: (): Promise<string> =>
+    ipcRenderer.invoke('getStreamingState'),
   connectObs: (): Promise<void> => ipcRenderer.invoke('connectObs'),
+  startStream: (): Promise<void> => ipcRenderer.invoke('startStream'),
   play: (dirName: string): Promise<void> => ipcRenderer.invoke('play', dirName),
   stop: (dirName: string): Promise<void> => ipcRenderer.invoke('stop', dirName),
   queue: (dirName: string): Promise<void> =>
@@ -79,6 +82,10 @@ const electronHandler = {
   ) => {
     ipcRenderer.removeAllListeners('obsConnectionStatus');
     ipcRenderer.on('obsConnectionStatus', callback);
+  },
+  onStreaming: (callback: (event: IpcRendererEvent, state: string) => void) => {
+    ipcRenderer.removeAllListeners('streaming');
+    ipcRenderer.on('streaming', callback);
   },
   onPlaying: (
     callback: (

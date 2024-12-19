@@ -40,6 +40,8 @@ export default class OBSConnection {
 
   private sceneNameToUuidToSceneItemId: Map<string, Map<string, number>>;
 
+  private streamingState: string;
+
   constructor(mainWindow: BrowserWindow) {
     this.mainWindow = mainWindow;
 
@@ -51,6 +53,7 @@ export default class OBSConnection {
     this.pidToPort = new Map();
     this.portToUuid = new Map();
     this.sceneNameToUuidToSceneItemId = new Map();
+    this.streamingState = '';
   }
 
   setDolphinVersionPromise(dolphinVersionPromise: Promise<string>) {
@@ -384,6 +387,10 @@ export default class OBSConnection {
           }
         },
       );
+      this.obsWebSocket.on('StreamStateChanged', ({ outputState }) => {
+        this.streamingState = outputState;
+        this.mainWindow.webContents.send('streaming', outputState);
+      });
     }
     if (this.connectionStatus === OBSConnectionStatus.OBS_NOT_CONNECTED) {
       await this.obsWebSocket.connect(
@@ -464,7 +471,10 @@ export default class OBSConnection {
     await this.obsWebSocket.callBatch(requests);
   }
 
-  // unused
+  getStreamingState() {
+    return this.streamingState;
+  }
+
   async startStream() {
     if (
       !this.obsWebSocket ||

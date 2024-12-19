@@ -807,14 +807,19 @@ export default async function setupIPCs(
       obsConnection.transition(playingSets);
     }
   });
+
   ipcMain.removeHandler('getObsConnectionStatus');
   ipcMain.handle('getObsConnectionStatus', () =>
     obsConnection.getConnectionStatus(),
   );
+  ipcMain.removeHandler('getStreamingState');
+  ipcMain.handle('getStreamingState', () => obsConnection.getStreamingState());
   ipcMain.removeHandler('connectObs');
   ipcMain.handle('connectObs', async () => {
     await obsConnection.connect(obsSettings);
   });
+  ipcMain.removeHandler('startStream');
+  ipcMain.handle('startStream', async () => obsConnection.startStream());
 
   let watcher: FSWatcher | undefined;
   let watchDir = '';

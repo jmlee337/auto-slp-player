@@ -23,6 +23,7 @@ import {
 import {
   Check,
   PlayArrow,
+  PlayCircle,
   PlaylistAddCheck,
   PriorityHigh,
   Report,
@@ -117,6 +118,7 @@ function Hello() {
   const [obsConnectionStatus, setObsConnectionStatus] = useState(
     OBSConnectionStatus.OBS_NOT_CONNECTED,
   );
+  const [streamingState, setStreamingState] = useState('');
   const [twitchBotConnected, setTwitchBotConnected] = useState(false);
   const [twitchBotError, setTwitchBotError] = useState('');
   const [gotSettings, setGotSettings] = useState(false);
@@ -137,6 +139,7 @@ function Hello() {
       const numDolphinsPromise = window.electron.getNumdolphins();
       const obsConnectionStatusPromise =
         window.electron.getObsConnectionStatus();
+      const streamingStatePromise = window.electron.getStreamingState();
       const twitchBotStatusPromise = window.electron.getTwitchBotStatus();
 
       // req network
@@ -159,6 +162,7 @@ function Hello() {
       setObsPassword((await obsSettingsPromise).password);
       setNumDolphins(await numDolphinsPromise);
       setObsConnectionStatus(await obsConnectionStatusPromise);
+      setStreamingState(await streamingStatePromise);
       setTwitchBotConnected((await twitchBotStatusPromise).connected);
       setTwitchBotError((await twitchBotStatusPromise).error);
 
@@ -208,6 +212,9 @@ function Hello() {
         }
       },
     );
+    window.electron.onStreaming((event: IpcRendererEvent, state: string) => {
+      setStreamingState(state);
+    });
     window.electron.onPlaying(
       (
         event: IpcRendererEvent,
@@ -242,6 +249,13 @@ function Hello() {
     obsButtonIcon = <PriorityHigh />;
   } else if (obsConnectionStatus === OBSConnectionStatus.READY) {
     obsButtonIcon = <Check />;
+  }
+
+  let streamingMsg = 'Start Stream';
+  if (streamingState === 'OBS_WEBSOCKET_OUTPUT_STARTING') {
+    streamingMsg = 'Starting...';
+  } else if (streamingState === 'OBS_WEBSOCKET_OUTPUT_STARTED') {
+    streamingMsg = 'Streaming';
   }
 
   let watchFolderMsg = 'Set watch folder...';
@@ -330,43 +344,59 @@ function Hello() {
           {numDolphins === maxDolphins ? 'Dolphins Open' : 'Open Dolphins'}{' '}
           {`(${numDolphins})`}
         </Button>
-        {obsConnectionEnabled && (
-          <Button
-            disabled={
-              !dolphinVersion ||
-              (numDolphins < maxDolphins &&
-                obsConnectionStatus ===
-                  OBSConnectionStatus.OBS_NOT_CONNECTED) ||
-              obsConnectionStatus === OBSConnectionStatus.READY
-            }
-            endIcon={obsButtonIcon}
-            onClick={async () => {
-              if (
-                obsConnectionStatus === OBSConnectionStatus.OBS_NOT_CONNECTED
-              ) {
-                try {
-                  setObsConnecting(true);
-                  await window.electron.connectObs();
-                } catch (e: any) {
-                  const message = e instanceof Error ? e.message : e;
-                  setObsError(message);
-                  setObsErrorDialogOpen(true);
-                } finally {
-                  setObsConnecting(false);
-                }
-              } else if (
-                obsConnectionStatus === OBSConnectionStatus.OBS_NOT_SETUP
-              ) {
+        <Button
+          disabled={
+            !dolphinVersion ||
+            (numDolphins < maxDolphins &&
+              obsConnectionStatus === OBSConnectionStatus.OBS_NOT_CONNECTED) ||
+            obsConnectionStatus === OBSConnectionStatus.READY
+          }
+          endIcon={obsButtonIcon}
+          onClick={async () => {
+            if (obsConnectionStatus === OBSConnectionStatus.OBS_NOT_CONNECTED) {
+              try {
+                setObsConnecting(true);
+                await window.electron.connectObs();
+              } catch (e: any) {
+                const message = e instanceof Error ? e.message : e;
+                setObsError(message);
                 setObsErrorDialogOpen(true);
+              } finally {
+                setObsConnecting(false);
               }
-            }}
-            variant="contained"
-          >
-            {obsConnectionStatus === OBSConnectionStatus.OBS_NOT_CONNECTED
-              ? 'Connect to OBS'
-              : 'OBS Connected'}
-          </Button>
-        )}
+            } else if (
+              obsConnectionStatus === OBSConnectionStatus.OBS_NOT_SETUP
+            ) {
+              setObsErrorDialogOpen(true);
+            }
+          }}
+          variant="contained"
+        >
+          {obsConnectionStatus === OBSConnectionStatus.OBS_NOT_CONNECTED
+            ? 'Connect to OBS'
+            : 'OBS Connected'}
+        </Button>
+        <Button
+          disabled={
+            streamingState === 'OBS_WEBSOCKET_OUTPUT_STARTING' ||
+            streamingState === 'OBS_WEBSOCKET_OUTPUT_STARTED' ||
+            obsConnectionStatus !== OBSConnectionStatus.READY
+          }
+          endIcon={
+            streamingState === 'OBS_WEBSOCKET_OUTPUT_STARTING' ||
+            streamingState === 'OBS_WEBSOCKET_OUTPUT_STARTED' ? (
+              <CircularProgress size="24px" />
+            ) : (
+              <PlayCircle />
+            )
+          }
+          onClick={async () => {
+            await window.electron.startStream();
+          }}
+          variant="contained"
+        >
+          {streamingMsg}
+        </Button>
       </Stack>
       {renderSets && (
         <List>

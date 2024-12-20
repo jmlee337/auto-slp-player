@@ -24,6 +24,7 @@ import {
 import { useMemo, useState } from 'react';
 import {
   CheckCircle,
+  CloudDownload,
   ContentCopy,
   DeleteForever,
   Report,
@@ -548,15 +549,22 @@ export default function Settings({
             )}
           </Stack>
           {needUpdate && (
-            <Alert severity="warning" style={{ marginTop: 8 }}>
-              Update available!{' '}
-              <a
-                href="https://github.com/jmlee337/auto-slp-player/releases/latest"
-                target="_blank"
-                rel="noreferrer"
-              >
-                Version {latestAppVersion}
-              </a>
+            <Alert
+              severity="warning"
+              style={{ marginTop: '8px' }}
+              action={
+                <Button
+                  endIcon={<CloudDownload />}
+                  variant="contained"
+                  onClick={() => {
+                    window.electron.update();
+                  }}
+                >
+                  Quit and download
+                </Button>
+              }
+            >
+              Update available! Version {latestAppVersion}
             </Alert>
           )}
         </DialogContent>

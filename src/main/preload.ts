@@ -114,6 +114,7 @@ const electronHandler = {
     ipcRenderer.removeAllListeners('unzip');
     ipcRenderer.on('unzip', callback);
   },
+  update: (): Promise<void> => ipcRenderer.invoke('update'),
 };
 
 contextBridge.exposeInMainWorld('electron', electronHandler);

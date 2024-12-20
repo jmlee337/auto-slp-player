@@ -1321,6 +1321,14 @@ export default async function setupIPCs(
     },
   );
 
+  ipcMain.removeHandler('update');
+  ipcMain.handle('update', async () => {
+    await shell.openExternal(
+      'https://github.com/jmlee337/auto-slp-player/releases/latest',
+    );
+    app.quit();
+  });
+
   if (process.platform !== 'win32') {
     app.on('will-quit', () => {
       Array.from(dolphins.values()).forEach((dolphin) => {

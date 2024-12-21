@@ -25,12 +25,13 @@ import { Bot, createBotCommand } from '@twurple/easy-bot';
 import { Ports } from '@slippi/slippi-js';
 import { spawn } from 'child_process';
 import { HttpStatusCodeError } from '@twurple/api-call';
-import unzip from './unzip';
+import { deleteZipDir, scan, unzip } from './unzip';
 import {
   AvailableSet,
   OBSSettings,
   OverlayContext,
   OverlaySet,
+  SetType,
   TwitchSettings,
 } from '../common/types';
 import { Dolphin, DolphinEvent } from './dolphin';
@@ -236,11 +237,11 @@ export default async function setupIPCs(
     mainWindow.webContents.send(
       'playing',
       availableSets.map(toRenderSet),
-      queuedSet ? queuedSet.dirName : '',
+      queuedSet ? queuedSet.originalPath : '',
     );
   };
 
-  const dirNameToPlayedMs = new Map<string, number>();
+  const originalPathToPlayedMs = new Map<string, number>();
   const sortAvailableSets = () => {
     availableSets.sort((a, b) => {
       if (a.context?.startgg && b.context?.startgg) {
@@ -344,7 +345,7 @@ export default async function setupIPCs(
       if (a.context && !b.context) {
         return 1;
       }
-      return a.dirName.localeCompare(b.dirName);
+      return a.originalPath.localeCompare(b.originalPath);
     });
   };
 
@@ -434,7 +435,7 @@ export default async function setupIPCs(
                     availableSet.context?.startgg?.set.round === round,
                 );
             const startI = sameRoundSets.findIndex(
-              (set) => set.dirName === queuedSet!.dirName,
+              (set) => set.originalPath === queuedSet!.originalPath,
             );
             upcoming.push({
               leftNames:
@@ -480,7 +481,7 @@ export default async function setupIPCs(
                 availableSet.context?.challonge?.set.round === round,
             );
             const startI = sameRoundSets.findIndex(
-              (set) => set.dirName === queuedSet!.dirName,
+              (set) => set.originalPath === queuedSet!.originalPath,
             );
             upcoming.push({
               leftNames:
@@ -629,7 +630,7 @@ export default async function setupIPCs(
     set.invalidReason = '';
     set.playedMs = Date.now();
     set.playing = true;
-    dirNameToPlayedMs.set(set.dirName, set.playedMs);
+    originalPathToPlayedMs.set(set.originalPath, set.playedMs);
 
     const queueNextSet = (startI: number) => {
       wasManuallyQueued = false;
@@ -648,9 +649,14 @@ export default async function setupIPCs(
     };
     sortAvailableSets();
     queueNextSet(
-      availableSets.findIndex((value) => value.dirName === set.dirName),
+      availableSets.findIndex(
+        (value) => value.originalPath === set.originalPath,
+      ),
     );
 
+    if (set.type === SetType.ZIP) {
+      await unzip(set, tempDir);
+    }
     await dolphins.get(actualPort)!.play(set.replayPaths);
 
     if (generateTimestamps) {
@@ -660,7 +666,7 @@ export default async function setupIPCs(
           const rendererSet = toRenderSet(set);
           const desc = rendererSet.context
             ? `${rendererSet.context.namesLeft} vs ${rendererSet.context.namesRight}`
-            : rendererSet.dirName;
+            : path.basename(rendererSet.originalPath, '.zip');
           const file = await open(path.join(tempDir, 'timestamps.txt'), 'a');
           await file.write(`${timecode} ${desc}\n`);
           await file.close();
@@ -681,6 +687,9 @@ export default async function setupIPCs(
       const playingSet = playingSets.get(port);
       if (playingSet) {
         playingSet.playing = false;
+        if (playingSet.type === SetType.ZIP) {
+          deleteZipDir(playingSet, tempDir);
+        }
         playingSets.delete(port);
         if (playingSets.size === 0) {
           const startgg = playingSet.context?.startgg;
@@ -727,6 +736,10 @@ export default async function setupIPCs(
       if (failureReason) {
         playingSet.invalidReason = failureReason;
       }
+      if (playingSet.type === SetType.ZIP) {
+        deleteZipDir(playingSet, tempDir);
+      }
+
       playingSets.delete(port);
       if (queuedSet) {
         if (playingSets.size === 0) {
@@ -844,14 +857,13 @@ export default async function setupIPCs(
     watcher = watch(glob, { awaitWriteFinish: true });
     watcher.on('add', async (newZipPath) => {
       try {
-        const newSet = await unzip(
+        const newSet = await scan(
           newZipPath,
-          tempDir,
-          dirNameToPlayedMs,
+          originalPathToPlayedMs,
           twitchChannel,
         );
         const playingEntry = Array.from(playingSets.entries()).find(
-          ([, set]) => set.dirName === newSet.dirName,
+          ([, set]) => set.originalPath === newSet.originalPath,
         );
         if (playingEntry) {
           newSet.playing = true;
@@ -863,7 +875,7 @@ export default async function setupIPCs(
           mainWindow.webContents.send(
             'unzip',
             availableSets.map(toRenderSet),
-            queuedSet ? queuedSet.dirName : '',
+            queuedSet ? queuedSet.originalPath : '',
           );
           return;
         }
@@ -901,7 +913,7 @@ export default async function setupIPCs(
           mainWindow.webContents.send(
             'unzip',
             availableSets.map(toRenderSet),
-            queuedSet ? queuedSet.dirName : '',
+            queuedSet ? queuedSet.originalPath : '',
           );
         }
       } catch (e: any) {
@@ -916,17 +928,20 @@ export default async function setupIPCs(
   ipcMain.removeHandler('markPlayed');
   ipcMain.handle(
     'markPlayed',
-    (event: IpcMainInvokeEvent, dirName: string, played: boolean) => {
+    (event: IpcMainInvokeEvent, originalPath: string, played: boolean) => {
       const set = availableSets.find(
-        (availableSet) => availableSet.dirName === dirName,
+        (availableSet) => availableSet.originalPath === originalPath,
       );
       if (!set) {
-        throw new Error(`set does not exist: ${dirName}`);
+        throw new Error(`set does not exist: ${originalPath}`);
       }
       set.playedMs = played ? Date.now() : 0;
-      dirNameToPlayedMs.set(set.dirName, set.playedMs);
+      originalPathToPlayedMs.set(set.originalPath, set.playedMs);
       sortAvailableSets();
-      if (!wasManuallyQueued || (dirName === queuedSet?.dirName && played)) {
+      if (
+        !wasManuallyQueued ||
+        (originalPath === queuedSet?.originalPath && played)
+      ) {
         for (let i = availableSets.length - 2; i >= 0; i -= 1) {
           if (availableSets[i].playing) {
             queuedSet = null;
@@ -944,57 +959,79 @@ export default async function setupIPCs(
       writeOverlayJson();
       return {
         renderSets: availableSets.map(toRenderSet),
-        queuedSetDirName: queuedSet ? queuedSet.dirName : '',
+        queuedSetDirName: queuedSet ? queuedSet.originalPath : '',
       };
     },
   );
 
   ipcMain.removeHandler('play');
-  ipcMain.handle('play', async (event: IpcMainInvokeEvent, dirName: string) => {
-    const setToPlay = availableSets.find((set) => set.dirName === dirName);
-    if (!setToPlay) {
-      throw new Error(`no such set to play: ${dirName}`);
-    }
+  ipcMain.handle(
+    'play',
+    async (event: IpcMainInvokeEvent, originalPath: string) => {
+      const setToPlay = availableSets.find(
+        (set) => set.originalPath === originalPath,
+      );
+      if (!setToPlay) {
+        throw new Error(`no such set to play: ${originalPath}`);
+      }
 
-    if (playingSets.size === 1 && maxDolphins === 1 && tryingPorts.size === 0) {
-      const [port, playingSet] = Array.from(playingSets.entries())[0];
-      playingSet.playing = false;
-      playDolphin(setToPlay, port);
-      return;
-    }
-    if (playingSets.size + tryingPorts.size < maxDolphins) {
-      await playDolphin(setToPlay);
-      obsConnection.transition(playingSets);
-    }
-  });
+      if (
+        playingSets.size === 1 &&
+        maxDolphins === 1 &&
+        tryingPorts.size === 0
+      ) {
+        const [port, playingSet] = Array.from(playingSets.entries())[0];
+        playingSet.playing = false;
+        await playDolphin(setToPlay, port);
+        if (playingSet.type === SetType.ZIP) {
+          deleteZipDir(playingSet, tempDir);
+        }
+        return;
+      }
+      if (playingSets.size + tryingPorts.size < maxDolphins) {
+        await playDolphin(setToPlay);
+        obsConnection.transition(playingSets);
+      }
+    },
+  );
 
   ipcMain.removeHandler('stop');
-  ipcMain.handle('stop', async (event: IpcMainInvokeEvent, dirName: string) => {
-    const setToStop = availableSets.find((set) => set.dirName === dirName);
-    if (!setToStop) {
-      throw new Error(`no such set to stop: ${dirName}`);
-    }
+  ipcMain.handle(
+    'stop',
+    async (event: IpcMainInvokeEvent, originalPath: string) => {
+      const setToStop = availableSets.find(
+        (set) => set.originalPath === originalPath,
+      );
+      if (!setToStop) {
+        throw new Error(`no such set to stop: ${originalPath}`);
+      }
 
-    if (setToStop.playing) {
-      const entry = Array.from(playingSets.entries()).find(
-        ([, set]) => set === setToStop,
-      )!;
-      const [port] = entry;
-      await dolphins.get(port)!.stop();
-      setToStop.playing = false;
-      playingSets.delete(port);
+      if (setToStop.playing) {
+        const entry = Array.from(playingSets.entries()).find(
+          ([, set]) => set === setToStop,
+        )!;
+        const [port] = entry;
+        await dolphins.get(port)!.stop();
+        setToStop.playing = false;
+        if (setToStop.type === SetType.ZIP) {
+          deleteZipDir(setToStop, tempDir);
+        }
+        playingSets.delete(port);
 
-      writeOverlayJson();
-      obsConnection.transition(playingSets);
-      sendPlaying();
-    }
-  });
+        writeOverlayJson();
+        obsConnection.transition(playingSets);
+        sendPlaying();
+      }
+    },
+  );
 
   ipcMain.removeHandler('queue');
-  ipcMain.handle('queue', (event: IpcMainInvokeEvent, dirName: string) => {
-    const setToQueue = availableSets.find((set) => set.dirName === dirName);
+  ipcMain.handle('queue', (event: IpcMainInvokeEvent, originalPath: string) => {
+    const setToQueue = availableSets.find(
+      (set) => set.originalPath === originalPath,
+    );
     if (!setToQueue) {
-      throw new Error(`no such set to queue: ${dirName}`);
+      throw new Error(`no such set to queue: ${originalPath}`);
     }
 
     queuedSet = setToQueue;

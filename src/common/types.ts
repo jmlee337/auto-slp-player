@@ -132,13 +132,20 @@ export type MainContext = {
   startMs: number;
 };
 
+export enum SetType {
+  UNKNOWN,
+  DIR,
+  ZIP,
+}
+
 export type AvailableSet = {
   context?: MainContext;
-  dirName: string;
   invalidReason: string;
+  originalPath: string;
   playedMs: number;
   playing: boolean;
   replayPaths: string[];
+  type: SetType;
 };
 
 export type RenderContext = {
@@ -162,8 +169,8 @@ export type RenderContext = {
 
 export type RenderSet = {
   context?: RenderContext;
-  dirName: string;
   invalidReason: string;
+  originalPath: string;
   played: boolean;
   playing: boolean;
 };

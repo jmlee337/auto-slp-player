@@ -165,7 +165,7 @@ export function toMainContext(context: Context): MainContext | undefined {
 
 export function toRenderSet(set: AvailableSet): RenderSet {
   const renderSet: RenderSet = {
-    dirName: set.dirName,
+    originalPath: set.originalPath,
     invalidReason: set.invalidReason,
     played: set.playedMs !== 0,
     playing: set.playing,

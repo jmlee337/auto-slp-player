@@ -399,7 +399,7 @@ function Hello() {
             <ListItem
               dense
               disablePadding
-              key={renderSet.dirName}
+              key={renderSet.originalPath}
               style={{
                 gap: '8px',
                 opacity: renderSet.played ? '50%' : '100%',
@@ -413,7 +413,7 @@ function Hello() {
                     renderSets: newRenderSets,
                     queuedSetDirName: newQueuedSetDirName,
                   } = await window.electron.markPlayed(
-                    renderSet.dirName,
+                    renderSet.originalPath,
                     !renderSet.played,
                   );
                   setRenderSets(newRenderSets);
@@ -472,13 +472,13 @@ function Hello() {
                   </ListItemText>
                 </Stack>
               ) : (
-                <ListItemText>{renderSet.dirName}</ListItemText>
+                <ListItemText>{renderSet.originalPath}</ListItemText>
               )}
               {renderSet.playing ? (
                 <Tooltip arrow title="Stop">
                   <IconButton
                     onClick={async () => {
-                      window.electron.stop(renderSet.dirName);
+                      window.electron.stop(renderSet.originalPath);
                     }}
                   >
                     <Stop />
@@ -488,8 +488,8 @@ function Hello() {
                 <Tooltip arrow title="Play next">
                   <IconButton
                     onClick={async () => {
-                      window.electron.queue(renderSet.dirName);
-                      setQueuedSetDirName(renderSet.dirName);
+                      window.electron.queue(renderSet.originalPath);
+                      setQueuedSetDirName(renderSet.originalPath);
                     }}
                   >
                     <SubdirectoryArrowRight />
@@ -499,7 +499,7 @@ function Hello() {
               <Tooltip arrow title="Play now">
                 <IconButton
                   onClick={() => {
-                    window.electron.play(renderSet.dirName);
+                    window.electron.play(renderSet.originalPath);
                   }}
                 >
                   <PlayArrow />
@@ -511,7 +511,7 @@ function Hello() {
                     <CircularProgress size="24px" />
                   </Tooltip>
                 )}
-                {renderSet.dirName === queuedSetDirName && (
+                {renderSet.originalPath === queuedSetDirName && (
                   <Tooltip arrow title="Next...">
                     <PlaylistAddCheck />
                   </Tooltip>

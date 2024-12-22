@@ -2,7 +2,7 @@ import { IpcRendererEvent, contextBridge, ipcRenderer } from 'electron';
 import {
   OBSConnectionStatus,
   OBSSettings,
-  RenderSet,
+  RendererSet,
   TwitchSettings,
 } from '../common/types';
 
@@ -31,7 +31,7 @@ const electronHandler = {
   markPlayed: (
     dirName: string,
     played: boolean,
-  ): Promise<{ renderSets: RenderSet[]; queuedSetDirName: string }> =>
+  ): Promise<{ rendererSets: RendererSet[]; queuedSetDirName: string }> =>
     ipcRenderer.invoke('markPlayed', dirName, played),
   getGenerateOverlay: (): Promise<boolean> =>
     ipcRenderer.invoke('getGenerateOverlay'),
@@ -88,7 +88,7 @@ const electronHandler = {
   onPlaying: (
     callback: (
       event: IpcRendererEvent,
-      renderSets: RenderSet[],
+      rendererSets: RendererSet[],
       queuedSetDirName: string,
     ) => void,
   ) => {
@@ -107,7 +107,7 @@ const electronHandler = {
   onUnzip: (
     callback: (
       event: IpcRendererEvent,
-      renderSets: RenderSet[],
+      rendererSets: RendererSet[],
       queuedSetDirName: string,
     ) => void,
   ) => {

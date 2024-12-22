@@ -36,7 +36,7 @@ import {
 import { IpcRendererEvent } from 'electron';
 import {
   OBSConnectionStatus,
-  RenderSet,
+  RendererSet,
   Stream,
   TwitchSettings,
 } from '../common/types';
@@ -179,7 +179,7 @@ function Hello() {
   const [watchDir, setWatchDir] = useState('');
   const [dolphinsOpening, setDolphinsOpening] = useState(false);
   const [queuedSetDirName, setQueuedSetDirName] = useState('');
-  const [renderSets, setRenderSets] = useState<RenderSet[]>([]);
+  const [rendererSets, setRendererSets] = useState<RendererSet[]>([]);
   const [obsError, setObsError] = useState('');
   const [obsErrorDialogOpen, setObsErrorDialogOpen] = useState(false);
   useEffect(() => {
@@ -214,11 +214,11 @@ function Hello() {
     window.electron.onPlaying(
       (
         event: IpcRendererEvent,
-        newRenderSets: RenderSet[],
+        newRendererSets: RendererSet[],
         newQueuedSetDirName: string,
       ) => {
         setQueuedSetDirName(newQueuedSetDirName);
-        setRenderSets(newRenderSets);
+        setRendererSets(newRendererSets);
       },
     );
     window.electron.onTwitchBotStatus((event, { connected, error }) => {
@@ -228,11 +228,11 @@ function Hello() {
     window.electron.onUnzip(
       (
         event: IpcRendererEvent,
-        newRenderSets: RenderSet[],
+        newRendererSets: RendererSet[],
         newQueuedSetDirName: string,
       ) => {
         setQueuedSetDirName(newQueuedSetDirName);
-        setRenderSets(newRenderSets);
+        setRendererSets(newRendererSets);
       },
     );
   }, []);
@@ -393,92 +393,92 @@ function Hello() {
           {streamingMsg}
         </Button>
       </Stack>
-      {renderSets && (
+      {rendererSets && (
         <List>
-          {renderSets.map((renderSet) => (
+          {rendererSets.map((rendererSet) => (
             <ListItem
               dense
               disablePadding
-              key={renderSet.originalPath}
+              key={rendererSet.originalPath}
               style={{
                 gap: '8px',
-                opacity: renderSet.played ? '50%' : '100%',
+                opacity: rendererSet.played ? '50%' : '100%',
               }}
             >
               <Checkbox
-                checked={!renderSet.played}
+                checked={!rendererSet.played}
                 disableRipple
                 onClick={async () => {
                   const {
-                    renderSets: newRenderSets,
+                    rendererSets: newRendererSets,
                     queuedSetDirName: newQueuedSetDirName,
                   } = await window.electron.markPlayed(
-                    renderSet.originalPath,
-                    !renderSet.played,
+                    rendererSet.originalPath,
+                    !rendererSet.played,
                   );
-                  setRenderSets(newRenderSets);
+                  setRendererSets(newRendererSets);
                   setQueuedSetDirName(newQueuedSetDirName);
                 }}
               />
-              {renderSet.invalidReason && (
-                <Tooltip arrow title={renderSet.invalidReason}>
+              {rendererSet.invalidReason && (
+                <Tooltip arrow title={rendererSet.invalidReason}>
                   <Report style={{ padding: '9px' }} />
                 </Tooltip>
               )}
-              {renderSet.context ? (
+              {rendererSet.context ? (
                 <Stack direction="row" flexGrow={1} spacing="8px">
                   <ListItemText primaryTypographyProps={{ noWrap: true }}>
-                    {renderSet.context.namesLeft} vs{' '}
-                    {renderSet.context.namesRight}
+                    {rendererSet.context.namesLeft} vs{' '}
+                    {rendererSet.context.namesRight}
                   </ListItemText>
                   {twitchChannel &&
-                    renderSet.context.startgg?.stream &&
-                    (renderSet.context.startgg.stream.domain !== 'twitch' ||
-                      renderSet.context.startgg.stream.path !==
+                    rendererSet.context.startgg?.stream &&
+                    (rendererSet.context.startgg.stream.domain !== 'twitch' ||
+                      rendererSet.context.startgg.stream.path !==
                         twitchChannel) && (
                       <TwitchStreamIcon
-                        stream={renderSet.context.startgg.stream}
+                        stream={rendererSet.context.startgg.stream}
                       />
                     )}
                   {twitchChannel &&
-                    renderSet.context.challonge?.stream &&
-                    (renderSet.context.challonge.stream.domain !== 'twitch' ||
-                      renderSet.context.challonge.stream.path !==
+                    rendererSet.context.challonge?.stream &&
+                    (rendererSet.context.challonge.stream.domain !== 'twitch' ||
+                      rendererSet.context.challonge.stream.path !==
                         twitchChannel) && (
                       <TwitchStreamIcon
-                        stream={renderSet.context.challonge.stream}
+                        stream={rendererSet.context.challonge.stream}
                       />
                     )}
                   <ListItemText sx={{ flexGrow: 0, flexShrink: 0 }}>
-                    {renderSet.context.startgg &&
-                      `${renderSet.context.startgg.fullRoundText} `}
-                    {renderSet.context.challonge &&
-                      `${renderSet.context.challonge.fullRoundText} `}
-                    (BO{renderSet.context.bestOf})
+                    {rendererSet.context.startgg &&
+                      `${rendererSet.context.startgg.fullRoundText} `}
+                    {rendererSet.context.challonge &&
+                      `${rendererSet.context.challonge.fullRoundText} `}
+                    (BO{rendererSet.context.bestOf})
                   </ListItemText>
-                  {renderSet.context.startgg && (
+                  {rendererSet.context.startgg && (
                     <ListItemText sx={{ flexGrow: 0, flexShrink: 0 }}>
-                      {renderSet.context.startgg.eventName},{' '}
-                      {renderSet.context.startgg.phaseName}
+                      {rendererSet.context.startgg.eventName},{' '}
+                      {rendererSet.context.startgg.phaseName}
                     </ListItemText>
                   )}
-                  {renderSet.context.challonge && (
+                  {rendererSet.context.challonge && (
                     <ListItemText sx={{ flexGrow: 0, flexShrink: 0 }}>
-                      {renderSet.context.challonge.tournamentName}
+                      {rendererSet.context.challonge.tournamentName}
                     </ListItemText>
                   )}
                   <ListItemText sx={{ flexGrow: 0, flexShrink: 0 }}>
-                    {renderSet.context.duration}
+                    {rendererSet.context.duration}
                   </ListItemText>
                 </Stack>
               ) : (
-                <ListItemText>{renderSet.originalPath}</ListItemText>
+                <ListItemText>{rendererSet.originalPath}</ListItemText>
               )}
-              {renderSet.playing ? (
+              {rendererSet.playing ? (
                 <Tooltip arrow title="Stop">
                   <IconButton
                     onClick={async () => {
-                      window.electron.stop(renderSet.originalPath);
+                      window.electron.stop(rendererSet.originalPath);
                     }}
                   >
                     <Stop />
@@ -488,8 +488,8 @@ function Hello() {
                 <Tooltip arrow title="Play next">
                   <IconButton
                     onClick={async () => {
-                      window.electron.queue(renderSet.originalPath);
-                      setQueuedSetDirName(renderSet.originalPath);
+                      window.electron.queue(rendererSet.originalPath);
+                      setQueuedSetDirName(rendererSet.originalPath);
                     }}
                   >
                     <SubdirectoryArrowRight />
@@ -499,19 +499,19 @@ function Hello() {
               <Tooltip arrow title="Play now">
                 <IconButton
                   onClick={() => {
-                    window.electron.play(renderSet.originalPath);
+                    window.electron.play(rendererSet.originalPath);
                   }}
                 >
                   <PlayArrow />
                 </IconButton>
               </Tooltip>
               <Box padding="8px" height="24px" width="24px">
-                {renderSet.playing && (
+                {rendererSet.playing && (
                   <Tooltip arrow title="Playing...">
                     <CircularProgress size="24px" />
                   </Tooltip>
                 )}
-                {renderSet.originalPath === queuedSetDirName && (
+                {rendererSet.originalPath === queuedSetDirName && (
                   <Tooltip arrow title="Next...">
                     <PlaylistAddCheck />
                   </Tooltip>

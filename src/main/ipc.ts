@@ -35,7 +35,7 @@ import {
   TwitchSettings,
 } from '../common/types';
 import { Dolphin, DolphinEvent } from './dolphin';
-import { toRenderSet } from './set';
+import { toRendererSet } from './set';
 import OBSConnection from './obs';
 
 // taken from https://semver.org/#is-there-a-suggested-regular-expression-regex-to-check-a-semver-string
@@ -236,7 +236,7 @@ export default async function setupIPCs(
   const sendPlaying = () => {
     mainWindow.webContents.send(
       'playing',
-      availableSets.map(toRenderSet),
+      availableSets.map(toRendererSet),
       queuedSet ? queuedSet.originalPath : '',
     );
   };
@@ -663,7 +663,7 @@ export default async function setupIPCs(
       const writeTimestamps = async () => {
         const timecode = await obsConnection.getTimecode();
         if (timecode) {
-          const rendererSet = toRenderSet(set);
+          const rendererSet = toRendererSet(set);
           const desc = rendererSet.context
             ? `${rendererSet.context.namesLeft} vs ${rendererSet.context.namesRight}`
             : path.basename(rendererSet.originalPath, '.zip');
@@ -874,7 +874,7 @@ export default async function setupIPCs(
         if (newSet.playing) {
           mainWindow.webContents.send(
             'unzip',
-            availableSets.map(toRenderSet),
+            availableSets.map(toRendererSet),
             queuedSet ? queuedSet.originalPath : '',
           );
           return;
@@ -912,7 +912,7 @@ export default async function setupIPCs(
           writeOverlayJson();
           mainWindow.webContents.send(
             'unzip',
-            availableSets.map(toRenderSet),
+            availableSets.map(toRendererSet),
             queuedSet ? queuedSet.originalPath : '',
           );
         }
@@ -958,7 +958,7 @@ export default async function setupIPCs(
       }
       writeOverlayJson();
       return {
-        renderSets: availableSets.map(toRenderSet),
+        rendererSets: availableSets.map(toRendererSet),
         queuedSetDirName: queuedSet ? queuedSet.originalPath : '',
       };
     },

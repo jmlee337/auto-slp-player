@@ -148,7 +148,7 @@ export type AvailableSet = {
   type: SetType;
 };
 
-export type RenderContext = {
+export type RendererContext = {
   bestOf: number;
   duration: string;
   namesLeft: string;
@@ -167,8 +167,8 @@ export type RenderContext = {
   };
 };
 
-export type RenderSet = {
-  context?: RenderContext;
+export type RendererSet = {
+  context?: RendererContext;
   invalidReason: string;
   originalPath: string;
   played: boolean;

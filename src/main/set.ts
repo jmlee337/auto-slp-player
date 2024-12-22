@@ -5,7 +5,7 @@ import {
   MainContext,
   MainContextScore,
   MainContextSlot,
-  RenderSet,
+  RendererSet,
 } from '../common/types';
 
 export function toMainContext(context: Context): MainContext | undefined {
@@ -163,22 +163,22 @@ export function toMainContext(context: Context): MainContext | undefined {
   return mainContext;
 }
 
-export function toRenderSet(set: AvailableSet): RenderSet {
-  const renderSet: RenderSet = {
+export function toRendererSet(set: AvailableSet): RendererSet {
+  const rendererSet: RendererSet = {
     originalPath: set.originalPath,
     invalidReason: set.invalidReason,
     played: set.playedMs !== 0,
     playing: set.playing,
   };
   if (set.context) {
-    renderSet.context = {
+    rendererSet.context = {
       bestOf: set.context.bestOf,
       namesLeft: set.context.scores[0].slots[0].displayNames.join(' / '),
       namesRight: set.context.scores[0].slots[1].displayNames.join(' / '),
       duration: format(new Date(set.context.durationMs), 'm:ss'),
     };
     if (set.context.startgg) {
-      renderSet.context.startgg = {
+      rendererSet.context.startgg = {
         fullRoundText: set.context.startgg.set.fullRoundText,
         eventName: set.context.startgg.event.name,
         phaseName: set.context.startgg.phase.name,
@@ -187,12 +187,12 @@ export function toRenderSet(set: AvailableSet): RenderSet {
       };
     }
     if (set.context.challonge) {
-      renderSet.context.challonge = {
+      rendererSet.context.challonge = {
         tournamentName: set.context.challonge.tournament.name,
         fullRoundText: set.context.challonge.set.fullRoundText,
         stream: set.context.challonge.set.stream,
       };
     }
   }
-  return renderSet;
+  return rendererSet;
 }

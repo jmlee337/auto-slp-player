@@ -18,7 +18,7 @@
       .event-phase-name {
         margin-top: 8px;
       }
-      .round-bo, .event-phase-name, .upcoming-title {
+      .round-bo, .event-phase-name {
         font-size: 24px;
         line-height: 30px;
       }
@@ -39,7 +39,7 @@
       .tournament-name {
         margin-bottom: 8px;
       }
-      .tournament-name, .left, .right, .upcoming-set {
+      .tournament-name, .left, .right {
         font-size: 36px;
         line-height: 44px;
       }
@@ -52,7 +52,7 @@
         height: 50%;
         padding: 0 8px;
       }
-      .upcoming {
+      .spacer {
         flex-grow: 1;
       }
     </style>
@@ -61,13 +61,7 @@
     <div class="half">
       <div class="event-phase-name">Melee Singles, Bracket</div>
       <div class="tournament-name">Shuuten Tokyo 終点東京 #7</div>
-      <div class="upcoming">
-        <div class="upcoming-title">Next:</div>
-        <div class="upcoming-set">slurms vs Tyku</div>
-        <div class="upcoming-set">slurms vs Tyku</div>
-        <div class="upcoming-set">slurms vs Tyku</div>
-        <div class="upcoming-set">slurms vs Tyku</div>
-      </div>
+      <div class="spacer"></div>
       <div class="set set-0">
         <div class="round-bo">Losers Quarter-Final (BO3)</div>
         <div class="left">
@@ -88,7 +82,6 @@
         eventName: '',
         phaseName: '',
         sets: [],
-        upcoming: [],
       }
       function getElementByClassName(className, parentEl) {
         const element = parentEl ?? document;
@@ -163,26 +156,6 @@
             const rightScore = rightFullNames.length > 0 ? set.rightScore.toString() : '';
             replace('right-full-names', rightFullNames.join(', '), setEl);
             replace('right-score', rightScore, setEl);
-          }
-
-          const upcoming = getElementByClassName('upcoming');
-          upcoming.innerText = '';
-          if (newContext.upcoming.length > 0) {
-            const newUpcomingTitle = document.createElement('div');
-            newUpcomingTitle.className = 'upcoming-title';
-            newUpcomingTitle.innerText = 'Next:';
-            upcoming.appendChild(newUpcomingTitle);
-            for (const upcomingSet of newContext.upcoming.slice(0, 4)) {
-              const newSet = document.createElement('div');
-              newSet.className = 'upcoming-set';
-              newSet.innerText = `${upcomingSet.leftNames.join(', ')} vs ${upcomingSet.rightNames.join(', ')}`;
-              upcoming.appendChild(newSet);
-            }
-          } else if (newContext.upcomingRoundName) {
-            const newUpcomingTitle = document.createElement('div');
-            newUpcomingTitle.className = 'upcoming-title';
-            newUpcomingTitle.innerText = `Next: ${newContext.upcomingRoundName}`;
-            upcoming.appendChild(newUpcomingTitle);
           }
 
           context = newContext;

@@ -31,7 +31,7 @@ import {
   Terminal,
 } from '@mui/icons-material';
 import styled from '@emotion/styled';
-import { TwitchSettings } from '../common/types';
+import { SplitOption, TwitchSettings } from '../common/types';
 
 const Form = styled.form`
   display: flex;
@@ -118,6 +118,8 @@ export default function Settings({
   setGenerateOverlay,
   generateTimestamps,
   setGenerateTimestamps,
+  splitOption,
+  setSplitOption,
   twitchChannel,
   setTwitchChannel,
   twitchSettings,
@@ -150,6 +152,8 @@ export default function Settings({
   setGenerateOverlay: (generateOverlay: boolean) => void;
   generateTimestamps: boolean;
   setGenerateTimestamps: (generateTimestamps: boolean) => void;
+  splitOption: SplitOption;
+  setSplitOption: (splitOption: SplitOption) => void;
   twitchChannel: string;
   setTwitchChannel: (twitchChannel: string) => void;
   twitchSettings: TwitchSettings;
@@ -339,30 +343,55 @@ export default function Settings({
               label="Generate Timestamps"
             />
           </Box>
-          <FormControl variant="filled">
-            <InputLabel id="max-dolphins-select-label">Max Dolphins</InputLabel>
-            <Select
-              value={maxDolphins}
-              onChange={async (event) => {
-                const newMaxDolphins = event.target.value;
-                if (Number.isInteger(newMaxDolphins)) {
-                  await window.electron.setMaxDolphins(
-                    newMaxDolphins as number,
-                  );
-                  setMaxDolphins(newMaxDolphins as number);
-                }
-              }}
-              labelId="max-dolphins-select-label"
-              size="small"
-              style={{ width: '120px' }}
-              variant="filled"
-            >
-              <MenuItem value={1}>1</MenuItem>
-              <MenuItem value={2}>2</MenuItem>
-              <MenuItem value={3}>3</MenuItem>
-              <MenuItem value={4}>4</MenuItem>
-            </Select>
-          </FormControl>
+          <Stack direction="row" spacing="8px">
+            <FormControl variant="filled">
+              <InputLabel id="max-dolphins-select-label">
+                Max Dolphins
+              </InputLabel>
+              <Select
+                value={maxDolphins}
+                onChange={async (event) => {
+                  const newMaxDolphins = event.target.value;
+                  if (Number.isInteger(newMaxDolphins)) {
+                    await window.electron.setMaxDolphins(
+                      newMaxDolphins as number,
+                    );
+                    setMaxDolphins(newMaxDolphins as number);
+                  }
+                }}
+                labelId="max-dolphins-select-label"
+                size="small"
+                style={{ width: '120px' }}
+                variant="filled"
+              >
+                <MenuItem value={1}>1</MenuItem>
+                <MenuItem value={2}>2</MenuItem>
+                <MenuItem value={3}>3</MenuItem>
+                <MenuItem value={4}>4</MenuItem>
+              </Select>
+            </FormControl>
+            <FormControl variant="filled">
+              <InputLabel id="split-option-select-label">
+                Queue Split
+              </InputLabel>
+              <Select
+                value={splitOption}
+                onChange={async (event) => {
+                  const newSplitOption = event.target.value as SplitOption;
+                  await window.electron.setSplitOption(newSplitOption);
+                  setSplitOption(newSplitOption);
+                }}
+                labelId="split-option-select-label"
+                size="small"
+                style={{ width: '120px' }}
+                variant="filled"
+              >
+                <MenuItem value={SplitOption.NONE}>No split</MenuItem>
+                <MenuItem value={SplitOption.EVENT}>By event</MenuItem>
+                <MenuItem value={SplitOption.PHASE}>By phase</MenuItem>
+              </Select>
+            </FormControl>
+          </Stack>
           <Stack marginTop="8px">
             <DialogContentText>
               OBS Scene/Source setup info{' '}

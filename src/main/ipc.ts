@@ -32,11 +32,13 @@ import {
   OverlayContext,
   OverlaySet,
   SetType,
+  SplitOption,
   TwitchSettings,
 } from '../common/types';
 import { Dolphin, DolphinEvent } from './dolphin';
 import { toRendererSet } from './set';
 import OBSConnection from './obs';
+import Queue from './queue';
 
 // taken from https://semver.org/#is-there-a-suggested-regular-expression-regex-to-check-a-semver-string
 // via https://github.com/project-slippi/slippi-launcher/blob/ae8bb69e235b6e46b24bc966aeaa80f45030c6f9/src/dolphin/install/ishiiruka_installation.ts#L23-L24
@@ -44,16 +46,30 @@ import OBSConnection from './obs';
 const SEMVER_REGEX =
   /(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(?:-((?:0|[1-9][0-9]*|[0-9]*[a-zA-Z-][0-9a-zA-Z-]*)(?:\.(?:0|[1-9][0-9]*|[0-9]*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\+([0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?/;
 
-function willNotSpoil(setA: AvailableSet, setB: AvailableSet) {
+function willNotSpoil(
+  setA: AvailableSet,
+  setB: AvailableSet,
+  splitOption: SplitOption,
+) {
   const aStartgg = setA.context?.startgg;
   const bStartgg = setB.context?.startgg;
   const aChallonge = setA.context?.challonge;
   const bChallonge = setB.context?.challonge;
-  if (!aStartgg && !bStartgg && !aChallonge && !bChallonge) {
+  if ((!aStartgg && !bStartgg) || (!aChallonge && !bChallonge)) {
     return true;
   }
-  if (aStartgg && bStartgg && aStartgg.phase.id === bStartgg.phase.id) {
-    if (aStartgg.phaseGroup.id !== bStartgg.phaseGroup.id) {
+  if (
+    aStartgg &&
+    bStartgg &&
+    (aStartgg.phase.id === bStartgg.phase.id ||
+      splitOption === SplitOption.PHASE)
+  ) {
+    if (
+      aStartgg.event.slug !== bStartgg.event.slug ||
+      aStartgg.phaseGroup.id !== bStartgg.phaseGroup.id ||
+      (aStartgg.phase.id !== bStartgg.phase.id &&
+        splitOption === SplitOption.PHASE)
+    ) {
       return true;
     }
     if (
@@ -69,8 +85,15 @@ function willNotSpoil(setA: AvailableSet, setB: AvailableSet) {
   if (
     aChallonge &&
     bChallonge &&
-    aChallonge.tournament.slug === bChallonge.tournament.slug
+    (aChallonge.tournament.slug === bChallonge.tournament.slug ||
+      splitOption !== SplitOption.NONE)
   ) {
+    if (
+      aChallonge.tournament.slug !== bChallonge.tournament.slug &&
+      splitOption !== SplitOption.NONE
+    ) {
+      return true;
+    }
     if (
       aChallonge.tournament.tournamentType === 'round robin' &&
       bChallonge.tournament.tournamentType === 'round robin'
@@ -102,6 +125,9 @@ export default async function setupIPCs(
   let generateTimestamps = store.has('generateTimestamps')
     ? (store.get('generateTimestamps') as boolean)
     : true;
+  let splitOption: SplitOption = store.has('splitOption')
+    ? (store.get('splitOption') as SplitOption)
+    : SplitOption.EVENT;
   let twitchChannel = store.has('twitchChannel')
     ? (store.get('twitchChannel') as string)
     : '';
@@ -230,129 +256,18 @@ export default async function setupIPCs(
     }
   }
 
-  const availableSets: AvailableSet[] = [];
-  let queuedSet: AvailableSet | null = null;
-  let wasManuallyQueued = false;
-  const sendPlaying = () => {
+  const idToQueue = new Map<string, Queue>();
+  const sendQueues = () => {
     mainWindow.webContents.send(
-      'playing',
-      availableSets.map(toRendererSet),
-      queuedSet ? queuedSet.originalPath : '',
+      'queues',
+      Array.from(idToQueue.values()).map((queue) => queue.toRendererQueue()),
     );
   };
-
   const originalPathToPlayedMs = new Map<string, number>();
-  const sortAvailableSets = () => {
-    availableSets.sort((a, b) => {
-      if (a.context?.startgg && b.context?.startgg) {
-        const aStartgg = a.context.startgg;
-        const bStartgg = b.context.startgg;
-        const eventNameCompare = aStartgg.event.name.localeCompare(
-          bStartgg.event.name,
-        );
-        if (eventNameCompare) {
-          return eventNameCompare;
-        }
-        const phaseIdCompare = aStartgg.phase.id - bStartgg.phase.id;
-        if (phaseIdCompare) {
-          return phaseIdCompare;
-        }
-        if (
-          aStartgg.phaseGroup.bracketType === 3 &&
-          bStartgg.phaseGroup.bracketType === 3
-        ) {
-          // RR pools may not actually be played in round order,
-          // and there's also no inter-round dependencies
-          return (
-            a.context.startMs +
-            a.context.durationMs -
-            (b.context.startMs - b.context.durationMs)
-          );
-        }
-        const aRound = aStartgg.set.round;
-        const bRound = bStartgg.set.round;
-        if (aRound !== bRound) {
-          if (aStartgg.set.ordinal !== null && bStartgg.set.ordinal !== null) {
-            return aStartgg.set.ordinal - bStartgg.set.ordinal;
-          }
-          // only non-DE so this comparison is safe
-          return aRound - bRound;
-        }
-        if (a.playedMs && b.playedMs) {
-          return a.playedMs - b.playedMs;
-        }
-        if (a.playedMs && !b.playedMs) {
-          return -1;
-        }
-        if (!a.playedMs && b.playedMs) {
-          return 1;
-        }
-        return b.context.durationMs - a.context.durationMs;
-      }
-      if (a.context?.challonge && b.context?.challonge) {
-        const aChallonge = a.context.challonge;
-        const bChallonge = b.context.challonge;
-        const tournamentNameCompare = aChallonge.tournament.name.localeCompare(
-          bChallonge.tournament.name,
-        );
-        if (tournamentNameCompare) {
-          return tournamentNameCompare;
-        }
-        if (
-          aChallonge.tournament.tournamentType === 'round robin' &&
-          bChallonge.tournament.tournamentType === 'round robin'
-        ) {
-          // RR pools may not actually be played in round order,
-          // and there's also no inter-round dependencies
-          return (
-            a.context.startMs +
-            a.context.durationMs -
-            (b.context.startMs - b.context.durationMs)
-          );
-        }
-        const aRound = aChallonge.set.round;
-        const bRound = bChallonge.set.round;
-        if (aRound !== bRound) {
-          const aOrdinal = aChallonge.set.ordinal;
-          const bOrdinal = bChallonge.set.ordinal;
-          if (aOrdinal !== null && bOrdinal !== null) {
-            return aOrdinal - bOrdinal;
-          }
-          // only if swiss so this comparison is safe
-          return aRound - bRound;
-        }
-        if (a.playedMs && b.playedMs) {
-          return a.playedMs - b.playedMs;
-        }
-        if (a.playedMs && !b.playedMs) {
-          return -1;
-        }
-        if (!a.playedMs && b.playedMs) {
-          return 1;
-        }
-        return b.context.durationMs - a.context.durationMs;
-      }
-      if (a.context && b.context) {
-        return (
-          a.context.startMs +
-          a.context.durationMs -
-          (b.context.startMs - b.context.durationMs)
-        );
-      }
-      if (!a.context && b.context) {
-        return -1;
-      }
-      if (a.context && !b.context) {
-        return 1;
-      }
-      return a.originalPath.localeCompare(b.originalPath);
-    });
-  };
-
   const playingSets: Map<number, AvailableSet> = new Map();
   const willNotSpoilPlayingSets = (prospectiveSet: AvailableSet) => {
     return Array.from(playingSets.values()).every((playingSet) =>
-      willNotSpoil(playingSet, prospectiveSet),
+      willNotSpoil(playingSet, prospectiveSet, splitOption),
     );
   };
 
@@ -361,9 +276,6 @@ export default async function setupIPCs(
   let lastStartggTournamentName = '';
   let lastStartggEventName = '';
   let lastStartggEventSlug = '';
-  let lastStartggPhaseName = '';
-  let lastStartggPhaseId = 0;
-  let lastStartggPhaseGroupId = 0;
   let lastChallongeTournamentName = '';
   let lastChallongeTournamentSlug = '';
   const writeOverlayJson = async () => {
@@ -374,28 +286,30 @@ export default async function setupIPCs(
     const overlayFilePath = path.join(overlayPath, 'overlay.json');
     let startggTournamentName = lastStartggTournamentName;
     let startggEventName = lastStartggEventName;
-    let startggPhaseName = lastStartggPhaseName;
+    let startggPhaseName = '';
     let challongeTournamentName = lastChallongeTournamentName;
     const sets: OverlaySet[] = [];
-    const upcoming: { leftNames: string[]; rightNames: string[] }[] = [];
-    let upcomingRoundName = '';
 
     const eventSlugs = new Set<string>();
     let eventHasSiblings = false;
     const phaseIds = new Set<number>();
     let phaseHasSiblings = false;
     const phaseGroupIds = new Set<number>();
+    const challongeSlugs = new Set<string>();
     const entriesWithContexts = Array.from(playingSets.entries()).filter(
       ([, playingSet]) => playingSet.context,
-    ) as [number, AvailableSet][];
+    );
     entriesWithContexts.forEach(([, playingSet]) => {
       const startgg = playingSet.context?.startgg;
+      const challonge = playingSet.context?.challonge;
       if (startgg) {
         eventSlugs.add(startgg.event.slug);
         eventHasSiblings = startgg.event.hasSiblings;
         phaseIds.add(startgg.phase.id);
         phaseHasSiblings = startgg.phase.hasSiblings;
         phaseGroupIds.add(startgg.phaseGroup.id);
+      } else if (challonge) {
+        challongeSlugs.add(challonge.tournament.slug);
       }
     });
     if (entriesWithContexts.length > 0) {
@@ -413,96 +327,11 @@ export default async function setupIPCs(
           phaseIds.size === 1 && phaseHasSiblings
             ? representativeStartgg.phase.name
             : '';
-
-        if (queuedSet) {
-          const queuedSetStartgg = queuedSet.context?.startgg;
-          const round = queuedSetStartgg?.set.round;
-          const sameRound = round === representativeStartgg.set.round;
-          const phaseId = queuedSetStartgg?.phase.id;
-          const samePhaseRR =
-            queuedSetStartgg?.phaseGroup.bracketType === 3 &&
-            representativeStartgg.phaseGroup.bracketType === 3 &&
-            phaseId === representativeStartgg.phase.id;
-          if (sameRound || samePhaseRR) {
-            const sameRoundSets = samePhaseRR
-              ? availableSets.filter(
-                  (availableSet) =>
-                    availableSet.context?.startgg?.phaseGroup.bracketType ===
-                      3 && availableSet.context?.startgg?.phase.id === phaseId,
-                )
-              : availableSets.filter(
-                  (availableSet) =>
-                    availableSet.context?.startgg?.set.round === round,
-                );
-            const startI = sameRoundSets.findIndex(
-              (set) => set.originalPath === queuedSet!.originalPath,
-            );
-            upcoming.push({
-              leftNames:
-                sameRoundSets[startI].context!.scores[0].slots[0].displayNames,
-              rightNames:
-                sameRoundSets[startI].context!.scores[0].slots[1].displayNames,
-            });
-            for (let i = startI + 1; i < sameRoundSets.length; i += 1) {
-              if (sameRoundSets[i].playedMs === 0) {
-                upcoming.push({
-                  leftNames:
-                    sameRoundSets[i].context!.scores[0].slots[0].displayNames,
-                  rightNames:
-                    sameRoundSets[i].context!.scores[0].slots[1].displayNames,
-                });
-              }
-            }
-          } else if (queuedSet.context?.startgg?.set.fullRoundText) {
-            let prefix = '';
-            if (
-              queuedSet.context.startgg.phase.id !==
-              representativeStartgg.phase.id
-            ) {
-              prefix = `${queuedSet.context.startgg.phase.name}, `;
-            }
-            if (
-              queuedSet.context.startgg.event.slug !==
-              representativeStartgg.event.slug
-            ) {
-              prefix = `${queuedSet.context.startgg.event.name}, ${prefix}`;
-            }
-            const roundName = queuedSet.context.startgg.set.fullRoundText;
-            upcomingRoundName = `${prefix}${roundName}`;
-          }
-        }
       } else if (representativeChallonge) {
-        challongeTournamentName = representativeChallonge.tournament.name;
-        if (queuedSet) {
-          const round = queuedSet.context?.challonge?.set.round;
-          if (round === representativeChallonge.set.round) {
-            const sameRoundSets = availableSets.filter(
-              (availableSet) =>
-                availableSet.context?.challonge?.set.round === round,
-            );
-            const startI = sameRoundSets.findIndex(
-              (set) => set.originalPath === queuedSet!.originalPath,
-            );
-            upcoming.push({
-              leftNames:
-                sameRoundSets[startI].context!.scores[0].slots[0].displayNames,
-              rightNames:
-                sameRoundSets[startI].context!.scores[0].slots[1].displayNames,
-            });
-            for (let i = startI + 1; i < sameRoundSets.length; i += 1) {
-              if (sameRoundSets[i].playedMs === 0) {
-                upcoming.push({
-                  leftNames:
-                    sameRoundSets[i].context!.scores[0].slots[0].displayNames,
-                  rightNames:
-                    sameRoundSets[i].context!.scores[0].slots[1].displayNames,
-                });
-              }
-            }
-          } else if (queuedSet.context?.challonge?.set.fullRoundText) {
-            upcomingRoundName = queuedSet.context.challonge.set.fullRoundText;
-          }
-        }
+        challongeTournamentName =
+          challongeSlugs.size === 1
+            ? representativeChallonge.tournament.name
+            : '';
       }
       entriesWithContexts.forEach(([port, playingSet]) => {
         const { context } = playingSet;
@@ -530,7 +359,13 @@ export default async function setupIPCs(
               roundName = `${context.startgg.event.name}, ${roundName}`;
             }
           } else if (context.challonge) {
-            roundName = context.challonge.set.fullRoundText;
+            roundName =
+              context.challonge.tournament.tournamentType === 'round robin'
+                ? 'Round Robin'
+                : context.challonge.set.fullRoundText;
+            if (challongeSlugs.size > 1) {
+              roundName = `${context.challonge.tournament.name}, ${roundName}`;
+            }
           }
           const { slots } = context.scores[gameIndex];
           sets[setIndex] = {
@@ -563,8 +398,6 @@ export default async function setupIPCs(
       : undefined;
     const overlayContext: OverlayContext = {
       sets,
-      upcoming,
-      upcomingRoundName,
       startgg,
       challonge,
     };
@@ -604,7 +437,11 @@ export default async function setupIPCs(
     }
     return actualPort;
   };
-  const playDolphin = async (set: AvailableSet, port?: number) => {
+  const playDolphin = async (
+    queue: Queue,
+    set: AvailableSet,
+    port?: number,
+  ) => {
     let actualPort = 0;
     if (!port) {
       if (dolphins.size > playingSets.size) {
@@ -627,32 +464,8 @@ export default async function setupIPCs(
 
     gameIndices.set(actualPort, 0);
     playingSets.set(actualPort, set);
-    set.invalidReason = '';
-    set.playedMs = Date.now();
-    set.playing = true;
     originalPathToPlayedMs.set(set.originalPath, set.playedMs);
-
-    const queueNextSet = (startI: number) => {
-      wasManuallyQueued = false;
-      if (startI < 0) {
-        queuedSet = null;
-        return;
-      }
-
-      for (let i = startI + 1; i < availableSets.length; i += 1) {
-        if (availableSets[i].playedMs === 0) {
-          queuedSet = availableSets[i];
-          return;
-        }
-      }
-      queuedSet = null;
-    };
-    sortAvailableSets();
-    queueNextSet(
-      availableSets.findIndex(
-        (value) => value.originalPath === set.originalPath,
-      ),
-    );
+    queue.dequeue(set);
 
     if (set.type === SetType.ZIP) {
       await unzip(set, tempDir);
@@ -674,8 +487,7 @@ export default async function setupIPCs(
       };
       writeTimestamps();
     }
-
-    sendPlaying();
+    sendQueues();
   };
   startDolphin = async (port: number) => {
     if (dolphins.get(port)) {
@@ -698,9 +510,6 @@ export default async function setupIPCs(
             lastStartggTournamentName = startgg.tournament.name;
             lastStartggEventName = startgg.event.name;
             lastStartggEventSlug = startgg.event.slug;
-            lastStartggPhaseName = startgg.phase.name;
-            lastStartggPhaseId = startgg.phase.id;
-            lastStartggPhaseGroupId = startgg.phaseGroup.id;
           } else if (challonge) {
             lastChallongeTournamentName = challonge.tournament.name;
             lastChallongeTournamentSlug = challonge.tournament.slug;
@@ -712,15 +521,16 @@ export default async function setupIPCs(
       gameIndices.delete(port);
       dolphins.delete(port);
       if (dolphins.size === 0) {
-        wasManuallyQueued = false;
-        queuedSet = null;
+        Array.from(idToQueue.values()).forEach((queue) => {
+          queue.clearNextSet();
+        });
       }
       obsConnection.setDolphins(dolphins);
 
       writeOverlayJson();
       obsConnection.transition(playingSets);
       mainWindow.webContents.send('dolphins', dolphins.size);
-      sendPlaying();
+      sendQueues();
     });
     newDolphin.on(DolphinEvent.PLAYING, (newGameIndex: number) => {
       gameIndices.set(port, newGameIndex);
@@ -741,26 +551,32 @@ export default async function setupIPCs(
       }
 
       playingSets.delete(port);
-      if (queuedSet) {
-        if (playingSets.size === 0) {
-          do {
+
+      const maybePlaySets = async (queues: Queue[]): Promise<number> => {
+        let setsPlayed = 0;
+        for (let i = 0; i < queues.length; i += 1) {
+          let { nextSet } = queues[i].peek();
+          while (nextSet && willNotSpoilPlayingSets(nextSet)) {
             // eslint-disable-next-line no-await-in-loop
-            await playDolphin(queuedSet);
-          } while (
-            queuedSet &&
-            playingSets.size + tryingPorts.size < maxDolphins &&
-            willNotSpoilPlayingSets(queuedSet)
-          );
-          obsConnection.transition(playingSets);
-          return;
+            await playDolphin(queues[i], nextSet);
+            setsPlayed += 1;
+            if (playingSets.size + tryingPorts.size >= maxDolphins) {
+              return setsPlayed;
+            }
+            nextSet = queues[i].peek().nextSet;
+          }
         }
-        if (willNotSpoilPlayingSets(queuedSet)) {
-          playDolphin(queuedSet, port);
-          return;
-        }
+        return setsPlayed;
+      };
+      const setsPlayed = await maybePlaySets(Array.from(idToQueue.values()));
+      if (setsPlayed !== 1) {
+        obsConnection.transition(playingSets);
+      }
+      if (setsPlayed > 0) {
+        return;
       }
 
-      // if we reach here, there's no next set to play
+      // if we reach here, we didn't play any sets
       if (playingSets.size === 0) {
         const startgg = playingSet.context?.startgg;
         const challonge = playingSet.context?.challonge;
@@ -768,20 +584,13 @@ export default async function setupIPCs(
           lastStartggTournamentName = startgg.tournament.name;
           lastStartggEventName = startgg.event.name;
           lastStartggEventSlug = startgg.event.slug;
-          lastStartggPhaseName = startgg.phase.name;
-          lastStartggPhaseId = startgg.phase.id;
-          lastStartggPhaseGroupId = startgg.phaseGroup.id;
         } else if (challonge) {
           lastChallongeTournamentName = challonge.tournament.name;
           lastChallongeTournamentSlug = challonge.tournament.slug;
         }
       }
-
+      sendQueues();
       writeOverlayJson();
-      setTimeout(() => {
-        obsConnection.transition(playingSets);
-      }, 1000);
-      sendPlaying();
     });
     return new Promise<void>((resolve, reject) => {
       newDolphin.on(DolphinEvent.START_FAILED, (connectFailed: boolean) => {
@@ -806,18 +615,10 @@ export default async function setupIPCs(
   ipcMain.handle('getNumDolphins', () => dolphins.size);
   ipcMain.removeHandler('openDolphins');
   ipcMain.handle('openDolphins', async () => {
-    const prevPlayingSize = playingSets.size;
     const toOpen = maxDolphins - dolphins.size - tryingPorts.size;
     for (let i = 0; i < toOpen; i += 1) {
       // eslint-disable-next-line no-await-in-loop
-      const port = await startDolphinWithoutPort();
-      if (queuedSet && willNotSpoilPlayingSets(queuedSet)) {
-        // eslint-disable-next-line no-await-in-loop
-        await playDolphin(queuedSet, port);
-      }
-    }
-    if (playingSets.size !== prevPlayingSize) {
-      obsConnection.transition(playingSets);
+      await startDolphinWithoutPort();
     }
   });
 
@@ -869,52 +670,49 @@ export default async function setupIPCs(
           newSet.playing = true;
           playingSets.set(playingEntry[0], newSet);
         }
-        availableSets.push(newSet);
-        sortAvailableSets();
+
+        let queueId = '';
+        let queueName = 'Unknown';
+        if (splitOption !== SplitOption.NONE && newSet.context) {
+          if (newSet.context.startgg) {
+            if (splitOption === SplitOption.EVENT) {
+              queueId = `e:${newSet.context.startgg.event.slug}`;
+              queueName = newSet.context.startgg.event.name;
+            } else {
+              queueId = `p:${newSet.context.startgg.phase.id}`;
+              queueName = newSet.context.startgg.phase.name;
+            }
+          } else if (newSet.context.challonge) {
+            queueId = `c:${newSet.context.challonge.tournament.slug}`;
+            queueName = newSet.context.challonge.tournament.name;
+          }
+        }
+        const queueIsNew = !idToQueue.has(queueId);
+        const queue = idToQueue.get(queueId) ?? new Queue(queueId, queueName);
+        queue.enqueue(newSet);
+        if (queueIsNew) {
+          idToQueue.set(queueId, queue);
+        }
+
         if (newSet.playing) {
-          mainWindow.webContents.send(
-            'unzip',
-            availableSets.map(toRendererSet),
-            queuedSet ? queuedSet.originalPath : '',
-          );
+          sendQueues();
           return;
         }
 
-        let isNext = playingSets.size === 0;
-        const newSetI = availableSets.indexOf(newSet);
-        if (newSetI < 0) {
-          throw new Error('could not find newSet in availableSets');
-        }
-        for (let i = newSetI - 1; i >= 0; i -= 1) {
-          if (availableSets[i].playing) {
-            isNext = true;
-          } else if (availableSets[i].playedMs !== 0) {
-            // eslint-disable-next-line no-continue
-            continue;
-          }
-          break;
-        }
         if (
           playingSets.size + tryingPorts.size < maxDolphins &&
-          isNext &&
+          (queueIsNew || queue.getCalculatedNextSet() === newSet) &&
           willNotSpoilPlayingSets(newSet)
         ) {
-          await playDolphin(newSet);
+          await playDolphin(queue, newSet);
           obsConnection.transition(playingSets);
         } else {
-          if (
-            isNext &&
-            newSet.playedMs === 0 &&
-            (queuedSet === null || !wasManuallyQueued)
-          ) {
-            queuedSet = newSet;
+          const { nextSet, nextSetIsManual } = queue.peek();
+          if (nextSet === null || !nextSetIsManual) {
+            queue.setCalculatedNextSet();
           }
           writeOverlayJson();
-          mainWindow.webContents.send(
-            'unzip',
-            availableSets.map(toRendererSet),
-            queuedSet ? queuedSet.originalPath : '',
-          );
+          sendQueues();
         }
       } catch (e: any) {
         // const message = e instanceof Error ? e.message : e;
@@ -928,83 +726,46 @@ export default async function setupIPCs(
   ipcMain.removeHandler('markPlayed');
   ipcMain.handle(
     'markPlayed',
-    (event: IpcMainInvokeEvent, originalPath: string, played: boolean) => {
-      const set = availableSets.find(
-        (availableSet) => availableSet.originalPath === originalPath,
-      );
-      if (!set) {
-        throw new Error(`set does not exist: ${originalPath}`);
+    (
+      event: IpcMainInvokeEvent,
+      queueId: string,
+      originalPath: string,
+      played: boolean,
+    ) => {
+      const queue = idToQueue.get(queueId);
+      if (!queue) {
+        throw new Error(`no such queue: ${queueId}`);
       }
-      set.playedMs = played ? Date.now() : 0;
-      originalPathToPlayedMs.set(set.originalPath, set.playedMs);
-      sortAvailableSets();
+      const setToMark = queue.find(originalPath);
+
+      setToMark.playedMs = played ? Date.now() : 0;
+      originalPathToPlayedMs.set(setToMark.originalPath, setToMark.playedMs);
+      const { nextSet, nextSetIsManual } = queue.peek();
       if (
-        !wasManuallyQueued ||
-        (originalPath === queuedSet?.originalPath && played)
+        !nextSetIsManual ||
+        (originalPath === nextSet?.originalPath && played)
       ) {
-        for (let i = availableSets.length - 2; i >= 0; i -= 1) {
-          if (availableSets[i].playing) {
-            queuedSet = null;
-            for (let j = i + 1; j < availableSets.length; j += 1) {
-              if (availableSets[j].playedMs === 0) {
-                queuedSet = availableSets[j];
-                break;
-              }
-            }
-            wasManuallyQueued = false;
-            break;
-          }
-        }
+        queue.setCalculatedNextSet();
       }
+
+      sendQueues();
       writeOverlayJson();
-      return {
-        rendererSets: availableSets.map(toRendererSet),
-        queuedSetDirName: queuedSet ? queuedSet.originalPath : '',
-      };
-    },
-  );
-
-  ipcMain.removeHandler('play');
-  ipcMain.handle(
-    'play',
-    async (event: IpcMainInvokeEvent, originalPath: string) => {
-      const setToPlay = availableSets.find(
-        (set) => set.originalPath === originalPath,
-      );
-      if (!setToPlay) {
-        throw new Error(`no such set to play: ${originalPath}`);
-      }
-
-      if (
-        playingSets.size === 1 &&
-        maxDolphins === 1 &&
-        tryingPorts.size === 0
-      ) {
-        const [port, playingSet] = Array.from(playingSets.entries())[0];
-        playingSet.playing = false;
-        await playDolphin(setToPlay, port);
-        if (playingSet.type === SetType.ZIP) {
-          deleteZipDir(playingSet, tempDir);
-        }
-        return;
-      }
-      if (playingSets.size + tryingPorts.size < maxDolphins) {
-        await playDolphin(setToPlay);
-        obsConnection.transition(playingSets);
-      }
     },
   );
 
   ipcMain.removeHandler('stop');
   ipcMain.handle(
     'stop',
-    async (event: IpcMainInvokeEvent, originalPath: string) => {
-      const setToStop = availableSets.find(
-        (set) => set.originalPath === originalPath,
-      );
-      if (!setToStop) {
-        throw new Error(`no such set to stop: ${originalPath}`);
+    async (
+      event: IpcMainInvokeEvent,
+      queueId: string,
+      originalPath: string,
+    ) => {
+      const queue = idToQueue.get(queueId);
+      if (!queue) {
+        throw new Error(`no such queue: ${queueId}`);
       }
+      const setToStop = queue.find(originalPath);
 
       if (setToStop.playing) {
         const entry = Array.from(playingSets.entries()).find(
@@ -1018,26 +779,62 @@ export default async function setupIPCs(
         }
         playingSets.delete(port);
 
+        sendQueues();
         writeOverlayJson();
         obsConnection.transition(playingSets);
-        sendPlaying();
       }
     },
   );
 
-  ipcMain.removeHandler('queue');
-  ipcMain.handle('queue', (event: IpcMainInvokeEvent, originalPath: string) => {
-    const setToQueue = availableSets.find(
-      (set) => set.originalPath === originalPath,
-    );
-    if (!setToQueue) {
-      throw new Error(`no such set to queue: ${originalPath}`);
-    }
+  ipcMain.removeHandler('playNext');
+  ipcMain.handle(
+    'playNext',
+    (event: IpcMainInvokeEvent, queueId: string, originalPath: string) => {
+      const queue = idToQueue.get(queueId);
+      if (!queue) {
+        throw new Error(`no such queue: ${queueId}`);
+      }
 
-    queuedSet = setToQueue;
-    wasManuallyQueued = true;
-    writeOverlayJson();
-  });
+      queue.setNextSetManually(originalPath);
+
+      sendQueues();
+      writeOverlayJson();
+    },
+  );
+
+  ipcMain.removeHandler('playNow');
+  ipcMain.handle(
+    'playNow',
+    async (
+      event: IpcMainInvokeEvent,
+      queueId: string,
+      originalPath: string,
+    ) => {
+      const queue = idToQueue.get(queueId);
+      if (!queue) {
+        throw new Error(`no such queue: ${queueId}`);
+      }
+      const setToPlay = queue.find(originalPath);
+
+      if (
+        playingSets.size === 1 &&
+        maxDolphins === 1 &&
+        tryingPorts.size === 0
+      ) {
+        const [port, playingSet] = Array.from(playingSets.entries())[0];
+        playingSet.playing = false;
+        await playDolphin(queue, setToPlay, port);
+        if (playingSet.type === SetType.ZIP) {
+          deleteZipDir(playingSet, tempDir);
+        }
+        return;
+      }
+      if (playingSets.size + tryingPorts.size < maxDolphins) {
+        await playDolphin(queue, setToPlay);
+        obsConnection.transition(playingSets);
+      }
+    },
+  );
 
   ipcMain.removeHandler('getGenerateOverlay');
   ipcMain.handle('getGenerateOverlay', () => generateOverlay);
@@ -1064,6 +861,20 @@ export default async function setupIPCs(
     async (event: IpcMainInvokeEvent, newGenerateTimestamps: boolean) => {
       store.set('generateTimestamps', newGenerateTimestamps);
       generateTimestamps = newGenerateTimestamps;
+    },
+  );
+
+  ipcMain.removeHandler('getSplitOption');
+  ipcMain.handle('getSplitOption', () => splitOption);
+
+  ipcMain.removeHandler('setSplitOption');
+  ipcMain.handle(
+    'setSplitOption',
+    (event: IpcMainInvokeEvent, newSplitOption: SplitOption) => {
+      if (splitOption !== newSplitOption) {
+        store.set('splitOption', newSplitOption);
+        splitOption = newSplitOption;
+      }
     },
   );
 
@@ -1152,14 +963,8 @@ export default async function setupIPCs(
                 );
               });
               say(Array.from(bracketUrls.values()).join(' '));
-            } else if (
-              lastStartggEventSlug &&
-              lastStartggPhaseId &&
-              lastStartggPhaseGroupId
-            ) {
-              say(
-                `${prefix}https://www.start.gg/${lastStartggEventSlug}/brackets/${lastStartggPhaseId}/${lastStartggPhaseGroupId}`,
-              );
+            } else if (lastStartggEventSlug) {
+              say(`${prefix}https://www.start.gg/${lastStartggEventSlug}`);
             } else if (lastChallongeTournamentSlug) {
               say(
                 `${prefix}https://challonge.com/${lastChallongeTournamentSlug}`,

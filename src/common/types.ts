@@ -175,6 +175,13 @@ export type RendererSet = {
   playing: boolean;
 };
 
+export type RendererQueue = {
+  id: string;
+  name: string;
+  sets: RendererSet[];
+  nextSetOriginalPath: string;
+};
+
 export type TwitchSettings = {
   enabled: boolean;
   clientId: string;
@@ -198,8 +205,6 @@ export type OverlaySet = {
 
 export type OverlayContext = {
   sets: OverlaySet[];
-  upcoming: { leftNames: string[]; rightNames: string[] }[];
-  upcomingRoundName: string;
   startgg?: {
     tournamentName: string;
     eventName: string;
@@ -222,3 +227,9 @@ export type OBSSettings = {
   port: string;
   password: string;
 };
+
+export enum SplitOption {
+  NONE,
+  EVENT,
+  PHASE,
+}

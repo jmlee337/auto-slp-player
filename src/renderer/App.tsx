@@ -1,11 +1,9 @@
 import { MemoryRouter as Router, Routes, Route } from 'react-router-dom';
-import { useEffect, useState } from 'react';
+import { SyntheticEvent, useEffect, useState } from 'react';
 import './App.css';
 import {
   Alert,
-  Box,
   Button,
-  Checkbox,
   CircularProgress,
   Dialog,
   DialogContent,
@@ -13,76 +11,28 @@ import {
   DialogTitle,
   IconButton,
   InputBase,
-  List,
-  ListItem,
-  ListItemText,
   Stack,
-  SvgIcon,
+  Tab,
+  Tabs,
   Tooltip,
 } from '@mui/material';
 import {
   Check,
-  PlayArrow,
   PlayCircle,
-  PlaylistAddCheck,
   PriorityHigh,
-  Report,
-  Stop,
-  SubdirectoryArrowRight,
-  Tv,
   Visibility,
   WebAsset,
 } from '@mui/icons-material';
 import { IpcRendererEvent } from 'electron';
 import {
   OBSConnectionStatus,
-  RendererSet,
-  Stream,
+  RendererQueue,
+  SplitOption,
   TwitchSettings,
 } from '../common/types';
 import Settings from './Settings';
-
-function TwitchStreamIcon({ stream }: { stream: Stream }) {
-  let icon = <Tv />;
-  if (stream.domain === 'twitch') {
-    icon = (
-      <SvgIcon>
-        <svg
-          xmlns="http://www.w3.org/2000/svg"
-          width="24"
-          height="24"
-          viewBox="0 0 24 24"
-        >
-          <path
-            d="M2.149 0l-1.612 4.119v16.836h5.731v3.045h3.224l3.045-3.045h4.657l6.269-6.269v-14.686h-21.314zm19.164 13.612l-3.582 3.582h-5.731l-3.045 3.045v-3.045h-4.836v-15.045h17.194v11.463zm-3.582-7.343v6.262h-2.149v-6.262h2.149zm-5.731 0v6.262h-2.149v-6.262h2.149z"
-            fillRule="evenodd"
-            clipRule="evenodd"
-          />
-        </svg>
-      </SvgIcon>
-    );
-  } else if (stream.domain === 'youtube') {
-    icon = (
-      <SvgIcon>
-        <svg
-          fill="#000000"
-          width="24px"
-          height="24px"
-          viewBox="0 0 32 32"
-          version="1.1"
-          xmlns="http://www.w3.org/2000/svg"
-        >
-          <path d="M12.932 20.459v-8.917l7.839 4.459zM30.368 8.735c-0.354-1.301-1.354-2.307-2.625-2.663l-0.027-0.006c-3.193-0.406-6.886-0.638-10.634-0.638-0.381 0-0.761 0.002-1.14 0.007l0.058-0.001c-0.322-0.004-0.701-0.007-1.082-0.007-3.748 0-7.443 0.232-11.070 0.681l0.434-0.044c-1.297 0.363-2.297 1.368-2.644 2.643l-0.006 0.026c-0.4 2.109-0.628 4.536-0.628 7.016 0 0.088 0 0.176 0.001 0.263l-0-0.014c-0 0.074-0.001 0.162-0.001 0.25 0 2.48 0.229 4.906 0.666 7.259l-0.038-0.244c0.354 1.301 1.354 2.307 2.625 2.663l0.027 0.006c3.193 0.406 6.886 0.638 10.634 0.638 0.38 0 0.76-0.002 1.14-0.007l-0.058 0.001c0.322 0.004 0.702 0.007 1.082 0.007 3.749 0 7.443-0.232 11.070-0.681l-0.434 0.044c1.298-0.362 2.298-1.368 2.646-2.643l0.006-0.026c0.399-2.109 0.627-4.536 0.627-7.015 0-0.088-0-0.176-0.001-0.263l0 0.013c0-0.074 0.001-0.162 0.001-0.25 0-2.48-0.229-4.906-0.666-7.259l0.038 0.244z" />
-        </svg>
-      </SvgIcon>
-    );
-  }
-  return (
-    <Tooltip arrow title={`Streamed on ${stream.domain}: ${stream.path}`}>
-      {icon}
-    </Tooltip>
-  );
-}
+import Queue from './Queue';
+import QueueTabPanel from './QueueTabPanel';
 
 function Hello() {
   const [appError, setAppError] = useState('');
@@ -99,6 +49,7 @@ function Hello() {
   const [maxDolphins, setMaxDolphins] = useState(1);
   const [generateOverlay, setGenerateOverlay] = useState(false);
   const [generateTimestamps, setGenerateTimestamps] = useState(false);
+  const [splitOption, setSplitOption] = useState(SplitOption.NONE);
   const [twitchChannel, setTwitchChannel] = useState('');
   const [twitchSettings, setTwitchSettings] = useState<TwitchSettings>({
     enabled: false,
@@ -129,6 +80,7 @@ function Hello() {
       const maxDolphinsPromise = window.electron.getMaxDolphins();
       const generateOverlayPromise = window.electron.getGenerateOverlay();
       const generateTimestampsPromise = window.electron.getGenerateTimestamps();
+      const splitOptionPromise = window.electron.getSplitOption();
       const twitchChannelPromise = window.electron.getTwitchChannel();
       const twitchSettingsPromise = window.electron.getTwitchSettings();
       const dolphinVersionPromise = window.electron.getDolphinVersion();
@@ -148,6 +100,7 @@ function Hello() {
       setMaxDolphins(await maxDolphinsPromise);
       setGenerateOverlay(await generateOverlayPromise);
       setGenerateTimestamps(await generateTimestampsPromise);
+      setSplitOption(await splitOptionPromise);
       setTwitchChannel(await twitchChannelPromise);
       setTwitchSettings(await twitchSettingsPromise);
       setDolphinVersion((await dolphinVersionPromise).version);
@@ -178,8 +131,10 @@ function Hello() {
 
   const [watchDir, setWatchDir] = useState('');
   const [dolphinsOpening, setDolphinsOpening] = useState(false);
-  const [queuedSetDirName, setQueuedSetDirName] = useState('');
-  const [rendererSets, setRendererSets] = useState<RendererSet[]>([]);
+
+  const [queues, setQueues] = useState<RendererQueue[]>([]);
+  const [visibleQueueId, setVisibleQueueId] = useState('');
+
   const [obsError, setObsError] = useState('');
   const [obsErrorDialogOpen, setObsErrorDialogOpen] = useState(false);
   useEffect(() => {
@@ -211,30 +166,13 @@ function Hello() {
     window.electron.onStreaming((event: IpcRendererEvent, state: string) => {
       setStreamingState(state);
     });
-    window.electron.onPlaying(
-      (
-        event: IpcRendererEvent,
-        newRendererSets: RendererSet[],
-        newQueuedSetDirName: string,
-      ) => {
-        setQueuedSetDirName(newQueuedSetDirName);
-        setRendererSets(newRendererSets);
-      },
-    );
+    window.electron.onQueues((event, newQueues) => {
+      setQueues(newQueues);
+    });
     window.electron.onTwitchBotStatus((event, { connected, error }) => {
       setTwitchBotConnected(connected);
       setTwitchBotError(error);
     });
-    window.electron.onUnzip(
-      (
-        event: IpcRendererEvent,
-        newRendererSets: RendererSet[],
-        newQueuedSetDirName: string,
-      ) => {
-        setQueuedSetDirName(newQueuedSetDirName);
-        setRendererSets(newRendererSets);
-      },
-    );
   }, []);
 
   const [obsConnecting, setObsConnecting] = useState(false);
@@ -297,6 +235,8 @@ function Hello() {
           setGenerateOverlay={setGenerateOverlay}
           generateTimestamps={generateTimestamps}
           setGenerateTimestamps={setGenerateTimestamps}
+          splitOption={splitOption}
+          setSplitOption={setSplitOption}
           maxDolphins={maxDolphins}
           setMaxDolphins={setMaxDolphins}
           twitchChannel={twitchChannel}
@@ -393,133 +333,38 @@ function Hello() {
           {streamingMsg}
         </Button>
       </Stack>
-      {rendererSets && (
-        <List>
-          {rendererSets.map((rendererSet) => (
-            <ListItem
-              dense
-              disablePadding
-              key={rendererSet.originalPath}
-              style={{
-                gap: '8px',
-                opacity: rendererSet.played ? '50%' : '100%',
-              }}
-            >
-              <Checkbox
-                checked={!rendererSet.played}
-                disableRipple
-                onClick={async () => {
-                  const {
-                    rendererSets: newRendererSets,
-                    queuedSetDirName: newQueuedSetDirName,
-                  } = await window.electron.markPlayed(
-                    rendererSet.originalPath,
-                    !rendererSet.played,
-                  );
-                  setRendererSets(newRendererSets);
-                  setQueuedSetDirName(newQueuedSetDirName);
-                }}
+      {queues.length === 1 && (
+        <Queue queue={queues[0]} twitchChannel={twitchChannel} />
+      )}
+      {queues.length > 1 && (
+        <>
+          <Tabs
+            value={visibleQueueId}
+            onChange={(event: SyntheticEvent, value: any) => {
+              if (typeof value === 'string') {
+                setVisibleQueueId(value);
+              }
+            }}
+            aria-label="Queues"
+          >
+            {queues.map((queue) => (
+              <Tab
+                key={queue.id}
+                label={queue.name}
+                value={queue.id}
+                id={`queue-tab-${queue.id}`}
+                aria-controls={`queue-tabpanel-${queue.id}`}
               />
-              {rendererSet.invalidReason && (
-                <Tooltip arrow title={rendererSet.invalidReason}>
-                  <Report style={{ padding: '9px' }} />
-                </Tooltip>
-              )}
-              {rendererSet.context ? (
-                <Stack direction="row" flexGrow={1} spacing="8px">
-                  <ListItemText primaryTypographyProps={{ noWrap: true }}>
-                    {rendererSet.context.namesLeft} vs{' '}
-                    {rendererSet.context.namesRight}
-                  </ListItemText>
-                  {twitchChannel &&
-                    rendererSet.context.startgg?.stream &&
-                    (rendererSet.context.startgg.stream.domain !== 'twitch' ||
-                      rendererSet.context.startgg.stream.path !==
-                        twitchChannel) && (
-                      <TwitchStreamIcon
-                        stream={rendererSet.context.startgg.stream}
-                      />
-                    )}
-                  {twitchChannel &&
-                    rendererSet.context.challonge?.stream &&
-                    (rendererSet.context.challonge.stream.domain !== 'twitch' ||
-                      rendererSet.context.challonge.stream.path !==
-                        twitchChannel) && (
-                      <TwitchStreamIcon
-                        stream={rendererSet.context.challonge.stream}
-                      />
-                    )}
-                  <ListItemText sx={{ flexGrow: 0, flexShrink: 0 }}>
-                    {rendererSet.context.startgg &&
-                      `${rendererSet.context.startgg.fullRoundText} `}
-                    {rendererSet.context.challonge &&
-                      `${rendererSet.context.challonge.fullRoundText} `}
-                    (BO{rendererSet.context.bestOf})
-                  </ListItemText>
-                  {rendererSet.context.startgg && (
-                    <ListItemText sx={{ flexGrow: 0, flexShrink: 0 }}>
-                      {rendererSet.context.startgg.eventName},{' '}
-                      {rendererSet.context.startgg.phaseName}
-                    </ListItemText>
-                  )}
-                  {rendererSet.context.challonge && (
-                    <ListItemText sx={{ flexGrow: 0, flexShrink: 0 }}>
-                      {rendererSet.context.challonge.tournamentName}
-                    </ListItemText>
-                  )}
-                  <ListItemText sx={{ flexGrow: 0, flexShrink: 0 }}>
-                    {rendererSet.context.duration}
-                  </ListItemText>
-                </Stack>
-              ) : (
-                <ListItemText>{rendererSet.originalPath}</ListItemText>
-              )}
-              {rendererSet.playing ? (
-                <Tooltip arrow title="Stop">
-                  <IconButton
-                    onClick={async () => {
-                      window.electron.stop(rendererSet.originalPath);
-                    }}
-                  >
-                    <Stop />
-                  </IconButton>
-                </Tooltip>
-              ) : (
-                <Tooltip arrow title="Play next">
-                  <IconButton
-                    onClick={async () => {
-                      window.electron.queue(rendererSet.originalPath);
-                      setQueuedSetDirName(rendererSet.originalPath);
-                    }}
-                  >
-                    <SubdirectoryArrowRight />
-                  </IconButton>
-                </Tooltip>
-              )}
-              <Tooltip arrow title="Play now">
-                <IconButton
-                  onClick={() => {
-                    window.electron.play(rendererSet.originalPath);
-                  }}
-                >
-                  <PlayArrow />
-                </IconButton>
-              </Tooltip>
-              <Box padding="8px" height="24px" width="24px">
-                {rendererSet.playing && (
-                  <Tooltip arrow title="Playing...">
-                    <CircularProgress size="24px" />
-                  </Tooltip>
-                )}
-                {rendererSet.originalPath === queuedSetDirName && (
-                  <Tooltip arrow title="Next...">
-                    <PlaylistAddCheck />
-                  </Tooltip>
-                )}
-              </Box>
-            </ListItem>
+            ))}
+          </Tabs>
+          {queues.map((queue) => (
+            <QueueTabPanel
+              queue={queue}
+              twitchChannel={twitchChannel}
+              visibleQueueId={visibleQueueId}
+            />
           ))}
-        </List>
+        </>
       )}
       <Dialog
         open={obsErrorDialogOpen}

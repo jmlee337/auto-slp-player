@@ -22,7 +22,7 @@
         padding: 8px;
         width: 660px;
       }
-      .round-bo, .event-phase-name, .upcoming-title {
+      .round-bo, .event-phase-name {
         font-size: 24px;
         line-height: 30px;
       }
@@ -40,7 +40,7 @@
       .left-score, .right-score {
         width: 44px;
       }
-      .tournament-name, .left, .right, .upcoming-set {
+      .tournament-name, .left, .right {
         font-size: 36px;
         line-height: 44px;
       }
@@ -81,11 +81,6 @@
           <div class="right-full-names">DaN</div>
         </div>
       </div>
-      <div class="upcoming">
-        <div class="upcoming-title">Next:</div>
-        <div class="upcoming-set">slurms vs Tyku</div>
-        <div class="upcoming-set">slurms vs Tyku</div>
-      </div>
     </div>
     <script>
       let context = {
@@ -93,7 +88,6 @@
         eventName: '',
         phaseName: '',
         sets: [],
-        upcoming: [],
       }
       function getElementByClassName(className, parentEl) {
         const element = parentEl ?? document;
@@ -172,26 +166,6 @@
               replace('right-full-names', rightFullNames.join(', '), setEl);
               replace('right-score', rightScore, setEl);
             }
-          }
-
-          const upcoming = getElementByClassName('upcoming');
-          upcoming.innerText = '';
-          if (newContext.upcoming.length > 0) {
-            const newUpcomingTitle = document.createElement('div');
-            newUpcomingTitle.className = 'upcoming-title';
-            newUpcomingTitle.innerText = 'Next:';
-            upcoming.appendChild(newUpcomingTitle);
-            for (const upcomingSet of newContext.upcoming.slice(0, 2)) {
-              const newSet = document.createElement('div');
-              newSet.className = 'upcoming-set';
-              newSet.innerText = `${upcomingSet.leftNames.join(', ')} vs ${upcomingSet.rightNames.join(', ')}`;
-              upcoming.appendChild(newSet);
-            }
-          } else if (newContext.upcomingRoundName) {
-            const newUpcomingTitle = document.createElement('div');
-            newUpcomingTitle.className = 'upcoming-title';
-            newUpcomingTitle.innerText = `Next: ${newContext.upcomingRoundName}`;
-            upcoming.appendChild(newUpcomingTitle);
           }
 
           context = newContext;

@@ -2,7 +2,8 @@ import { IpcRendererEvent, contextBridge, ipcRenderer } from 'electron';
 import {
   OBSConnectionStatus,
   OBSSettings,
-  RendererSet,
+  RendererQueue,
+  SplitOption,
   TwitchSettings,
 } from '../common/types';
 
@@ -24,15 +25,18 @@ const electronHandler = {
     ipcRenderer.invoke('getStreamingState'),
   connectObs: (): Promise<void> => ipcRenderer.invoke('connectObs'),
   startStream: (): Promise<void> => ipcRenderer.invoke('startStream'),
-  play: (dirName: string): Promise<void> => ipcRenderer.invoke('play', dirName),
-  stop: (dirName: string): Promise<void> => ipcRenderer.invoke('stop', dirName),
-  queue: (dirName: string): Promise<void> =>
-    ipcRenderer.invoke('queue', dirName),
   markPlayed: (
-    dirName: string,
+    queueId: string,
+    originalPath: string,
     played: boolean,
-  ): Promise<{ rendererSets: RendererSet[]; queuedSetDirName: string }> =>
-    ipcRenderer.invoke('markPlayed', dirName, played),
+  ): Promise<void> =>
+    ipcRenderer.invoke('markPlayed', queueId, originalPath, played),
+  stop: (queueId: string, originalPath: string): Promise<void> =>
+    ipcRenderer.invoke('stop', queueId, originalPath),
+  playNext: (queueId: string, originalPath: string): Promise<void> =>
+    ipcRenderer.invoke('playNext', queueId, originalPath),
+  playNow: (queueId: string, originalPath: string): Promise<void> =>
+    ipcRenderer.invoke('playNow', queueId, originalPath),
   getGenerateOverlay: (): Promise<boolean> =>
     ipcRenderer.invoke('getGenerateOverlay'),
   setGenerateOverlay: (newGenerateOverlay: boolean) =>
@@ -41,6 +45,10 @@ const electronHandler = {
     ipcRenderer.invoke('getGenerateTimestamps'),
   setGenerateTimestamps: (newGenerateTimestamps: boolean) =>
     ipcRenderer.invoke('setGenerateTimestamps', newGenerateTimestamps),
+  getSplitOption: (): Promise<SplitOption> =>
+    ipcRenderer.invoke('getSplitOption'),
+  setSplitOption: (newSplitOption: SplitOption): Promise<void> =>
+    ipcRenderer.invoke('setSplitOption', newSplitOption),
   getTwitchChannel: (): Promise<string> =>
     ipcRenderer.invoke('getTwitchChannel'),
   setTwitchChannel: (twitchChannel: string): Promise<void> =>
@@ -81,19 +89,15 @@ const electronHandler = {
     ipcRenderer.removeAllListeners('obsConnectionStatus');
     ipcRenderer.on('obsConnectionStatus', callback);
   },
+  onQueues: (
+    callback: (event: IpcRendererEvent, queues: RendererQueue[]) => void,
+  ) => {
+    ipcRenderer.removeAllListeners('queues');
+    ipcRenderer.on('queues', callback);
+  },
   onStreaming: (callback: (event: IpcRendererEvent, state: string) => void) => {
     ipcRenderer.removeAllListeners('streaming');
     ipcRenderer.on('streaming', callback);
-  },
-  onPlaying: (
-    callback: (
-      event: IpcRendererEvent,
-      rendererSets: RendererSet[],
-      queuedSetDirName: string,
-    ) => void,
-  ) => {
-    ipcRenderer.removeAllListeners('playing');
-    ipcRenderer.on('playing', callback);
   },
   onTwitchBotStatus: (
     callback: (
@@ -103,16 +107,6 @@ const electronHandler = {
   ) => {
     ipcRenderer.removeAllListeners('twitchBotStatus');
     ipcRenderer.on('twitchBotStatus', callback);
-  },
-  onUnzip: (
-    callback: (
-      event: IpcRendererEvent,
-      rendererSets: RendererSet[],
-      queuedSetDirName: string,
-    ) => void,
-  ) => {
-    ipcRenderer.removeAllListeners('unzip');
-    ipcRenderer.on('unzip', callback);
   },
   update: (): Promise<void> => ipcRenderer.invoke('update'),
 };

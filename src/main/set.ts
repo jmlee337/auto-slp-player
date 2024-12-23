@@ -61,39 +61,34 @@ export function toMainContext(context: Context): MainContext | undefined {
   const startggTournamentName = context.startgg?.tournament?.name;
   const startggEventName = context.startgg?.event?.name;
   const startggEventSlug = context.startgg?.event?.slug;
-  const startggEventHasSiblings = context.startgg?.event?.hasSiblings;
+  const startggEventHasSiblings = context.startgg?.event?.hasSiblings ?? true;
   const startggPhaseId = context.startgg?.phase?.id;
   const startggPhaseName = context.startgg?.phase?.name;
-  const startggPhaseHasSiblings = context.startgg?.phase?.hasSiblings;
+  const startggPhaseHasSiblings = context.startgg?.phase?.hasSiblings ?? true;
   const startggPhaseGroupId = context.startgg?.phaseGroup?.id;
   const startggPhaseGroupName = context.startgg?.phaseGroup?.name;
   const startggPhaseGroupBracketType = context.startgg?.phaseGroup?.bracketType;
-  const startggPhaseGroupHasSiblings = context.startgg?.phaseGroup?.hasSiblings;
+  const startggPhaseGroupHasSiblings =
+    context.startgg?.phaseGroup?.hasSiblings ?? true;
   const startggFullRoundText = context.startgg?.set?.fullRoundText;
   const startggRound = context.startgg?.set?.round;
-  const startggOrdinal = context.startgg?.set?.ordinal;
-  const startggStream = context.startgg?.set?.stream;
+  const startggOrdinal = context.startgg?.set?.ordinal ?? null;
+  const startggStream = context.startgg?.set?.stream ?? null;
   const startggStreamDomain = context.startgg?.set?.stream?.domain;
   const startggStreamPath = context.startgg?.set?.stream?.path;
   if (
     typeof startggTournamentName === 'string' &&
     typeof startggEventName === 'string' &&
     typeof startggEventSlug === 'string' &&
-    typeof startggEventHasSiblings === 'boolean' &&
     Number.isInteger(startggPhaseId) &&
     typeof startggPhaseName === 'string' &&
-    typeof startggPhaseHasSiblings === 'boolean' &&
     Number.isInteger(startggPhaseGroupId) &&
     typeof startggPhaseGroupName === 'string' &&
     Number.isInteger(startggPhaseGroupBracketType) &&
-    typeof startggPhaseGroupHasSiblings === 'boolean' &&
     typeof startggFullRoundText === 'string' &&
     Number.isInteger(startggRound) &&
     (startggOrdinal === null || Number.isFinite(startggOrdinal)) &&
-    startggStream !== undefined &&
-    (startggStream === null ||
-      (typeof startggStreamDomain === 'string' &&
-        typeof startggStreamPath === 'string'))
+    (startggStream === null || (startggStreamDomain && startggStreamPath))
   ) {
     mainContext.startgg = {
       tournament: {
@@ -129,8 +124,8 @@ export function toMainContext(context: Context): MainContext | undefined {
   const challongeTournamentType = context.challonge?.tournament?.tournamentType;
   const challongeFullRoundText = context.challonge?.set?.fullRoundText;
   const challongeRound = context.challonge?.set?.round;
-  const challongeOrdinal = context.challonge?.set?.ordinal;
-  const challongeStream = context.challonge?.set?.stream;
+  const challongeOrdinal = context.challonge?.set?.ordinal ?? null;
+  const challongeStream = context.challonge?.set?.stream ?? null;
   const challongeStreamDomain = context.challonge?.set?.stream?.domain;
   const challongeStreamPath = context.challonge?.set?.stream?.path;
   if (
@@ -140,10 +135,7 @@ export function toMainContext(context: Context): MainContext | undefined {
     typeof challongeFullRoundText === 'string' &&
     Number.isInteger(challongeRound) &&
     (challongeOrdinal === null || Number.isInteger(challongeOrdinal)) &&
-    challongeStream !== undefined &&
-    (challongeStream === null ||
-      (typeof challongeStreamDomain === 'string' &&
-        typeof challongeStreamPath === 'string'))
+    (challongeStream === null || (challongeStreamDomain && challongeStreamPath))
   ) {
     mainContext.challonge = {
       tournament: {

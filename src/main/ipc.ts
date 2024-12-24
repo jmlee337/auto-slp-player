@@ -179,6 +179,13 @@ export default async function setupIPCs(
         ),
       ),
     );
+    const overlayContext: OverlayContext = {
+      sets: [],
+    };
+    await writeFile(
+      path.join(overlayPath, 'overlay.json'),
+      JSON.stringify(overlayContext),
+    );
   };
   if (generateOverlay) {
     await initOverlayDir();
@@ -294,17 +301,19 @@ export default async function setupIPCs(
   const dolphins: Map<number, Dolphin> = new Map();
   const gameIndices: Map<number, number> = new Map();
   let lastStartggTournamentName = '';
+  let lastStartggTournamentLocation = '';
   let lastStartggEventName = '';
   let lastStartggEventSlug = '';
   let lastChallongeTournamentName = '';
   let lastChallongeTournamentSlug = '';
   const writeOverlayJson = async () => {
     if (!generateOverlay) {
-      return undefined;
+      return;
     }
 
     const overlayFilePath = path.join(overlayPath, 'overlay.json');
     let startggTournamentName = lastStartggTournamentName;
+    let startggTournamentLocation = lastStartggTournamentLocation;
     let startggEventName = lastStartggEventName;
     let startggPhaseName = '';
     let challongeTournamentName = lastChallongeTournamentName;
@@ -339,6 +348,7 @@ export default async function setupIPCs(
         representativePlayingSet.context?.challonge;
       if (representativeStartgg) {
         startggTournamentName = representativeStartgg.tournament.name;
+        startggTournamentLocation = representativeStartgg.tournament.location;
         startggEventName =
           eventSlugs.size === 1 && eventHasSiblings
             ? representativeStartgg.event.name
@@ -404,9 +414,13 @@ export default async function setupIPCs(
       });
     }
     const startgg =
-      startggTournamentName && startggEventName && startggPhaseName
+      startggTournamentName &&
+      startggTournamentLocation &&
+      startggEventName &&
+      startggPhaseName
         ? {
             tournamentName: startggTournamentName,
+            location: startggTournamentLocation,
             eventName: startggEventName,
             phaseName: startggPhaseName,
           }
@@ -421,7 +435,7 @@ export default async function setupIPCs(
       startgg,
       challonge,
     };
-    return writeFile(overlayFilePath, JSON.stringify(overlayContext));
+    await writeFile(overlayFilePath, JSON.stringify(overlayContext));
   };
   const failedPorts = new Set<number>();
   const getNextPort = () => {
@@ -527,6 +541,7 @@ export default async function setupIPCs(
           const challonge = playingSet.context?.challonge;
           if (startgg) {
             lastStartggTournamentName = startgg.tournament.name;
+            lastStartggTournamentLocation = startgg.tournament.location;
             lastStartggEventName = startgg.event.name;
             lastStartggEventSlug = startgg.event.slug;
           } else if (challonge) {
@@ -601,6 +616,7 @@ export default async function setupIPCs(
         const challonge = playingSet.context?.challonge;
         if (startgg) {
           lastStartggTournamentName = startgg.tournament.name;
+          lastStartggTournamentLocation = startgg.tournament.location;
           lastStartggEventName = startgg.event.name;
           lastStartggEventSlug = startgg.event.slug;
         } else if (challonge) {

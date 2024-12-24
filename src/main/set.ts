@@ -59,6 +59,7 @@ export function toMainContext(context: Context): MainContext | undefined {
   };
 
   const startggTournamentName = context.startgg?.tournament?.name;
+  const startggTournamentLocation = context.startgg?.tournament?.location ?? '';
   const startggEventName = context.startgg?.event?.name;
   const startggEventSlug = context.startgg?.event?.slug;
   const startggEventHasSiblings = context.startgg?.event?.hasSiblings ?? true;
@@ -93,6 +94,7 @@ export function toMainContext(context: Context): MainContext | undefined {
     mainContext.startgg = {
       tournament: {
         name: startggTournamentName,
+        location: startggTournamentLocation,
       },
       event: {
         name: startggEventName,

@@ -11,14 +11,12 @@
         height: 100%;
       }
       body {
+        background: black;
         color: white;
         font-family: robotocjksc, Arial;
         overflow: hidden;
       }
-      .event-phase-name {
-        margin-top: 8px;
-      }
-      .round-bo, .event-phase-name {
+      .round-bo, .event-phase-name, .location {
         font-size: 24px;
         line-height: 30px;
       }
@@ -37,7 +35,7 @@
         width: 44px;
       }
       .tournament-name {
-        margin-bottom: 8px;
+        margin-top: 8px;
       }
       .tournament-name, .left, .right {
         font-size: 36px;
@@ -52,16 +50,16 @@
         height: 50%;
         padding: 0 8px;
       }
-      .spacer {
+      .location {
         flex-grow: 1;
       }
     </style>
   </head>
   <body>
     <div class="half">
-      <div class="event-phase-name">Melee Singles, Bracket</div>
       <div class="tournament-name">Shuuten Tokyo 終点東京 #7</div>
-      <div class="spacer"></div>
+      <div class="event-phase-name">Melee Singles, Bracket</div>
+      <div class="location">Sumida City, JP</div>
       <div class="set set-0">
         <div class="round-bo">Losers Quarter-Final (BO3)</div>
         <div class="left">
@@ -77,12 +75,7 @@
       </div>
     </div>
     <script>
-      let context = {
-        tournamentName: '',
-        eventName: '',
-        phaseName: '',
-        sets: [],
-      }
+      let context = {};
       function getElementByClassName(className, parentEl) {
         const element = parentEl ?? document;
         const elements = element.getElementsByClassName(className);
@@ -101,6 +94,7 @@
         if (JSON.stringify(context) !== JSON.stringify(newContext)) {
           if (newContext.startgg) {
             replace('tournament-name', newContext.startgg.tournamentName);
+            replace('location', newContext.startgg.location);
             replace(
               'event-phase-name',
               newContext.startgg.eventName &&
@@ -109,9 +103,11 @@
                 : '');
           } else if (newContext.challonge) {
             replace('tournament-name', newContext.challonge.tournamentName);
+            replace('location', '');
             replace('event-phase-name', '');
           } else {
             replace('tournament-name', '');
+            replace('location', '');
             replace('event-phase-name', '');
           }
 

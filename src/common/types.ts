@@ -22,6 +22,7 @@ export type Context = {
   startgg?: {
     tournament?: {
       name?: string;
+      location?: string;
     };
     event?: {
       id?: number;
@@ -84,6 +85,7 @@ export type MainContext = {
   startgg?: {
     tournament: {
       name: string;
+      location: string;
     };
     event: {
       name: string;
@@ -207,6 +209,7 @@ export type OverlayContext = {
   sets: OverlaySet[];
   startgg?: {
     tournamentName: string;
+    location: string;
     eventName: string;
     phaseName: string;
   };

@@ -8,6 +8,7 @@
         src: url(RobotoCJKSC-Regular.ttf);
       }
       body {
+        background: black;
         color: white;
         display: flex;
         flex-direction: row;
@@ -22,7 +23,7 @@
         padding: 8px;
         width: 660px;
       }
-      .round-bo, .event-phase-name {
+      .round-bo, .event-phase-name, .location {
         font-size: 24px;
         line-height: 30px;
       }
@@ -66,8 +67,9 @@
           <div class="right-score">0</div>
         </div>
       </div>
-      <div class="event-phase-name">Melee Singles, Bracket</div>
       <div class="tournament-name">Shuuten Tokyo 終点東京 #7</div>
+      <div class="event-phase-name">Melee Singles, Bracket</div>
+      <div class="location">Sumida City, JP</div>
     </div>
     <div class="column">
       <div class="set">
@@ -83,12 +85,7 @@
       </div>
     </div>
     <script>
-      let context = {
-        tournamentName: '',
-        eventName: '',
-        phaseName: '',
-        sets: [],
-      }
+      let context = {};
       function getElementByClassName(className, parentEl) {
         const element = parentEl ?? document;
         const elements = element.getElementsByClassName(className);
@@ -107,6 +104,7 @@
         if (JSON.stringify(context) !== JSON.stringify(newContext)) {
           if (newContext.startgg) {
             replace('tournament-name', newContext.startgg.tournamentName);
+            replace('location', newContext.startgg.location);
             replace(
               'event-phase-name',
               newContext.startgg.eventName &&
@@ -115,9 +113,11 @@
                 : '');
           } else if (newContext.challonge) {
             replace('tournament-name', newContext.challonge.tournamentName);
+            replace('location', '');
             replace('event-phase-name', '');
           } else {
             replace('tournament-name', '');
+            replace('location', '');
             replace('event-phase-name', '');
           }
 

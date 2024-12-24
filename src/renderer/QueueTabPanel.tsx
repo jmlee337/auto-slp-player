@@ -3,10 +3,12 @@ import Queue from './Queue';
 
 export default function QueueTabPanel({
   queue,
+  canPlay,
   twitchChannel,
   visibleQueueId,
 }: {
   queue: RendererQueue;
+  canPlay: boolean;
   twitchChannel: string;
   visibleQueueId: string;
 }) {
@@ -18,7 +20,7 @@ export default function QueueTabPanel({
       aria-labelledby={`queue-tab-${queue.id}`}
     >
       {queue.id === visibleQueueId && (
-        <Queue queue={queue} twitchChannel={twitchChannel} />
+        <Queue queue={queue} canPlay={canPlay} twitchChannel={twitchChannel} />
       )}
     </div>
   );

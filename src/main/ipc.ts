@@ -271,6 +271,15 @@ export default async function setupIPCs(
     }
   }
 
+  const originalPathToPlayedMs = new Map<string, number>();
+  const playingSets: Map<number, AvailableSet> = new Map();
+  const tryingPorts = new Set<number>();
+  const willNotSpoilPlayingSets = (prospectiveSet: AvailableSet) => {
+    return Array.from(playingSets.values()).every((playingSet) =>
+      willNotSpoil(playingSet, prospectiveSet, splitOption),
+    );
+  };
+
   const idToQueue = new Map<string, Queue>();
   const queueIds: string[] = [];
   const getQueues = () => queueIds.map((queueId) => idToQueue.get(queueId)!);
@@ -278,13 +287,7 @@ export default async function setupIPCs(
     mainWindow.webContents.send(
       'queues',
       getQueues().map((queue) => queue.toRendererQueue()),
-    );
-  };
-  const originalPathToPlayedMs = new Map<string, number>();
-  const playingSets: Map<number, AvailableSet> = new Map();
-  const willNotSpoilPlayingSets = (prospectiveSet: AvailableSet) => {
-    return Array.from(playingSets.values()).every((playingSet) =>
-      willNotSpoil(playingSet, prospectiveSet, splitOption),
+      playingSets.size + tryingPorts.size < maxDolphins,
     );
   };
 
@@ -421,7 +424,6 @@ export default async function setupIPCs(
     return writeFile(overlayFilePath, JSON.stringify(overlayContext));
   };
   const failedPorts = new Set<number>();
-  const tryingPorts = new Set<number>();
   const getNextPort = () => {
     let tryPort = Ports.DEFAULT;
     const usedPorts = new Set(dolphins.keys());
@@ -847,19 +849,6 @@ export default async function setupIPCs(
       }
       const setToPlay = queue.find(originalPath);
 
-      if (
-        playingSets.size === 1 &&
-        maxDolphins === 1 &&
-        tryingPorts.size === 0
-      ) {
-        const [port, playingSet] = Array.from(playingSets.entries())[0];
-        playingSet.playing = false;
-        await playDolphin(queue, setToPlay, port);
-        if (playingSet.type === SetType.ZIP) {
-          deleteZipDir(playingSet, tempDir);
-        }
-        return;
-      }
       if (playingSets.size + tryingPorts.size < maxDolphins) {
         await playDolphin(queue, setToPlay);
         obsConnection.transition(playingSets);
@@ -1128,6 +1117,11 @@ export default async function setupIPCs(
   ipcMain.removeHandler('getQueues');
   ipcMain.handle('getQueues', () =>
     getQueues().map((queue) => queue.toRendererQueue()),
+  );
+  ipcMain.removeHandler('getCanPlay');
+  ipcMain.handle(
+    'getCanPlay',
+    () => playingSets.size + tryingPorts.size < maxDolphins,
   );
   ipcMain.removeHandler('incrementQueuePriority');
   ipcMain.handle('incrementQueuePriority', (event, queueId: string) => {

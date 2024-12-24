@@ -65,9 +65,11 @@ function TwitchStreamIcon({ stream }: { stream: Stream }) {
 
 export default function Queue({
   queue,
+  canPlay,
   twitchChannel,
 }: {
   queue: RendererQueue;
+  canPlay: boolean;
   twitchChannel: string;
 }) {
   return (
@@ -79,7 +81,7 @@ export default function Queue({
           key={set.originalPath}
           style={{
             gap: '8px',
-            opacity: set.played ? '50%' : '100%',
+            opacity: set.played ? '0.54' : '100%',
           }}
         >
           <Checkbox
@@ -142,6 +144,7 @@ export default function Queue({
           {set.playing && (
             <Tooltip arrow title="Stop">
               <IconButton
+                style={{ color: 'rgba(0, 0, 0, 1' }}
                 onClick={() => {
                   window.electron.stop(queue.id, set.originalPath);
                 }}
@@ -174,6 +177,12 @@ export default function Queue({
           )}
           <Tooltip arrow title="Play now">
             <IconButton
+              disabled={!canPlay || set.playing}
+              style={
+                set.played && (!canPlay || set.playing)
+                  ? { color: 'rgba(0, 0, 0, 0.5)' }
+                  : {}
+              }
               onClick={() => {
                 window.electron.playNow(queue.id, set.originalPath);
               }}

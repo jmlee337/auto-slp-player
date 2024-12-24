@@ -67,6 +67,7 @@ const electronHandler = {
   getTwitchBotStatus: (): Promise<{ connected: boolean; error: string }> =>
     ipcRenderer.invoke('getTwitchBotStatus'),
   getQueues: (): Promise<RendererQueue[]> => ipcRenderer.invoke('getQueues'),
+  getCanPlay: (): Promise<boolean> => ipcRenderer.invoke('getCanPlay'),
   incrementQueuePriority: (queueId: string): Promise<void> =>
     ipcRenderer.invoke('incrementQueuePriority', queueId),
   decrementQueuePriority: (queueId: string): Promise<void> =>
@@ -98,7 +99,11 @@ const electronHandler = {
     ipcRenderer.on('obsConnectionStatus', callback);
   },
   onQueues: (
-    callback: (event: IpcRendererEvent, queues: RendererQueue[]) => void,
+    callback: (
+      event: IpcRendererEvent,
+      queues: RendererQueue[],
+      canPlay: boolean,
+    ) => void,
   ) => {
     ipcRenderer.removeAllListeners('queues');
     ipcRenderer.on('queues', callback);

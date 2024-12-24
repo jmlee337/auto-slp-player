@@ -75,6 +75,7 @@ function Hello() {
   const [twitchBotConnected, setTwitchBotConnected] = useState(false);
   const [twitchBotError, setTwitchBotError] = useState('');
   const [watchDir, setWatchDir] = useState('');
+  const [canPlay, setCanPlay] = useState(false);
   const [queues, setQueues] = useState<RendererQueue[]>([]);
   const [visibleQueueId, setVisibleQueueId] = useState('');
   const [gotSettings, setGotSettings] = useState(false);
@@ -97,6 +98,7 @@ function Hello() {
       const streamingStatePromise = window.electron.getStreamingState();
       const twitchBotStatusPromise = window.electron.getTwitchBotStatus();
       const watchDirPromise = window.electron.getWatchDir();
+      const canPlayPromise = window.electron.getCanPlay();
       const queuesPromise = window.electron.getQueues();
 
       // req network
@@ -123,6 +125,7 @@ function Hello() {
       setTwitchBotConnected((await twitchBotStatusPromise).connected);
       setTwitchBotError((await twitchBotStatusPromise).error);
       setWatchDir(await watchDirPromise);
+      setCanPlay(await canPlayPromise);
 
       const initialQueues = await queuesPromise;
       setQueues(initialQueues);
@@ -174,7 +177,7 @@ function Hello() {
     window.electron.onStreaming((event: IpcRendererEvent, state: string) => {
       setStreamingState(state);
     });
-    window.electron.onQueues((event, newQueues) => {
+    window.electron.onQueues((event, newQueues, newCanPlay) => {
       setVisibleQueueId((oldVisibleQueueId) => {
         if (newQueues.length === 0) {
           return oldVisibleQueueId;
@@ -185,6 +188,7 @@ function Hello() {
         return newQueues[0].id;
       });
       setQueues(newQueues);
+      setCanPlay(newCanPlay);
     });
     window.electron.onTwitchBotStatus((event, { connected, error }) => {
       setTwitchBotConnected(connected);
@@ -387,7 +391,11 @@ function Hello() {
         </Stack>
       </Stack>
       {queues.length === 1 && (
-        <Queue queue={queues[0]} twitchChannel={twitchChannel} />
+        <Queue
+          queue={queues[0]}
+          canPlay={canPlay}
+          twitchChannel={twitchChannel}
+        />
       )}
       {queues.length > 1 && (
         <>
@@ -414,6 +422,7 @@ function Hello() {
           {queues.map((queue) => (
             <QueueTabPanel
               queue={queue}
+              canPlay={canPlay}
               twitchChannel={twitchChannel}
               visibleQueueId={visibleQueueId}
             />

@@ -20,7 +20,7 @@ export default class Queue {
     this.nextSetIsManual = false;
   }
 
-  private sortSets() {
+  public sortSets() {
     this.sets.sort((a, b) => {
       if (a.context?.startgg && b.context?.startgg) {
         const aStartgg = a.context.startgg;

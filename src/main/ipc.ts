@@ -55,53 +55,68 @@ function willNotSpoil(
   const bStartgg = setB.context?.startgg;
   const aChallonge = setA.context?.challonge;
   const bChallonge = setB.context?.challonge;
-  if ((!aStartgg && !bStartgg) || (!aChallonge && !bChallonge)) {
+  if (
+    (!aStartgg && !bStartgg && !aChallonge && !bChallonge) ||
+    Boolean(aStartgg) !== Boolean(bStartgg) ||
+    Boolean(aChallonge) !== Boolean(bChallonge)
+  ) {
     return true;
   }
-  if (
-    aStartgg &&
-    bStartgg &&
-    (aStartgg.phase.id === bStartgg.phase.id ||
-      splitOption === SplitOption.PHASE)
-  ) {
+  if (aStartgg && bStartgg) {
+    // sets in diff events can never spoil each other
+    // sets in diff phases are non spoiling if splitting by phase
     if (
       aStartgg.event.slug !== bStartgg.event.slug ||
-      aStartgg.phaseGroup.id !== bStartgg.phaseGroup.id ||
       (aStartgg.phase.id !== bStartgg.phase.id &&
         splitOption === SplitOption.PHASE)
     ) {
       return true;
     }
+
+    // if splitting by phase then same phase
+    // if any other split then we need to verify same phase
     if (
-      aStartgg.phaseGroup.bracketType === 3 &&
-      bStartgg.phaseGroup.bracketType === 3
+      splitOption === SplitOption.PHASE ||
+      aStartgg.phase.id === bStartgg.phase.id
     ) {
-      return true;
-    }
-    if (aStartgg.set.round === bStartgg.set.round) {
-      return true;
+      if (aStartgg.phaseGroup.id !== bStartgg.phaseGroup.id) {
+        return true;
+      }
+      if (
+        aStartgg.phaseGroup.bracketType === 3 &&
+        bStartgg.phaseGroup.bracketType === 3
+      ) {
+        return true;
+      }
+      if (aStartgg.set.round === bStartgg.set.round) {
+        return true;
+      }
     }
   }
-  if (
-    aChallonge &&
-    bChallonge &&
-    (aChallonge.tournament.slug === bChallonge.tournament.slug ||
-      splitOption !== SplitOption.NONE)
-  ) {
+  if (aChallonge && bChallonge) {
+    // sets in diff brackets are non spoiling if splitting
     if (
       aChallonge.tournament.slug !== bChallonge.tournament.slug &&
       splitOption !== SplitOption.NONE
     ) {
       return true;
     }
+
+    // if splitting then same bracket
+    // if not splitting then we need to verify same bracket
     if (
-      aChallonge.tournament.tournamentType === 'round robin' &&
-      bChallonge.tournament.tournamentType === 'round robin'
+      splitOption !== SplitOption.NONE ||
+      aChallonge.tournament.slug === bChallonge.tournament.slug
     ) {
-      return true;
-    }
-    if (aChallonge.set.round === bChallonge.set.round) {
-      return true;
+      if (
+        aChallonge.tournament.tournamentType === 'round robin' &&
+        bChallonge.tournament.tournamentType === 'round robin'
+      ) {
+        return true;
+      }
+      if (aChallonge.set.round === bChallonge.set.round) {
+        return true;
+      }
     }
   }
   return false;
@@ -635,8 +650,11 @@ export default async function setupIPCs(
   ipcMain.removeHandler('startStream');
   ipcMain.handle('startStream', async () => obsConnection.startStream());
 
-  let watcher: FSWatcher | undefined;
   let watchDir = '';
+  ipcMain.removeHandler('getWatchDir');
+  ipcMain.handle('getWatchDir', () => watchDir);
+
+  let watcher: FSWatcher | undefined;
   ipcMain.removeHandler('chooseWatchDir');
   ipcMain.handle('chooseWatchDir', async (): Promise<string> => {
     const openDialogRes = await dialog.showOpenDialog({
@@ -645,7 +663,11 @@ export default async function setupIPCs(
     if (openDialogRes.canceled) {
       return watchDir;
     }
-    [watchDir] = openDialogRes.filePaths;
+    const [newWatchDir] = openDialogRes.filePaths;
+    if (newWatchDir === watchDir) {
+      return watchDir;
+    }
+    watchDir = newWatchDir;
 
     if (watcher) {
       await watcher.close();
@@ -740,6 +762,8 @@ export default async function setupIPCs(
 
       setToMark.playedMs = played ? Date.now() : 0;
       originalPathToPlayedMs.set(setToMark.originalPath, setToMark.playedMs);
+      queue.sortSets();
+
       const { nextSet, nextSetIsManual } = queue.peek();
       if (
         !nextSetIsManual ||
@@ -1093,6 +1117,11 @@ export default async function setupIPCs(
   ipcMain.removeHandler('getTwitchBotStatus');
   ipcMain.handle('getTwitchBotStatus', () => twitchBotStatus);
   maybeStartTwitchBot(twitchSettings);
+
+  ipcMain.removeHandler('getQueues');
+  ipcMain.handle('getQueues', () =>
+    Array.from(idToQueue.values()).map((queue) => queue.toRendererQueue()),
+  );
 
   ipcMain.removeHandler('getDolphinVersion');
   ipcMain.handle('getDolphinVersion', async () => {

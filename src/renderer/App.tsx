@@ -71,6 +71,9 @@ function Hello() {
   const [streamingState, setStreamingState] = useState('');
   const [twitchBotConnected, setTwitchBotConnected] = useState(false);
   const [twitchBotError, setTwitchBotError] = useState('');
+  const [watchDir, setWatchDir] = useState('');
+  const [queues, setQueues] = useState<RendererQueue[]>([]);
+  const [visibleQueueId, setVisibleQueueId] = useState('');
   const [gotSettings, setGotSettings] = useState(false);
   useEffect(() => {
     const inner = async () => {
@@ -85,11 +88,13 @@ function Hello() {
       const twitchSettingsPromise = window.electron.getTwitchSettings();
       const dolphinVersionPromise = window.electron.getDolphinVersion();
       const obsSettingsPromise = window.electron.getObsSettings();
-      const numDolphinsPromise = window.electron.getNumdolphins();
+      const numDolphinsPromise = window.electron.getNumDolphins();
       const obsConnectionStatusPromise =
         window.electron.getObsConnectionStatus();
       const streamingStatePromise = window.electron.getStreamingState();
       const twitchBotStatusPromise = window.electron.getTwitchBotStatus();
+      const watchDirPromise = window.electron.getWatchDir();
+      const queuesPromise = window.electron.getQueues();
 
       // req network
       const latestAppVersionPromise = window.electron.getLatestVersion();
@@ -114,6 +119,11 @@ function Hello() {
       setStreamingState(await streamingStatePromise);
       setTwitchBotConnected((await twitchBotStatusPromise).connected);
       setTwitchBotError((await twitchBotStatusPromise).error);
+      setWatchDir(await watchDirPromise);
+
+      const initialQueues = await queuesPromise;
+      setQueues(initialQueues);
+      setVisibleQueueId(initialQueues.length > 0 ? initialQueues[0].id : '');
 
       // req network
       try {
@@ -129,12 +139,7 @@ function Hello() {
     inner();
   }, []);
 
-  const [watchDir, setWatchDir] = useState('');
   const [dolphinsOpening, setDolphinsOpening] = useState(false);
-
-  const [queues, setQueues] = useState<RendererQueue[]>([]);
-  const [visibleQueueId, setVisibleQueueId] = useState('');
-
   const [obsError, setObsError] = useState('');
   const [obsErrorDialogOpen, setObsErrorDialogOpen] = useState(false);
   useEffect(() => {
@@ -167,6 +172,15 @@ function Hello() {
       setStreamingState(state);
     });
     window.electron.onQueues((event, newQueues) => {
+      setVisibleQueueId((oldVisibleQueueId) => {
+        if (newQueues.length === 0) {
+          return oldVisibleQueueId;
+        }
+        if (newQueues.some((queue) => queue.id === oldVisibleQueueId)) {
+          return oldVisibleQueueId;
+        }
+        return newQueues[0].id;
+      });
       setQueues(newQueues);
     });
     window.electron.onTwitchBotStatus((event, { connected, error }) => {
@@ -346,6 +360,7 @@ function Hello() {
               }
             }}
             aria-label="Queues"
+            variant="scrollable"
           >
             {queues.map((queue) => (
               <Tab

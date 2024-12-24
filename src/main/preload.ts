@@ -16,8 +16,9 @@ const electronHandler = {
   getMaxDolphins: (): Promise<number> => ipcRenderer.invoke('getMaxDolphins'),
   setMaxDolphins: (maxDolphins: number): Promise<void> =>
     ipcRenderer.invoke('setMaxDolphins', maxDolphins),
+  getWatchDir: (): Promise<string> => ipcRenderer.invoke('getWatchDir'),
   chooseWatchDir: (): Promise<string> => ipcRenderer.invoke('chooseWatchDir'),
-  getNumdolphins: (): Promise<number> => ipcRenderer.invoke('getNumDolphins'),
+  getNumDolphins: (): Promise<number> => ipcRenderer.invoke('getNumDolphins'),
   openDolphins: (): Promise<void> => ipcRenderer.invoke('openDolphins'),
   getObsConnectionStatus: (): Promise<OBSConnectionStatus> =>
     ipcRenderer.invoke('getObsConnectionStatus'),
@@ -63,6 +64,7 @@ const electronHandler = {
     ipcRenderer.invoke('getTwitchTokens', code),
   getTwitchBotStatus: (): Promise<{ connected: boolean; error: string }> =>
     ipcRenderer.invoke('getTwitchBotStatus'),
+  getQueues: (): Promise<RendererQueue[]> => ipcRenderer.invoke('getQueues'),
   getDolphinVersion: (): Promise<{ version: string; error: string }> =>
     ipcRenderer.invoke('getDolphinVersion'),
   getObsSettings: (): Promise<OBSSettings> =>

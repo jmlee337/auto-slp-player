@@ -242,7 +242,7 @@ function Hello() {
         </Tooltip>
       </Stack>
       <Stack direction="row" marginTop="8px" justifyContent="space-between">
-        {queues.length > 0 && (
+        {queues.length > 1 && (
           <Stack
             alignItems="center"
             direction="row"

@@ -706,7 +706,9 @@ export default async function setupIPCs(
               queueName = newSet.context.startgg.event.name;
             } else {
               queueId = `p:${newSet.context.startgg.phase.id}`;
-              queueName = newSet.context.startgg.phase.name;
+              queueName = newSet.context.startgg.event.hasSiblings
+                ? `${newSet.context.startgg.event.name}, ${newSet.context.startgg.phase.name}`
+                : newSet.context.startgg.phase.name;
             }
           } else if (newSet.context.challonge) {
             queueId = `c:${newSet.context.challonge.tournament.slug}`;
@@ -895,6 +897,86 @@ export default async function setupIPCs(
       if (splitOption !== newSplitOption) {
         store.set('splitOption', newSplitOption);
         splitOption = newSplitOption;
+
+        const allSets: AvailableSet[] = [];
+        getQueues().forEach((queue) => {
+          allSets.push(...queue.getSets());
+        });
+
+        idToQueue.clear();
+        queueIds.length = 0;
+        if (splitOption === SplitOption.EVENT) {
+          const idToNewQueue = new Map<
+            string,
+            { name: string; sets: AvailableSet[] }
+          >();
+          allSets.forEach((set) => {
+            let queueId = '';
+            let name = 'Unknown';
+            if (set.context?.startgg) {
+              queueId = `e:${set.context.startgg.event.slug}`;
+              name = set.context.startgg.event.name;
+            } else if (set.context?.challonge) {
+              queueId = `c:${set.context.challonge.tournament.slug}`;
+              name = set.context.challonge.tournament.name;
+            }
+            if (idToNewQueue.has(queueId)) {
+              idToNewQueue.get(queueId)!.sets.push(set);
+            } else {
+              idToNewQueue.set(queueId, { name, sets: [set] });
+            }
+          });
+          Array.from(idToNewQueue.entries()).forEach(([queueId, newQueue]) => {
+            idToQueue.set(
+              queueId,
+              new Queue(queueId, newQueue.name, newQueue.sets),
+            );
+            queueIds.push(queueId);
+          });
+        } else if (splitOption === SplitOption.PHASE) {
+          const idToNewQueue = new Map<
+            string,
+            { name: string; sets: AvailableSet[] }
+          >();
+          allSets.forEach((set) => {
+            let queueId = '';
+            let name = 'Unknown';
+            if (set.context?.startgg) {
+              queueId = `p:${set.context.startgg.phase.id}`;
+              name = set.context.startgg.event.hasSiblings
+                ? `${set.context.startgg.event.name}, ${set.context.startgg.phase.name}`
+                : set.context.startgg.phase.name;
+            } else if (set.context?.challonge) {
+              queueId = `c:${set.context.challonge.tournament.slug}`;
+              name = set.context.challonge.tournament.name;
+            }
+            if (idToNewQueue.has(queueId)) {
+              idToNewQueue.get(queueId)!.sets.push(set);
+            } else {
+              idToNewQueue.set(queueId, { name, sets: [set] });
+            }
+          });
+          Array.from(idToNewQueue.entries()).forEach(([queueId, newQueue]) => {
+            idToQueue.set(
+              queueId,
+              new Queue(queueId, newQueue.name, newQueue.sets),
+            );
+            queueIds.push(queueId);
+          });
+        } else {
+          // SplitOption.NONE
+          idToQueue.set('', new Queue('', 'Unknown', allSets));
+          queueIds.push('');
+        }
+        getQueues().forEach((queue) => {
+          queue.sortSets();
+          if (queue.isPlaying()) {
+            queue.setCalculatedNextSet();
+          } else {
+            queue.clearNextSet();
+          }
+        });
+        sendQueues();
       }
     },
   );

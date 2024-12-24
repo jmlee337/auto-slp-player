@@ -12,10 +12,10 @@ export default class Queue {
 
   private nextSetIsManual: boolean;
 
-  constructor(id: string, name: string) {
+  constructor(id: string, name: string, sets: AvailableSet[] = []) {
     this.id = id;
     this.name = name;
-    this.sets = [];
+    this.sets = sets;
     this.nextSet = null;
     this.nextSetIsManual = false;
   }
@@ -231,5 +231,9 @@ export default class Queue {
 
   public hasPlayable(): boolean {
     return this.sets.some((set) => set.playedMs === 0);
+  }
+
+  public getSets(): AvailableSet[] {
+    return this.sets;
   }
 }

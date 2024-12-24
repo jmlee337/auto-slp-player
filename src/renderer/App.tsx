@@ -326,7 +326,7 @@ function Hello() {
             variant="contained"
           >
             {numDolphins === maxDolphins ? 'Dolphins Open' : 'Open Dolphins'}{' '}
-            {`(${numDolphins})`}
+            {`(${numDolphins}/${maxDolphins})`}
           </Button>
           <Button
             disabled={

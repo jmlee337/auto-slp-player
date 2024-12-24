@@ -727,16 +727,16 @@ export default async function setupIPCs(
         if (
           playingSets.size + tryingPorts.size < maxDolphins &&
           (queueIsNew || queue.getCalculatedNextSet() === newSet) &&
-          willNotSpoilPlayingSets(newSet)
+          willNotSpoilPlayingSets(newSet) &&
+          (!queueIsNew || queueIds.length === 1)
         ) {
           await playDolphin(queue, newSet);
           obsConnection.transition(playingSets);
         } else {
           const { nextSet, nextSetIsManual } = queue.peek();
-          if (nextSet === null || !nextSetIsManual) {
+          if (nextSet && !nextSetIsManual) {
             queue.setCalculatedNextSet();
           }
-          writeOverlayJson();
           sendQueues();
         }
       } catch (e: any) {
@@ -769,17 +769,15 @@ export default async function setupIPCs(
 
       const { nextSet, nextSetIsManual } = queue.peek();
       if (
-        !nextSetIsManual ||
-        (originalPath === nextSet?.originalPath && played)
+        nextSet &&
+        (!nextSetIsManual || (originalPath === nextSet?.originalPath && played))
       ) {
         queue.setCalculatedNextSet();
       }
 
       sendQueues();
-      writeOverlayJson();
     },
   );
-
   ipcMain.removeHandler('stop');
   ipcMain.handle(
     'stop',
@@ -812,7 +810,6 @@ export default async function setupIPCs(
       }
     },
   );
-
   ipcMain.removeHandler('playNext');
   ipcMain.handle(
     'playNext',
@@ -823,12 +820,19 @@ export default async function setupIPCs(
       }
 
       queue.setNextSetManually(originalPath);
-
       sendQueues();
-      writeOverlayJson();
     },
   );
+  ipcMain.removeHandler('unqueue');
+  ipcMain.handle('unqueue', (event, queueId: string) => {
+    const queue = idToQueue.get(queueId);
+    if (!queue) {
+      throw new Error(`no such queue: ${queueId}`);
+    }
 
+    queue.clearNextSet();
+    sendQueues();
+  });
   ipcMain.removeHandler('playNow');
   ipcMain.handle(
     'playNow',

@@ -13,6 +13,7 @@ import {
 import {
   PlayArrow,
   PlaylistAddCheck,
+  PlaylistRemove,
   Report,
   Stop,
   SubdirectoryArrowRight,
@@ -138,7 +139,7 @@ export default function Queue({
           ) : (
             <ListItemText>{set.originalPath}</ListItemText>
           )}
-          {set.playing ? (
+          {set.playing && (
             <Tooltip arrow title="Stop">
               <IconButton
                 onClick={() => {
@@ -148,7 +149,8 @@ export default function Queue({
                 <Stop />
               </IconButton>
             </Tooltip>
-          ) : (
+          )}
+          {!set.playing && set.originalPath !== queue.nextSetOriginalPath && (
             <Tooltip arrow title="Play next">
               <IconButton
                 onClick={() => {
@@ -156,6 +158,17 @@ export default function Queue({
                 }}
               >
                 <SubdirectoryArrowRight />
+              </IconButton>
+            </Tooltip>
+          )}
+          {!set.playing && set.originalPath === queue.nextSetOriginalPath && (
+            <Tooltip arrow title="Cancel next">
+              <IconButton
+                onClick={() => {
+                  window.electron.unqueue(queue.id);
+                }}
+              >
+                <PlaylistRemove />
               </IconButton>
             </Tooltip>
           )}

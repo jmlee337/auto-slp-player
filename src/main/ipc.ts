@@ -127,9 +127,39 @@ export default async function setupIPCs(
   resourcesPath: string,
 ): Promise<void> {
   const store = new Store();
-  let dolphinPath = store.has('dolphinPath')
-    ? (store.get('dolphinPath') as string)
-    : '';
+  let dolphinPath = '';
+  if (store.has('dolphinPath')) {
+    dolphinPath = store.get('dolphinPath') as string;
+  } else {
+    let defaultPath = path.join(
+      app.getPath('appData'),
+      'Slippi Launcher',
+      'playback',
+    );
+    if (process.platform === 'win32') {
+      defaultPath = path.join(defaultPath, 'Slippi Dolphin.exe');
+    } else if (process.platform === 'darwin') {
+      defaultPath = path.join(
+        defaultPath,
+        'Slippi Dolphin.app',
+        'Contents',
+        'MacOS',
+        'Slippi Dolphin',
+      );
+    } else if (process.platform === 'linux') {
+      defaultPath = path.join(defaultPath, 'Slippi_Playback-x86_64.AppImage');
+    } else {
+      throw new Error('unsupported platform???');
+    }
+    try {
+      await access(defaultPath);
+      dolphinPath = defaultPath;
+      store.set('dolphinPath', dolphinPath);
+    } catch {
+      // just catch
+    }
+  }
+
   let isoPath = store.has('isoPath') ? (store.get('isoPath') as string) : '';
   let maxDolphins = store.has('maxDolphins')
     ? (store.get('maxDolphins') as number)

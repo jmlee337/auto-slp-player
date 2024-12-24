@@ -715,6 +715,7 @@ export default async function setupIPCs(
         }
         const queueIsNew = !idToQueue.has(queueId);
         const queue = idToQueue.get(queueId) ?? new Queue(queueId, queueName);
+        const hadPlayable = queue.hasPlayable();
         queue.enqueue(newSet);
         if (queueIsNew) {
           idToQueue.set(queueId, queue);
@@ -736,7 +737,7 @@ export default async function setupIPCs(
           obsConnection.transition(playingSets);
         } else {
           const { nextSet, nextSetIsManual } = queue.peek();
-          if (nextSet && !nextSetIsManual) {
+          if ((nextSet || !hadPlayable) && !nextSetIsManual) {
             queue.setCalculatedNextSet();
           }
           sendQueues();

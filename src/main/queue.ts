@@ -228,4 +228,8 @@ export default class Queue {
       nextSetOriginalPath: this.nextSet?.originalPath ?? '',
     };
   }
+
+  public hasPlayable(): boolean {
+    return this.sets.some((set) => set.playedMs === 0);
+  }
 }

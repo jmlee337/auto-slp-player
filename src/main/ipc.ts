@@ -272,10 +272,12 @@ export default async function setupIPCs(
   }
 
   const idToQueue = new Map<string, Queue>();
+  const queueIds: string[] = [];
+  const getQueues = () => queueIds.map((queueId) => idToQueue.get(queueId)!);
   const sendQueues = () => {
     mainWindow.webContents.send(
       'queues',
-      Array.from(idToQueue.values()).map((queue) => queue.toRendererQueue()),
+      getQueues().map((queue) => queue.toRendererQueue()),
     );
   };
   const originalPathToPlayedMs = new Map<string, number>();
@@ -536,7 +538,7 @@ export default async function setupIPCs(
       gameIndices.delete(port);
       dolphins.delete(port);
       if (dolphins.size === 0) {
-        Array.from(idToQueue.values()).forEach((queue) => {
+        getQueues().forEach((queue) => {
           queue.clearNextSet();
         });
       }
@@ -583,7 +585,7 @@ export default async function setupIPCs(
         }
         return setsPlayed;
       };
-      const setsPlayed = await maybePlaySets(Array.from(idToQueue.values()));
+      const setsPlayed = await maybePlaySets(getQueues());
       if (setsPlayed !== 1) {
         obsConnection.transition(playingSets);
       }
@@ -714,6 +716,7 @@ export default async function setupIPCs(
         queue.enqueue(newSet);
         if (queueIsNew) {
           idToQueue.set(queueId, queue);
+          queueIds.push(queueId);
         }
 
         if (newSet.playing) {
@@ -1120,8 +1123,32 @@ export default async function setupIPCs(
 
   ipcMain.removeHandler('getQueues');
   ipcMain.handle('getQueues', () =>
-    Array.from(idToQueue.values()).map((queue) => queue.toRendererQueue()),
+    getQueues().map((queue) => queue.toRendererQueue()),
   );
+  ipcMain.removeHandler('incrementQueuePriority');
+  ipcMain.handle('incrementQueuePriority', (event, queueId: string) => {
+    const i = queueIds.indexOf(queueId);
+    if (i === -1) {
+      throw new Error('no such queue id');
+    }
+    if (i === 0) {
+      throw new Error('queue already max priority');
+    }
+    [queueIds[i - 1], queueIds[i]] = [queueIds[i], queueIds[i - 1]];
+    sendQueues();
+  });
+  ipcMain.removeHandler('decrementQueuePriority');
+  ipcMain.handle('decrementQueuePriority', (event, queueId: string) => {
+    const i = queueIds.indexOf(queueId);
+    if (i === -1) {
+      throw new Error('no such queue id');
+    }
+    if (i === queueIds.length - 1) {
+      throw new Error('queue already min priority');
+    }
+    [queueIds[i], queueIds[i + 1]] = [queueIds[i + 1], queueIds[i]];
+    sendQueues();
+  });
 
   ipcMain.removeHandler('getDolphinVersion');
   ipcMain.handle('getDolphinVersion', async () => {

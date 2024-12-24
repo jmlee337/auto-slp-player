@@ -15,11 +15,14 @@ import {
   Tab,
   Tabs,
   Tooltip,
+  Typography,
 } from '@mui/material';
 import {
+  Add,
   Check,
   PlayCircle,
   PriorityHigh,
+  Remove,
   Visibility,
   WebAsset,
 } from '@mui/icons-material';
@@ -234,118 +237,154 @@ function Hello() {
           </IconButton>
         </Tooltip>
       </Stack>
-      <Stack
-        direction="row"
-        marginTop="8px"
-        justifyContent="flex-end"
-        spacing="8px"
-      >
-        <Settings
-          dolphinPath={dolphinPath}
-          setDolphinPath={setDolphinPath}
-          isoPath={isoPath}
-          setIsoPath={setIsoPath}
-          generateOverlay={generateOverlay}
-          setGenerateOverlay={setGenerateOverlay}
-          generateTimestamps={generateTimestamps}
-          setGenerateTimestamps={setGenerateTimestamps}
-          splitOption={splitOption}
-          setSplitOption={setSplitOption}
-          maxDolphins={maxDolphins}
-          setMaxDolphins={setMaxDolphins}
-          twitchChannel={twitchChannel}
-          setTwitchChannel={setTwitchChannel}
-          twitchSettings={twitchSettings}
-          setTwitchSettings={setTwitchSettings}
-          twitchBotConnected={twitchBotConnected}
-          twitchBotError={twitchBotError}
-          dolphinVersion={dolphinVersion}
-          setDolphinVersion={setDolphinVersion}
-          dolphinVersionError={dolphinVersionError}
-          setDolphinVersionError={setDolphinVersionError}
-          obsProtocol={obsProtocol}
-          setObsProtocol={setObsProtocol}
-          obsAddress={obsAddress}
-          setObsAddress={setObsAddress}
-          obsPort={obsPort}
-          setObsPort={setObsPort}
-          obsPassword={obsPassword}
-          setObsPassword={setObsPassword}
-          appVersion={appVersion}
-          latestAppVersion={latestAppVersion}
-          gotSettings={gotSettings}
-        />
-        <Button
-          disabled={numDolphins === maxDolphins || dolphinsOpening}
-          endIcon={
-            dolphinsOpening ? <CircularProgress size="24px" /> : <WebAsset />
-          }
-          onClick={async () => {
-            setDolphinsOpening(true);
-            try {
-              await window.electron.openDolphins();
-            } finally {
-              setDolphinsOpening(false);
-            }
-          }}
-          variant="contained"
+      <Stack direction="row" marginTop="8px" justifyContent="space-between">
+        {queues.length > 0 && (
+          <Stack
+            alignItems="center"
+            direction="row"
+            justifyContent="flex-start"
+          >
+            <Typography marginRight="8px" variant="button">
+              Priority
+            </Typography>
+            <Tooltip title="Increment" placement="top">
+              <IconButton
+                disabled={visibleQueueId === queues[0].id}
+                onClick={() => {
+                  window.electron.incrementQueuePriority(visibleQueueId);
+                }}
+              >
+                <Add />
+              </IconButton>
+            </Tooltip>
+            <Tooltip title="Decrement" placement="top">
+              <IconButton
+                disabled={visibleQueueId === queues[queues.length - 1].id}
+                onClick={() => {
+                  window.electron.decrementQueuePriority(visibleQueueId);
+                }}
+              >
+                <Remove />
+              </IconButton>
+            </Tooltip>
+          </Stack>
+        )}
+        <Stack
+          direction="row"
+          flexGrow="1"
+          justifyContent="flex-end"
+          spacing="8px"
         >
-          {numDolphins === maxDolphins ? 'Dolphins Open' : 'Open Dolphins'}{' '}
-          {`(${numDolphins})`}
-        </Button>
-        <Button
-          disabled={
-            !dolphinVersion ||
-            (numDolphins < maxDolphins &&
-              obsConnectionStatus === OBSConnectionStatus.OBS_NOT_CONNECTED) ||
-            obsConnectionStatus === OBSConnectionStatus.READY
-          }
-          endIcon={obsButtonIcon}
-          onClick={async () => {
-            if (obsConnectionStatus === OBSConnectionStatus.OBS_NOT_CONNECTED) {
+          <Settings
+            dolphinPath={dolphinPath}
+            setDolphinPath={setDolphinPath}
+            isoPath={isoPath}
+            setIsoPath={setIsoPath}
+            generateOverlay={generateOverlay}
+            setGenerateOverlay={setGenerateOverlay}
+            generateTimestamps={generateTimestamps}
+            setGenerateTimestamps={setGenerateTimestamps}
+            splitOption={splitOption}
+            setSplitOption={setSplitOption}
+            maxDolphins={maxDolphins}
+            setMaxDolphins={setMaxDolphins}
+            twitchChannel={twitchChannel}
+            setTwitchChannel={setTwitchChannel}
+            twitchSettings={twitchSettings}
+            setTwitchSettings={setTwitchSettings}
+            twitchBotConnected={twitchBotConnected}
+            twitchBotError={twitchBotError}
+            dolphinVersion={dolphinVersion}
+            setDolphinVersion={setDolphinVersion}
+            dolphinVersionError={dolphinVersionError}
+            setDolphinVersionError={setDolphinVersionError}
+            obsProtocol={obsProtocol}
+            setObsProtocol={setObsProtocol}
+            obsAddress={obsAddress}
+            setObsAddress={setObsAddress}
+            obsPort={obsPort}
+            setObsPort={setObsPort}
+            obsPassword={obsPassword}
+            setObsPassword={setObsPassword}
+            appVersion={appVersion}
+            latestAppVersion={latestAppVersion}
+            gotSettings={gotSettings}
+          />
+          <Button
+            disabled={numDolphins === maxDolphins || dolphinsOpening}
+            endIcon={
+              dolphinsOpening ? <CircularProgress size="24px" /> : <WebAsset />
+            }
+            onClick={async () => {
+              setDolphinsOpening(true);
               try {
-                setObsConnecting(true);
-                await window.electron.connectObs();
-              } catch (e: any) {
-                const message = e instanceof Error ? e.message : e;
-                setObsError(message);
-                setObsErrorDialogOpen(true);
+                await window.electron.openDolphins();
               } finally {
-                setObsConnecting(false);
+                setDolphinsOpening(false);
               }
-            } else if (
-              obsConnectionStatus === OBSConnectionStatus.OBS_NOT_SETUP
-            ) {
-              setObsErrorDialogOpen(true);
+            }}
+            variant="contained"
+          >
+            {numDolphins === maxDolphins ? 'Dolphins Open' : 'Open Dolphins'}{' '}
+            {`(${numDolphins})`}
+          </Button>
+          <Button
+            disabled={
+              !dolphinVersion ||
+              (numDolphins < maxDolphins &&
+                obsConnectionStatus ===
+                  OBSConnectionStatus.OBS_NOT_CONNECTED) ||
+              obsConnectionStatus === OBSConnectionStatus.READY
             }
-          }}
-          variant="contained"
-        >
-          {obsConnectionStatus === OBSConnectionStatus.OBS_NOT_CONNECTED
-            ? 'Connect to OBS'
-            : 'OBS Connected'}
-        </Button>
-        <Button
-          disabled={
-            streamingState === 'OBS_WEBSOCKET_OUTPUT_STARTING' ||
-            streamingState === 'OBS_WEBSOCKET_OUTPUT_STARTED' ||
-            obsConnectionStatus !== OBSConnectionStatus.READY
-          }
-          endIcon={
-            streamingState === 'OBS_WEBSOCKET_OUTPUT_STARTING' ||
-            streamingState === 'OBS_WEBSOCKET_OUTPUT_STARTED' ? (
-              <CircularProgress size="24px" />
-            ) : (
-              <PlayCircle />
-            )
-          }
-          onClick={async () => {
-            await window.electron.startStream();
-          }}
-          variant="contained"
-        >
-          {streamingMsg}
-        </Button>
+            endIcon={obsButtonIcon}
+            onClick={async () => {
+              if (
+                obsConnectionStatus === OBSConnectionStatus.OBS_NOT_CONNECTED
+              ) {
+                try {
+                  setObsConnecting(true);
+                  await window.electron.connectObs();
+                } catch (e: any) {
+                  const message = e instanceof Error ? e.message : e;
+                  setObsError(message);
+                  setObsErrorDialogOpen(true);
+                } finally {
+                  setObsConnecting(false);
+                }
+              } else if (
+                obsConnectionStatus === OBSConnectionStatus.OBS_NOT_SETUP
+              ) {
+                setObsErrorDialogOpen(true);
+              }
+            }}
+            variant="contained"
+          >
+            {obsConnectionStatus === OBSConnectionStatus.OBS_NOT_CONNECTED
+              ? 'Connect to OBS'
+              : 'OBS Connected'}
+          </Button>
+          <Button
+            disabled={
+              streamingState === 'OBS_WEBSOCKET_OUTPUT_STARTING' ||
+              streamingState === 'OBS_WEBSOCKET_OUTPUT_STARTED' ||
+              obsConnectionStatus !== OBSConnectionStatus.READY
+            }
+            endIcon={
+              streamingState === 'OBS_WEBSOCKET_OUTPUT_STARTING' ||
+              streamingState === 'OBS_WEBSOCKET_OUTPUT_STARTED' ? (
+                <CircularProgress size="24px" />
+              ) : (
+                <PlayCircle />
+              )
+            }
+            onClick={async () => {
+              await window.electron.startStream();
+            }}
+            variant="contained"
+          >
+            {streamingMsg}
+          </Button>
+        </Stack>
       </Stack>
       {queues.length === 1 && (
         <Queue queue={queues[0]} twitchChannel={twitchChannel} />

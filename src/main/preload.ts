@@ -65,6 +65,10 @@ const electronHandler = {
   getTwitchBotStatus: (): Promise<{ connected: boolean; error: string }> =>
     ipcRenderer.invoke('getTwitchBotStatus'),
   getQueues: (): Promise<RendererQueue[]> => ipcRenderer.invoke('getQueues'),
+  incrementQueuePriority: (queueId: string): Promise<void> =>
+    ipcRenderer.invoke('incrementQueuePriority', queueId),
+  decrementQueuePriority: (queueId: string): Promise<void> =>
+    ipcRenderer.invoke('decrementQueuePriority', queueId),
   getDolphinVersion: (): Promise<{ version: string; error: string }> =>
     ipcRenderer.invoke('getDolphinVersion'),
   getObsSettings: (): Promise<OBSSettings> =>

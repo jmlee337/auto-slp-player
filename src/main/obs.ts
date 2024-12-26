@@ -8,17 +8,17 @@ import {
 } from '../common/types';
 import { Dolphin } from './dolphin';
 
-const expectedSceneNames = new Set([
-  'quad 0',
-  'quad 1',
-  'quad 2 12',
-  'quad 2 13',
-  'quad 2 14',
-  'quad 2 23',
-  'quad 2 24',
-  'quad 2 34',
-  'quad 3',
-  'quad 4',
+const exepctedSceneNameToOverlayName = new Map([
+  ['quad 0', 'Overlay 01'],
+  ['quad 1', 'Overlay 01'],
+  ['quad 2 12', 'Overlay 2'],
+  ['quad 2 13', 'Overlay 2'],
+  ['quad 2 14', 'Overlay 2'],
+  ['quad 2 23', 'Overlay 2'],
+  ['quad 2 24', 'Overlay 2'],
+  ['quad 2 34', 'Overlay 2'],
+  ['quad 3', 'Overlay 34'],
+  ['quad 4', 'Overlay 34'],
 ]);
 
 export default class OBSConnection {
@@ -42,8 +42,22 @@ export default class OBSConnection {
 
   private streamingState: string;
 
-  constructor(mainWindow: BrowserWindow) {
+  private overlay01Path: string;
+
+  private overlay2Path: string;
+
+  private overlay34Path: string;
+
+  constructor(
+    mainWindow: BrowserWindow,
+    overlay01Path: string,
+    overlay2Path: string,
+    overlay34Path: string,
+  ) {
     this.mainWindow = mainWindow;
+    this.overlay01Path = overlay01Path;
+    this.overlay2Path = overlay2Path;
+    this.overlay34Path = overlay34Path;
 
     this.connectionStatus = OBSConnectionStatus.OBS_NOT_CONNECTED;
     this.dolphinPorts = [];
@@ -318,7 +332,6 @@ export default class OBSConnection {
 
   setMaxDolphins(maxDophins: number) {
     this.maxDolphins = maxDophins;
-    this.checkObsSetup();
   }
 
   setDolphins(dolphins: Map<number, Dolphin>) {
@@ -329,7 +342,335 @@ export default class OBSConnection {
         port,
       ]),
     );
-    this.checkObsSetup();
+  }
+
+  private async setupObs() {
+    if (
+      this.obsWebSocket === null ||
+      this.connectionStatus === OBSConnectionStatus.OBS_NOT_CONNECTED ||
+      !this.dolphinVersionPromise ||
+      !(process.platform === 'win32' || process.platform === 'darwin')
+    ) {
+      return;
+    }
+    // tood check dolphin scale
+    // todo check 1920x1080
+
+    // scene collection
+    const { sceneCollections } = await this.obsWebSocket.call(
+      'GetSceneCollectionList',
+    );
+    let sceneCollectionIsNew = false;
+    if (!sceneCollections.includes('auto-slp-player')) {
+      await this.obsWebSocket.call('CreateSceneCollection', {
+        sceneCollectionName: 'auto-slp-player',
+      });
+      sceneCollectionIsNew = true;
+    }
+    await this.obsWebSocket.call('SetCurrentSceneCollection', {
+      sceneCollectionName: 'auto-slp-player',
+    });
+
+    // scene names
+    // { sceneIndex: 0, sceneName: 'Scene', sceneUuid: 'ab5c6ca6-0bed-4a02-97c1-dd40215ff11f' }
+    const { scenes } = await this.obsWebSocket.call('GetSceneList');
+    const scenesSet = new Set(scenes.map((scene) => scene.sceneName as string));
+    const missingSceneNames: string[] = [];
+    for (const expectedSceneName of exepctedSceneNameToOverlayName.keys()) {
+      if (!scenesSet.has(expectedSceneName)) {
+        missingSceneNames.push(expectedSceneName);
+      }
+    }
+    missingSceneNames.reverse();
+    for (const sceneName of missingSceneNames) {
+      await this.obsWebSocket.call('CreateScene', { sceneName });
+      const overlayName = exepctedSceneNameToOverlayName.get(sceneName)!;
+      const { inputs } = await this.obsWebSocket.call('GetInputList', {
+        inputKind: 'browser_source',
+      });
+      let sceneItemId = 0;
+      if (inputs.find((input) => input.inputName === overlayName)) {
+        sceneItemId = (
+          await this.obsWebSocket.call('CreateSceneItem', {
+            sceneName,
+            sourceName: overlayName,
+          })
+        ).sceneItemId;
+      } else {
+        const inputSettings = {
+          is_local_file: true,
+        };
+        if (overlayName === 'Overlay 01') {
+          Object.assign(inputSettings, {
+            height: 1080,
+            local_file: this.overlay01Path,
+            width: 606,
+          });
+        } else if (overlayName === 'Overlay 2') {
+          Object.assign(inputSettings, {
+            height: 291,
+            local_file: this.overlay2Path,
+            width: 1920,
+          });
+        } else if (overlayName === 'Overlay 34') {
+          Object.assign(inputSettings, {
+            height: 1080,
+            local_file: this.overlay34Path,
+            width: 606,
+          });
+        } else {
+          throw Error;
+        }
+        sceneItemId = (
+          await this.obsWebSocket.call('CreateInput', {
+            sceneName,
+            inputName: overlayName,
+            inputKind: 'browser_source',
+            inputSettings,
+          })
+        ).sceneItemId;
+      }
+      let positionX = 0;
+      let positionY = 0;
+      if (overlayName === 'Overlay 01') {
+        positionX = 1314;
+      } else if (overlayName === 'Overlay 2') {
+        positionY = 789;
+      } else if (overlayName === 'Overlay 34') {
+        positionX = 657;
+      }
+      await this.obsWebSocket.call('SetSceneItemTransform', {
+        sceneName,
+        sceneItemId,
+        sceneItemTransform: { positionX, positionY },
+      });
+      await this.obsWebSocket.call('SetSceneItemLocked', {
+        sceneName,
+        sceneItemId,
+        sceneItemLocked: true,
+      });
+    }
+    if (sceneCollectionIsNew) {
+      await this.obsWebSocket.call('RemoveScene', { sceneName: 'Scene' });
+    }
+
+    const inputKind =
+      process.platform === 'darwin' ? 'screen_capture' : 'game_capture';
+    const { inputs } = await this.obsWebSocket.call('GetInputList', {
+      inputKind,
+    });
+    const inputNames = new Set(
+      inputs.map((input) => input.inputName as string),
+    );
+    const inputNameToInputUuid = new Map(
+      inputs.map((input) => [
+        input.inputName as string,
+        input.inputUuid as string,
+      ]),
+    );
+    const missingInputNames: string[] = [];
+    const expectedInputNames = [
+      'Slippi Dolphin 1',
+      'Slippi Dolphin 2',
+      'Slippi Dolphin 3',
+      'Slippi Dolphin 4',
+    ].slice(0, this.maxDolphins);
+    expectedInputNames.forEach((expectedInputName) => {
+      if (!inputNames.has(expectedInputName)) {
+        missingInputNames.push(expectedInputName);
+      }
+    });
+    missingInputNames.reverse();
+    const prefix = await this.getPrefix();
+    if (process.platform === 'darwin') {
+      for (const inputName of missingInputNames) {
+        const { inputUuid } = await this.obsWebSocket.call('CreateInput', {
+          sceneName: 'quad 1',
+          inputName,
+          inputKind,
+          inputSettings: {
+            show_cursor: false,
+            show_hidden_windows: true,
+            type: 1,
+          },
+        });
+        inputNameToInputUuid.set(inputName, inputUuid);
+        await this.obsWebSocket.call('CreateSourceFilter', {
+          sourceName: inputName,
+          filterName: 'Crop/Pad',
+          filterKind: 'crop_filter',
+          filterSettings: { top: 106, bottom: 48, relative: true },
+        });
+      }
+      for (let i = 1; i < expectedInputNames.length; i += 1) {
+        await this.obsWebSocket.call('GetInputPropertiesListPropertyItems', {
+          inputName: expectedInputNames[i],
+          propertyName: 'window',
+        });
+      }
+      const { propertyItems } = await this.obsWebSocket.call(
+        'GetInputPropertiesListPropertyItems',
+        {
+          inputName: expectedInputNames[0],
+          propertyName: 'window',
+        },
+      );
+      const startsWith = `[Slippi Dolphin] ${prefix}`;
+      const windows = propertyItems
+        .filter((propertyItem) => {
+          const itemName = propertyItem.itemName as string;
+          if (!itemName.startsWith(startsWith)) {
+            return false;
+          }
+          if (
+            !itemName
+              .slice(startsWith.length)
+              .match('^[0-9][0-9][0-9][0-9][0-9]$')
+          ) {
+            return false;
+          }
+          return true;
+        })
+        .map((propertyItem) => propertyItem.itemValue);
+      if (windows.length < this.maxDolphins) {
+        // todo timeout retry
+        this.setConnectionStatus(
+          OBSConnectionStatus.OBS_NOT_SETUP,
+          'Must open all dolphins',
+        );
+        return;
+      }
+      for (let i = 0; i < this.maxDolphins; i += 1) {
+        await this.obsWebSocket.call('SetInputSettings', {
+          inputName: expectedInputNames[i],
+          inputSettings: { window: windows[i] },
+        });
+      }
+    } else {
+      // windows todo
+    }
+    const sceneNameToExpectedSourceNames = new Map([
+      ['quad 1', [...expectedInputNames]],
+    ]);
+    if (this.maxDolphins > 1) {
+      sceneNameToExpectedSourceNames.set('quad 2 12', [
+        'Slippi Dolphin 1',
+        'Slippi Dolphin 2',
+      ]);
+    }
+    if (this.maxDolphins > 2) {
+      sceneNameToExpectedSourceNames.set('quad 2 13', [
+        'Slippi Dolphin 1',
+        'Slippi Dolphin 3',
+      ]);
+      sceneNameToExpectedSourceNames.set('quad 2 23', [
+        'Slippi Dolphin 2',
+        'Slippi Dolphin 3',
+      ]);
+      sceneNameToExpectedSourceNames.set('quad 3', [...expectedInputNames]);
+    }
+    if (this.maxDolphins > 3) {
+      sceneNameToExpectedSourceNames.set('quad 2 14', [
+        'Slippi Dolphin 1',
+        'Slippi Dolphin 4',
+      ]);
+      sceneNameToExpectedSourceNames.set('quad 2 24', [
+        'Slippi Dolphin 2',
+        'Slippi Dolphin 4',
+      ]);
+      sceneNameToExpectedSourceNames.set('quad 2 34', [
+        'Slippi Dolphin 3',
+        'Slippi Dolphin 4',
+      ]);
+      sceneNameToExpectedSourceNames.set('quad 4', [...expectedInputNames]);
+    }
+    for (const [
+      sceneName,
+      expectedSourceNames,
+    ] of sceneNameToExpectedSourceNames.entries()) {
+      const { sceneItems } = await this.obsWebSocket.call('GetSceneItemList', {
+        sceneName,
+      });
+      const sourceNameToSceneItemId = new Map(
+        sceneItems.map((sceneItem) => [
+          sceneItem.sourceName as string,
+          sceneItem.sceneItemId as number,
+        ]),
+      );
+      const missingSourceNames: string[] = [];
+      expectedSourceNames.forEach((expectedSourceName) => {
+        if (!sourceNameToSceneItemId.has(expectedSourceName)) {
+          missingSourceNames.push(expectedSourceName);
+        }
+      });
+      missingSourceNames.reverse();
+      for (const sourceName of missingSourceNames) {
+        const { sceneItemId } = await this.obsWebSocket!.call(
+          'CreateSceneItem',
+          {
+            sceneName,
+            sourceName,
+          },
+        );
+        sourceNameToSceneItemId.set(sourceName, sceneItemId);
+      }
+      for (let i = 0; i < expectedSourceNames.length; i += 1) {
+        const sceneItemId = sourceNameToSceneItemId.get(
+          expectedSourceNames[i],
+        )!;
+        await this.obsWebSocket.call('SetSceneItemLocked', {
+          sceneName,
+          sceneItemId,
+          sceneItemLocked: false,
+        });
+        const { sourceHeight, sourceWidth } = (
+          await this.obsWebSocket.call('GetSceneItemTransform', {
+            sceneName,
+            sceneItemId,
+          })
+        ).sceneItemTransform as { sourceHeight: number; sourceWidth: number };
+        if (sceneName === 'quad 1') {
+          await this.obsWebSocket!.call('SetSceneItemTransform', {
+            sceneName,
+            sceneItemId,
+            sceneItemTransform: {
+              positionX: 0,
+              positionY: 0,
+              scaleX: 1314 / sourceWidth,
+              scaleY: 1080 / sourceHeight,
+            },
+          });
+        } else if (sceneName.startsWith('quad 2')) {
+          await this.obsWebSocket!.call('SetSceneItemTransform', {
+            sceneName,
+            sceneItemId,
+            sceneItemTransform: {
+              positionX: i === 0 ? 0 : 960,
+              positionY: 0,
+              scaleX: 960 / sourceWidth,
+              scaleY: 789 / sourceHeight,
+            },
+          });
+        } else {
+          await this.obsWebSocket!.call('SetSceneItemTransform', {
+            sceneName,
+            sceneItemId,
+            sceneItemTransform: {
+              positionX: i % 2 === 0 ? 0 : 1263,
+              positionY: i < 2 ? 0 : 540,
+              scaleX: 657 / sourceWidth,
+              scaleY: 540 / sourceHeight,
+            },
+          });
+        }
+        await this.obsWebSocket!.call('SetSceneItemLocked', {
+          sceneName,
+          sceneItemId,
+          sceneItemLocked: true,
+        });
+      }
+    }
+    this.setConnectionStatus(OBSConnectionStatus.READY);
   }
 
   async connect(settings: OBSSettings) {
@@ -338,64 +679,6 @@ export default class OBSConnection {
       this.obsWebSocket.on('ConnectionClosed', () => {
         this.setConnectionStatus(OBSConnectionStatus.OBS_NOT_CONNECTED);
       });
-      if (process.platform === 'win32' || process.platform === 'darwin') {
-        this.obsWebSocket.on('CurrentSceneCollectionChanged', () => {
-          this.checkObsSetup();
-        });
-        this.obsWebSocket.on('SceneListChanged', () => {
-          this.checkObsSetup();
-        });
-        this.obsWebSocket.on(
-          'SceneItemRemoved',
-          ({ sceneName, sourceUuid }) => {
-            if (
-              expectedSceneNames.has(sceneName) &&
-              new Set(this.portToUuid.values()).has(sourceUuid)
-            ) {
-              this.checkObsSetup();
-            }
-          },
-        );
-        this.obsWebSocket.on(
-          'SceneItemCreated',
-          ({ sceneName, sourceUuid }) => {
-            if (
-              expectedSceneNames.has(sceneName) &&
-              new Set(this.portToUuid.values()).has(sourceUuid)
-            ) {
-              this.checkObsSetup();
-            }
-          },
-        );
-        this.obsWebSocket.on(
-          'InputSettingsChanged',
-          async ({ inputSettings, inputUuid }) => {
-            if (new Set(this.portToUuid.values()).has(inputUuid)) {
-              this.checkObsSetup();
-            } else if (process.platform === 'win32') {
-              const { window } = inputSettings as { window: string };
-              if (window && window.startsWith(await this.getPrefix())) {
-                this.checkObsSetup();
-              }
-            } else if (process.platform === 'darwin') {
-              const applicableWindows = new Set<number>();
-              (
-                await getOpenWindows({
-                  accessibilityPermission: false,
-                  screenRecordingPermission: false,
-                })
-              ).forEach((window) => {
-                if (this.pidToPort.has(window.owner.processId)) {
-                  applicableWindows.add(window.id);
-                }
-              });
-              if (applicableWindows.has(inputSettings.window as number)) {
-                this.checkObsSetup();
-              }
-            }
-          },
-        );
-      }
       this.obsWebSocket.on('StreamStateChanged', ({ outputState }) => {
         this.streamingState = outputState;
         this.mainWindow.webContents.send('streaming', outputState);
@@ -407,7 +690,7 @@ export default class OBSConnection {
         settings.password.length > 0 ? settings.password : undefined,
       );
       this.connectionStatus = OBSConnectionStatus.OBS_NOT_SETUP;
-      await this.checkObsSetup();
+      await this.setupObs();
     }
   }
 

@@ -50,7 +50,6 @@ function Hello() {
   const [dolphinPath, setDolphinPath] = useState('');
   const [isoPath, setIsoPath] = useState('');
   const [maxDolphins, setMaxDolphins] = useState(1);
-  const [generateOverlay, setGenerateOverlay] = useState(false);
   const [generateTimestamps, setGenerateTimestamps] = useState(false);
   const [splitOption, setSplitOption] = useState(SplitOption.NONE);
   const [twitchChannel, setTwitchChannel] = useState('');
@@ -85,7 +84,6 @@ function Hello() {
       const dolphinPathPromise = window.electron.getDolphinPath();
       const isoPathPromise = window.electron.getIsoPath();
       const maxDolphinsPromise = window.electron.getMaxDolphins();
-      const generateOverlayPromise = window.electron.getGenerateOverlay();
       const generateTimestampsPromise = window.electron.getGenerateTimestamps();
       const splitOptionPromise = window.electron.getSplitOption();
       const twitchChannelPromise = window.electron.getTwitchChannel();
@@ -108,7 +106,6 @@ function Hello() {
       setDolphinPath(await dolphinPathPromise);
       setIsoPath(await isoPathPromise);
       setMaxDolphins(await maxDolphinsPromise);
-      setGenerateOverlay(await generateOverlayPromise);
       setGenerateTimestamps(await generateTimestampsPromise);
       setSplitOption(await splitOptionPromise);
       setTwitchChannel(await twitchChannelPromise);
@@ -284,8 +281,6 @@ function Hello() {
             setDolphinPath={setDolphinPath}
             isoPath={isoPath}
             setIsoPath={setIsoPath}
-            generateOverlay={generateOverlay}
-            setGenerateOverlay={setGenerateOverlay}
             generateTimestamps={generateTimestamps}
             setGenerateTimestamps={setGenerateTimestamps}
             splitOption={splitOption}

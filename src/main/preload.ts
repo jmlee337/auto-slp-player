@@ -40,10 +40,6 @@ const electronHandler = {
     ipcRenderer.invoke('unqueue', queueId),
   playNow: (queueId: string, originalPath: string): Promise<void> =>
     ipcRenderer.invoke('playNow', queueId, originalPath),
-  getGenerateOverlay: (): Promise<boolean> =>
-    ipcRenderer.invoke('getGenerateOverlay'),
-  setGenerateOverlay: (newGenerateOverlay: boolean) =>
-    ipcRenderer.invoke('setGenerateOverlay', newGenerateOverlay),
   getGenerateTimestamps: (): Promise<boolean> =>
     ipcRenderer.invoke('getGenerateTimestamps'),
   setGenerateTimestamps: (newGenerateTimestamps: boolean) =>

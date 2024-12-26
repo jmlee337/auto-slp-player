@@ -164,9 +164,6 @@ export default async function setupIPCs(
   let maxDolphins = store.has('maxDolphins')
     ? (store.get('maxDolphins') as number)
     : 1;
-  let generateOverlay = store.has('generateOverlay')
-    ? (store.get('generateOverlay') as boolean)
-    : true;
   let generateTimestamps = store.has('generateTimestamps')
     ? (store.get('generateTimestamps') as boolean)
     : true;
@@ -194,32 +191,24 @@ export default async function setupIPCs(
     'AutoSLPPlayer',
     'overlay',
   );
-  const initOverlayDir = async () => {
-    await mkdir(overlayPath, { recursive: true });
-    await Promise.all(
-      [
-        'default.html',
-        'default 2.html',
-        'default 34.html',
-        'RobotoCJKSC-Regular.ttf',
-      ].map(async (fileName) =>
-        copyFile(
-          path.join(resourcesPath, 'overlay', fileName),
-          path.join(overlayPath, fileName),
-        ),
+  await mkdir(overlayPath, { recursive: true });
+  await Promise.all(
+    [
+      'default.html',
+      'default 2.html',
+      'default 34.html',
+      'RobotoCJKSC-Regular.ttf',
+    ].map(async (fileName) =>
+      copyFile(
+        path.join(resourcesPath, 'overlay', fileName),
+        path.join(overlayPath, fileName),
       ),
-    );
-    const overlayContext: OverlayContext = {
-      sets: [],
-    };
-    await writeFile(
-      path.join(overlayPath, 'overlay.json'),
-      JSON.stringify(overlayContext),
-    );
-  };
-  if (generateOverlay) {
-    await initOverlayDir();
-  }
+    ),
+  );
+  await writeFile(
+    path.join(overlayPath, 'overlay.json'),
+    JSON.stringify({ sets: [] }),
+  );
 
   const dolphinVersionPromiseFn = (
     resolve: (value: string) => void,
@@ -243,7 +232,12 @@ export default async function setupIPCs(
     ? new Promise(dolphinVersionPromiseFn)
     : null;
 
-  const obsConnection = new OBSConnection(mainWindow);
+  const obsConnection = new OBSConnection(
+    mainWindow,
+    path.join(overlayPath, 'default.html'),
+    path.join(overlayPath, 'default 2.html'),
+    path.join(overlayPath, 'default 34.html'),
+  );
   obsConnection.setMaxDolphins(maxDolphins);
   if (dolphinVersionPromise) {
     obsConnection.setDolphinVersionPromise(dolphinVersionPromise);
@@ -337,10 +331,6 @@ export default async function setupIPCs(
   let lastChallongeTournamentName = '';
   let lastChallongeTournamentSlug = '';
   const writeOverlayJson = async () => {
-    if (!generateOverlay) {
-      return;
-    }
-
     const overlayFilePath = path.join(overlayPath, 'overlay.json');
     let startggTournamentName = lastStartggTournamentName;
     let startggTournamentLocation = lastStartggTournamentLocation;
@@ -901,22 +891,6 @@ export default async function setupIPCs(
       if (playingSets.size + tryingPorts.size < maxDolphins) {
         await playDolphin(queue, setToPlay);
         obsConnection.transition(playingSets);
-      }
-    },
-  );
-
-  ipcMain.removeHandler('getGenerateOverlay');
-  ipcMain.handle('getGenerateOverlay', () => generateOverlay);
-
-  ipcMain.removeHandler('setGenerateOverlay');
-  ipcMain.handle(
-    'setGenerateOverlay',
-    async (event: IpcMainInvokeEvent, newGenerateOverlay: boolean) => {
-      store.set('generateOverlay', newGenerateOverlay);
-      generateOverlay = newGenerateOverlay;
-      if (generateOverlay) {
-        await initOverlayDir();
-        await writeOverlayJson();
       }
     },
   );

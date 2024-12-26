@@ -114,8 +114,6 @@ export default function Settings({
   setIsoPath,
   maxDolphins,
   setMaxDolphins,
-  generateOverlay,
-  setGenerateOverlay,
   generateTimestamps,
   setGenerateTimestamps,
   splitOption,
@@ -148,8 +146,6 @@ export default function Settings({
   setIsoPath: (isoPath: string) => void;
   maxDolphins: number;
   setMaxDolphins: (maxDolphins: number) => void;
-  generateOverlay: boolean;
-  setGenerateOverlay: (generateOverlay: boolean) => void;
   generateTimestamps: boolean;
   setGenerateTimestamps: (generateTimestamps: boolean) => void;
   splitOption: SplitOption;
@@ -309,23 +305,6 @@ export default function Settings({
               </IconButton>
             </Tooltip>
           </Stack>
-          <Box>
-            <FormControlLabel
-              control={
-                <Checkbox
-                  checked={generateOverlay}
-                  onChange={async (event) => {
-                    const newGenerateOverlay = event.target.checked;
-                    await window.electron.setGenerateOverlay(
-                      newGenerateOverlay,
-                    );
-                    setGenerateOverlay(newGenerateOverlay);
-                  }}
-                />
-              }
-              label="Generate Overlay"
-            />
-          </Box>
           <Box>
             <FormControlLabel
               control={

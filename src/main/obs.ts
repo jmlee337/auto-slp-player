@@ -125,8 +125,16 @@ export default class OBSConnection {
     ) {
       return;
     }
-    // tood check dolphin scale
-    // todo check 1920x1080
+
+    const { baseHeight, baseWidth } =
+      await this.obsWebSocket.call('GetVideoSettings');
+    if (baseHeight !== 1080 || baseWidth !== 1920) {
+      this.setConnectionStatus(
+        OBSConnectionStatus.OBS_NOT_SETUP,
+        'OBS base/canvas resolution must be 1920x1080',
+      );
+      return;
+    }
 
     // scene collection
     const { sceneCollections } = await this.obsWebSocket.call(
@@ -479,6 +487,8 @@ export default class OBSConnection {
         settings.password.length > 0 ? settings.password : undefined,
       );
       this.connectionStatus = OBSConnectionStatus.OBS_NOT_SETUP;
+      await this.setupObs();
+    } else if (this.connectionStatus === OBSConnectionStatus.OBS_NOT_SETUP) {
       await this.setupObs();
     }
   }

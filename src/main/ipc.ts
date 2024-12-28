@@ -607,15 +607,15 @@ export default async function setupIPCs(
 
       const maybePlaySets = async (queues: Queue[]): Promise<number> => {
         let setsPlayed = 0;
-        for (let i = 0; i < queues.length; i += 1) {
-          let { nextSet } = queues[i].peek();
+        for (const queue of queues) {
+          let { nextSet } = queue.peek();
           while (nextSet && willNotSpoilPlayingSets(nextSet)) {
-            await playDolphin(queues[i], nextSet);
+            await playDolphin(queue, nextSet);
             setsPlayed += 1;
             if (playingSets.size + tryingPorts.size >= maxDolphins) {
               return setsPlayed;
             }
-            nextSet = queues[i].peek().nextSet;
+            nextSet = queue.peek().nextSet;
           }
         }
         return setsPlayed;

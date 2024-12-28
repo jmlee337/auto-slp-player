@@ -22,15 +22,13 @@ export function toMainContext(context: Context): MainContext | undefined {
   }
 
   const mainScores: MainContextScore[] = [];
-  for (let i = 0; i < scores.length; i += 1) {
-    const { slots } = scores[i];
+  for (const { slots } of scores) {
     if (!slots || !Array.isArray(slots) || slots.length !== 2) {
       return undefined;
     }
 
     const mainSlots: MainContextSlot[] = [];
-    for (let j = 0; j < slots.length; j += 1) {
-      const { displayNames, prefixes, pronouns, score } = slots[j];
+    for (const { displayNames, prefixes, pronouns, score } of slots) {
       if (
         !displayNames ||
         !Array.isArray(displayNames) ||

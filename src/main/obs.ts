@@ -287,8 +287,7 @@ export default class OBSConnection {
           );
         }
       }
-      for (let i = 0; i < expectedScenes.length; i += 1) {
-        const { sceneName, indices } = expectedScenes[i];
+      for (const { sceneName, indices } of expectedScenes) {
         if (!sceneNames.has(sceneName)) {
           this.setConnectionStatus(
             OBSConnectionStatus.OBS_NOT_SETUP,

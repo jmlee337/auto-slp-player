@@ -411,60 +411,82 @@ export default class OBSConnection {
         sourceNameToSceneItemId,
       );
 
-      for (let i = 0; i < expectedSourceNames.length; i += 1) {
-        const sceneItemId = sourceNameToSceneItemId.get(
-          expectedSourceNames[i],
-        )!;
-        await this.obsWebSocket.call('SetSceneItemLocked', {
-          sceneName,
-          sceneItemId,
-          sceneItemLocked: false,
-        });
-        const { sourceHeight, sourceWidth } = (
-          await this.obsWebSocket.call('GetSceneItemTransform', {
+      const setTransforms = async (obsWebSocket: OBSWebSocket) => {
+        for (let i = 0; i < expectedSourceNames.length; i += 1) {
+          const sceneItemId = sourceNameToSceneItemId.get(
+            expectedSourceNames[i],
+          )!;
+          await obsWebSocket.call('SetSceneItemLocked', {
             sceneName,
             sceneItemId,
-          })
-        ).sceneItemTransform as { sourceHeight: number; sourceWidth: number };
-        if (sceneName === 'quad 1') {
-          await this.obsWebSocket!.call('SetSceneItemTransform', {
-            sceneName,
-            sceneItemId,
-            sceneItemTransform: {
-              positionX: 0,
-              positionY: 0,
-              scaleX: 1314 / sourceWidth,
-              scaleY: 1080 / sourceHeight,
-            },
+            sceneItemLocked: false,
           });
-        } else if (sceneName.startsWith('quad 2')) {
-          await this.obsWebSocket!.call('SetSceneItemTransform', {
+          const { sourceHeight, sourceWidth } = (
+            await obsWebSocket.call('GetSceneItemTransform', {
+              sceneName,
+              sceneItemId,
+            })
+          ).sceneItemTransform as { sourceHeight: number; sourceWidth: number };
+          if (sourceHeight <= 1 || sourceWidth <= 1) {
+            return false;
+          }
+          if (sceneName === 'quad 1') {
+            await this.obsWebSocket!.call('SetSceneItemTransform', {
+              sceneName,
+              sceneItemId,
+              sceneItemTransform: {
+                positionX: 0,
+                positionY: 0,
+                scaleX: 1314 / sourceWidth,
+                scaleY: 1080 / sourceHeight,
+              },
+            });
+          } else if (sceneName.startsWith('quad 2')) {
+            await this.obsWebSocket!.call('SetSceneItemTransform', {
+              sceneName,
+              sceneItemId,
+              sceneItemTransform: {
+                positionX: i === 0 ? 0 : 960,
+                positionY: 0,
+                scaleX: 960 / sourceWidth,
+                scaleY: 789 / sourceHeight,
+              },
+            });
+          } else {
+            await this.obsWebSocket!.call('SetSceneItemTransform', {
+              sceneName,
+              sceneItemId,
+              sceneItemTransform: {
+                positionX: i % 2 === 0 ? 0 : 1263,
+                positionY: i < 2 ? 0 : 540,
+                scaleX: 657 / sourceWidth,
+                scaleY: 540 / sourceHeight,
+              },
+            });
+          }
+          await this.obsWebSocket!.call('SetSceneItemLocked', {
             sceneName,
             sceneItemId,
-            sceneItemTransform: {
-              positionX: i === 0 ? 0 : 960,
-              positionY: 0,
-              scaleX: 960 / sourceWidth,
-              scaleY: 789 / sourceHeight,
-            },
-          });
-        } else {
-          await this.obsWebSocket!.call('SetSceneItemTransform', {
-            sceneName,
-            sceneItemId,
-            sceneItemTransform: {
-              positionX: i % 2 === 0 ? 0 : 1263,
-              positionY: i < 2 ? 0 : 540,
-              scaleX: 657 / sourceWidth,
-              scaleY: 540 / sourceHeight,
-            },
+            sceneItemLocked: true,
           });
         }
-        await this.obsWebSocket!.call('SetSceneItemLocked', {
-          sceneName,
-          sceneItemId,
-          sceneItemLocked: true,
-        });
+        return true;
+      };
+      let retries = 0;
+      let setTransformsSucceeded = false;
+      while (!setTransformsSucceeded) {
+        if (retries === 5) {
+          this.setConnectionStatus(
+            OBSConnectionStatus.OBS_NOT_SETUP,
+            'OBS failed to capture Slippi Dolphin',
+          );
+          return;
+        }
+        if (retries > 0) {
+          await timeout(1000 * 2 ** (retries - 1));
+        }
+        setTransformsSucceeded = await setTransforms(this.obsWebSocket);
+        retries += 1;
       }
     }
     this.setConnectionStatus(OBSConnectionStatus.READY);

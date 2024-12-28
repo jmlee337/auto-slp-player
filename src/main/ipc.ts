@@ -434,10 +434,7 @@ export default async function setupIPCs(
       });
     }
     const startgg =
-      startggTournamentName &&
-      startggTournamentLocation &&
-      startggEventName &&
-      startggPhaseName
+      startggTournamentName && startggEventName && startggPhaseName
         ? {
             tournamentName: startggTournamentName,
             location: startggTournamentLocation,

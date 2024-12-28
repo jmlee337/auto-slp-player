@@ -1322,11 +1322,29 @@ export default async function setupIPCs(
     app.quit();
   });
 
-  if (process.platform !== 'win32') {
-    app.on('will-quit', () => {
-      Array.from(dolphins.values()).forEach((dolphin) => {
+  app.on('before-quit', async (event) => {
+    let prevented = false;
+    if (process.platform !== 'win32' && dolphins.size > 0) {
+      event.preventDefault();
+      prevented = true;
+      for (const [port, dolphin] of dolphins) {
         dolphin.close();
-      });
-    });
-  }
+        dolphins.delete(port);
+      }
+    }
+    if (playingSets.size > 0) {
+      event.preventDefault();
+      prevented = true;
+      for (const playingSet of playingSets.values()) {
+        try {
+          await deleteZipDir(playingSet, tempDir);
+        } catch {
+          // just catch
+        }
+      }
+    }
+    if (prevented) {
+      app.quit();
+    }
+  });
 }

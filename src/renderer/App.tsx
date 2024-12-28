@@ -333,6 +333,7 @@ function Hello() {
               (numDolphins < maxDolphins &&
                 obsConnectionStatus ===
                   OBSConnectionStatus.OBS_NOT_CONNECTED) ||
+              obsConnecting ||
               obsConnectionStatus === OBSConnectionStatus.READY
             }
             endIcon={obsButtonIcon}

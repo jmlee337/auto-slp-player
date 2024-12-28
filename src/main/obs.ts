@@ -8,6 +8,14 @@ import {
 } from '../common/types';
 import { Dolphin } from './dolphin';
 
+async function timeout(ms: number) {
+  await new Promise<void>((resolve) => {
+    setTimeout(() => {
+      resolve();
+    }, ms);
+  });
+}
+
 const exepctedSceneNameToOverlayName = new Map([
   ['quad 0', 'Overlay 01'],
   ['quad 1', 'Overlay 01'],
@@ -502,43 +510,54 @@ export default class OBSConnection {
           filterSettings: { top: 106, bottom: 48, relative: true },
         });
       }
-      for (let i = 1; i < expectedInputNames.length; i += 1) {
-        await this.obsWebSocket.call('GetInputPropertiesListPropertyItems', {
-          inputName: expectedInputNames[i],
-          propertyName: 'window',
-        });
-      }
-      const { propertyItems } = await this.obsWebSocket.call(
-        'GetInputPropertiesListPropertyItems',
-        {
-          inputName: expectedInputNames[0],
-          propertyName: 'window',
-        },
-      );
-      const startsWith = `[Slippi Dolphin] ${prefix}`;
-      const windows = propertyItems
-        .filter((propertyItem) => {
-          const itemName = propertyItem.itemName as string;
-          if (!itemName.startsWith(startsWith)) {
-            return false;
-          }
-          if (
-            !itemName
-              .slice(startsWith.length)
-              .match('^[0-9][0-9][0-9][0-9][0-9]$')
-          ) {
-            return false;
-          }
-          return true;
-        })
-        .map((propertyItem) => propertyItem.itemValue);
-      if (windows.length < this.maxDolphins) {
-        // todo timeout retry
-        this.setConnectionStatus(
-          OBSConnectionStatus.OBS_NOT_SETUP,
-          'Must open all dolphins',
+
+      const getWindows = async (obsWebSocket: OBSWebSocket) => {
+        for (let i = 1; i < expectedInputNames.length; i += 1) {
+          await obsWebSocket.call('GetInputPropertiesListPropertyItems', {
+            inputName: expectedInputNames[i],
+            propertyName: 'window',
+          });
+        }
+        const { propertyItems } = await obsWebSocket.call(
+          'GetInputPropertiesListPropertyItems',
+          {
+            inputName: expectedInputNames[0],
+            propertyName: 'window',
+          },
         );
-        return;
+        const startsWith = `[Slippi Dolphin] ${prefix}`;
+        return propertyItems
+          .filter((propertyItem) => {
+            const itemName = propertyItem.itemName as string;
+            if (!itemName.startsWith(startsWith)) {
+              return false;
+            }
+            if (
+              !itemName
+                .slice(startsWith.length)
+                .match('^[0-9][0-9][0-9][0-9][0-9]$')
+            ) {
+              return false;
+            }
+            return true;
+          })
+          .map((propertyItem) => propertyItem.itemValue as number);
+      };
+      let retries = 0;
+      let windows: number[] = [];
+      while (windows.length < this.maxDolphins) {
+        if (retries === 4) {
+          this.setConnectionStatus(
+            OBSConnectionStatus.OBS_NOT_SETUP,
+            'Must open all dolphins',
+          );
+          return;
+        }
+        if (retries > 0) {
+          await timeout(1000 * 2 ** (retries - 1));
+        }
+        windows = await getWindows(this.obsWebSocket);
+        retries += 1;
       }
       for (let i = 0; i < this.maxDolphins; i += 1) {
         await this.obsWebSocket.call('SetInputSettings', {

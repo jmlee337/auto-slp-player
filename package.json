@@ -189,8 +189,7 @@
     "files": [
       "dist",
       "node_modules",
-      "package.json",
-      "!**/node_modules/magic-active-win/build-tmp*"
+      "package.json"
     ],
     "afterSign": ".erb/scripts/notarize.js",
     "mac": {

@@ -247,7 +247,6 @@ export default class OBSConnection {
            *  {"inputKind":"game_capture","isGroup":null,"sceneItemBlendMode":"OBS_BLEND_NORMAL","sceneItemEnabled":true,"sceneItemId":13,"sceneItemIndex":3,"sceneItemLocked":true,"sceneItemTransform":{"alignment":5,"boundsAlignment":0,"boundsHeight":0,"boundsType":"OBS_BOUNDS_NONE","boundsWidth":0,"cropBottom":0,"cropLeft":0,"cropRight":0,"cropTop":0,"height":0,"positionX":660,"positionY":0,"rotation":0,"scaleX":1.03125,"scaleY":1.0305343866348267,"sourceHeight":0,"sourceWidth":0,"width":0},"sourceName":"dolphin 1","sourceType":"OBS_SOURCE_TYPE_INPUT","sourceUuid":"472771e8-8a4d-4fe7-8974-6a0e0c660941"},
            *  {"inputKind":"game_capture","isGroup":null,"sceneItemBlendMode":"OBS_BLEND_NORMAL","sceneItemEnabled":true,"sceneItemId":12,"sceneItemIndex":4,"sceneItemLocked":true,"sceneItemTransform":{"alignment":5,"boundsAlignment":0,"boundsHeight":0,"boundsType":"OBS_BOUNDS_NONE","boundsWidth":0,"cropBottom":0,"cropLeft":0,"cropRight":0,"cropTop":0,"height":0,"positionX":0,"positionY":0,"rotation":0,"scaleX":1.03125,"scaleY":1.0305343866348267,"sourceHeight":0,"sourceWidth":0,"width":0},"sourceName":"dolphin 0","sourceType":"OBS_SOURCE_TYPE_INPUT","sourceUuid":"2aab46b4-e356-4708-8165-33bd139a9f95"}]
            */
-          // eslint-disable-next-line no-await-in-loop
           const { sceneItems } = await this.obsWebSocket.call(
             'GetSceneItemList',
             { sceneName },
@@ -309,7 +308,6 @@ export default class OBSConnection {
          *  {"inputKind":"game_capture","isGroup":null,"sceneItemBlendMode":"OBS_BLEND_NORMAL","sceneItemEnabled":true,"sceneItemId":13,"sceneItemIndex":3,"sceneItemLocked":true,"sceneItemTransform":{"alignment":5,"boundsAlignment":0,"boundsHeight":0,"boundsType":"OBS_BOUNDS_NONE","boundsWidth":0,"cropBottom":0,"cropLeft":0,"cropRight":0,"cropTop":0,"height":0,"positionX":660,"positionY":0,"rotation":0,"scaleX":1.03125,"scaleY":1.0305343866348267,"sourceHeight":0,"sourceWidth":0,"width":0},"sourceName":"dolphin 1","sourceType":"OBS_SOURCE_TYPE_INPUT","sourceUuid":"472771e8-8a4d-4fe7-8974-6a0e0c660941"},
          *  {"inputKind":"game_capture","isGroup":null,"sceneItemBlendMode":"OBS_BLEND_NORMAL","sceneItemEnabled":true,"sceneItemId":12,"sceneItemIndex":4,"sceneItemLocked":true,"sceneItemTransform":{"alignment":5,"boundsAlignment":0,"boundsHeight":0,"boundsType":"OBS_BOUNDS_NONE","boundsWidth":0,"cropBottom":0,"cropLeft":0,"cropRight":0,"cropTop":0,"height":0,"positionX":0,"positionY":0,"rotation":0,"scaleX":1.03125,"scaleY":1.0305343866348267,"sourceHeight":0,"sourceWidth":0,"width":0},"sourceName":"dolphin 0","sourceType":"OBS_SOURCE_TYPE_INPUT","sourceUuid":"2aab46b4-e356-4708-8165-33bd139a9f95"}]
          */
-        // eslint-disable-next-line no-await-in-loop
         const { sceneItems } = await this.obsWebSocket.call(
           'GetSceneItemList',
           { sceneName },

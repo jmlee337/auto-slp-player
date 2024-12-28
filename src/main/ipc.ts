@@ -479,7 +479,6 @@ export default async function setupIPCs(
       try {
         actualPort = getNextPort();
         startedDolphin = true;
-        // eslint-disable-next-line no-await-in-loop
         await startDolphin(actualPort);
       } catch (e: any) {
         startedDolphin = false;
@@ -611,7 +610,6 @@ export default async function setupIPCs(
         for (let i = 0; i < queues.length; i += 1) {
           let { nextSet } = queues[i].peek();
           while (nextSet && willNotSpoilPlayingSets(nextSet)) {
-            // eslint-disable-next-line no-await-in-loop
             await playDolphin(queues[i], nextSet);
             setsPlayed += 1;
             if (playingSets.size + tryingPorts.size >= maxDolphins) {
@@ -672,7 +670,6 @@ export default async function setupIPCs(
   ipcMain.handle('openDolphins', async () => {
     const toOpen = maxDolphins - dolphins.size - tryingPorts.size;
     for (let i = 0; i < toOpen; i += 1) {
-      // eslint-disable-next-line no-await-in-loop
       await startDolphinWithoutPort();
     }
   });

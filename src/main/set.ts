@@ -9,7 +9,7 @@ import {
 } from '../common/types';
 
 export function toMainContext(context: Context): MainContext | undefined {
-  const { bestOf, durationMs, scores, startMs } = context;
+  const { bestOf, durationMs, scores, finalScore, startMs } = context;
   if (
     !Number.isInteger(bestOf) ||
     !Number.isInteger(durationMs) ||
@@ -30,13 +30,10 @@ export function toMainContext(context: Context): MainContext | undefined {
     const mainSlots: MainContextSlot[] = [];
     for (const { displayNames, prefixes, pronouns, score } of slots) {
       if (
-        !displayNames ||
         !Array.isArray(displayNames) ||
         displayNames.length === 0 ||
-        !prefixes ||
         !Array.isArray(prefixes) ||
         prefixes.length !== displayNames.length ||
-        !pronouns ||
         !Array.isArray(pronouns) ||
         pronouns.length !== prefixes.length ||
         score === undefined ||
@@ -49,10 +46,36 @@ export function toMainContext(context: Context): MainContext | undefined {
     mainScores.push({ slots: mainSlots });
   }
 
+  let mainFinalScore: undefined | MainContextScore;
+  if (finalScore) {
+    const { slots } = finalScore;
+    if (slots && Array.isArray(slots) && slots.length === 2) {
+      const mainFinalScoreSlots: MainContextSlot[] = [];
+      for (const { displayNames, prefixes, pronouns, score } of slots) {
+        if (
+          Array.isArray(displayNames) &&
+          displayNames.length > 0 &&
+          Array.isArray(prefixes) &&
+          prefixes.length === displayNames.length &&
+          Array.isArray(pronouns) &&
+          pronouns.length === displayNames.length &&
+          score !== undefined &&
+          Number.isInteger(score)
+        ) {
+          mainFinalScoreSlots.push({ displayNames, prefixes, pronouns, score });
+        }
+      }
+      if (mainFinalScoreSlots.length === 2) {
+        mainFinalScore = { slots: mainFinalScoreSlots };
+      }
+    }
+  }
+
   const mainContext: MainContext = {
     bestOf: bestOf!,
     durationMs: durationMs!,
     scores: mainScores,
+    finalScore: mainFinalScore,
     startMs: startMs!,
   };
 

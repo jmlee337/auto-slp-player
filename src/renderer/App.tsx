@@ -51,6 +51,7 @@ function Hello() {
   const [isoPath, setIsoPath] = useState('');
   const [maxDolphins, setMaxDolphins] = useState(1);
   const [generateTimestamps, setGenerateTimestamps] = useState(false);
+  const [addDelay, setAddDelay] = useState(false);
   const [splitOption, setSplitOption] = useState(SplitOption.NONE);
   const [twitchChannel, setTwitchChannel] = useState('');
   const [twitchSettings, setTwitchSettings] = useState<TwitchSettings>({
@@ -85,6 +86,7 @@ function Hello() {
       const isoPathPromise = window.electron.getIsoPath();
       const maxDolphinsPromise = window.electron.getMaxDolphins();
       const generateTimestampsPromise = window.electron.getGenerateTimestamps();
+      const addDelayPromise = window.electron.getAddDelay();
       const splitOptionPromise = window.electron.getSplitOption();
       const twitchChannelPromise = window.electron.getTwitchChannel();
       const twitchSettingsPromise = window.electron.getTwitchSettings();
@@ -107,6 +109,7 @@ function Hello() {
       setIsoPath(await isoPathPromise);
       setMaxDolphins(await maxDolphinsPromise);
       setGenerateTimestamps(await generateTimestampsPromise);
+      setAddDelay(await addDelayPromise);
       setSplitOption(await splitOptionPromise);
       setTwitchChannel(await twitchChannelPromise);
       setTwitchSettings(await twitchSettingsPromise);
@@ -283,6 +286,8 @@ function Hello() {
             setIsoPath={setIsoPath}
             generateTimestamps={generateTimestamps}
             setGenerateTimestamps={setGenerateTimestamps}
+            addDelay={addDelay}
+            setAddDelay={setAddDelay}
             splitOption={splitOption}
             setSplitOption={setSplitOption}
             maxDolphins={maxDolphins}

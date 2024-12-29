@@ -12,6 +12,7 @@ import { kill, stderr, stdout } from 'process';
 
 export enum DolphinEvent {
   CLOSE = 'close',
+  ENDING = 'ending',
   ENDED = 'ended',
   PLAYING = 'playing',
   START_FAILED = 'start_failed',
@@ -33,6 +34,8 @@ export class Dolphin extends EventEmitter {
 
   private port: number;
 
+  private addDelay: boolean;
+
   private process: ChildProcess | null;
 
   private gameIndex: number;
@@ -50,6 +53,7 @@ export class Dolphin extends EventEmitter {
     isoPath: string,
     tempDir: string,
     port: number,
+    addDelay: boolean,
   ) {
     super();
     this.pid = 0;
@@ -58,6 +62,7 @@ export class Dolphin extends EventEmitter {
     this.dolphinPath = dolphinPath;
     this.isoPath = isoPath;
     this.port = port;
+    this.addDelay = addDelay;
     this.process = null;
     this.gameIndex = 0;
     this.replayPaths = [];
@@ -75,7 +80,14 @@ export class Dolphin extends EventEmitter {
           }
           this.gameIndex += 1;
           if (this.gameIndex >= this.replayPaths.length) {
-            this.emit(DolphinEvent.ENDED);
+            this.emit(DolphinEvent.ENDING);
+            if (this.addDelay) {
+              setTimeout(() => {
+                this.emit(DolphinEvent.ENDED);
+              }, 4000);
+            } else {
+              this.emit(DolphinEvent.ENDED);
+            }
           } else {
             this.waitingForStart = true;
             setTimeout(() => {
@@ -204,6 +216,10 @@ export class Dolphin extends EventEmitter {
       // Actually initiate the connection
       this.dolphinConnection.connect('127.0.0.1', this.port).catch(reject);
     });
+  }
+
+  public setAddDelay(addDelay: boolean) {
+    this.addDelay = addDelay;
   }
 
   public async open() {

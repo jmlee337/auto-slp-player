@@ -167,6 +167,9 @@ export default async function setupIPCs(
   let generateTimestamps = store.has('generateTimestamps')
     ? (store.get('generateTimestamps') as boolean)
     : true;
+  let addDelay = store.has('addDelay')
+    ? (store.get('addDelay') as boolean)
+    : false;
   let splitOption: SplitOption = store.has('splitOption')
     ? (store.get('splitOption') as SplitOption)
     : SplitOption.EVENT;
@@ -417,10 +420,12 @@ export default async function setupIPCs(
               roundName = `${context.challonge.tournament.name}, ${roundName}`;
             }
           }
-          const { slots } = context.scores[gameIndex];
+          const { slots } =
+            gameIndex >= 0 ? context.scores[gameIndex] : context.finalScore!;
           sets[setIndex] = {
             roundName,
             bestOf: context.bestOf,
+            isFinal: gameIndex < 0,
             leftPrefixes: slots[0].prefixes,
             leftNames: slots[0].displayNames,
             leftPronouns: slots[0].pronouns,
@@ -543,7 +548,13 @@ export default async function setupIPCs(
       return Promise.resolve();
     }
 
-    const newDolphin = new Dolphin(dolphinPath, isoPath, tempDir, port);
+    const newDolphin = new Dolphin(
+      dolphinPath,
+      isoPath,
+      tempDir,
+      port,
+      addDelay,
+    );
     newDolphin.on(DolphinEvent.CLOSE, () => {
       const playingSet = playingSets.get(port);
       if (playingSet) {
@@ -585,6 +596,13 @@ export default async function setupIPCs(
     newDolphin.on(DolphinEvent.PLAYING, (newGameIndex: number) => {
       gameIndices.set(port, newGameIndex);
       writeOverlayJson();
+    });
+    newDolphin.on(DolphinEvent.ENDING, () => {
+      const playingSet = playingSets.get(port);
+      if (playingSet?.context?.finalScore) {
+        gameIndices.set(port, -1);
+        writeOverlayJson();
+      }
     });
     newDolphin.on(DolphinEvent.ENDED, async (failureReason: string) => {
       const playingSet = playingSets.get(port);
@@ -895,11 +913,23 @@ export default async function setupIPCs(
   ipcMain.removeHandler('setGenerateTimestamps');
   ipcMain.handle(
     'setGenerateTimestamps',
-    async (event: IpcMainInvokeEvent, newGenerateTimestamps: boolean) => {
+    (event: IpcMainInvokeEvent, newGenerateTimestamps: boolean) => {
       store.set('generateTimestamps', newGenerateTimestamps);
       generateTimestamps = newGenerateTimestamps;
     },
   );
+
+  ipcMain.removeHandler('getAddDelay');
+  ipcMain.handle('getAddDelay', () => addDelay);
+
+  ipcMain.removeHandler('setAddDelay');
+  ipcMain.handle('setAddDelay', (event, newAddDelay: boolean) => {
+    store.set('addDelay', newAddDelay);
+    addDelay = newAddDelay;
+    for (const dolphin of dolphins.values()) {
+      dolphin.setAddDelay(addDelay);
+    }
+  });
 
   ipcMain.removeHandler('getSplitOption');
   ipcMain.handle('getSplitOption', () => splitOption);

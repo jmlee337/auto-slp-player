@@ -133,7 +133,8 @@
               replace('right-full-names', '', setEl);
               replace('right-score', '', setEl)
             } else {
-              replace('round-bo', `${set.roundName} (BO${set.bestOf})`, setEl);
+            const bo = set.isFinal ? 'Final' : `(BO${set.bestOf})`;
+            replace('round-bo', `${set.roundName} ${bo}`, setEl);
               const leftFullNames = [];
               for (let i = 0; i < set.leftPrefixes.length; i += 1) {
                 let fullName = '';

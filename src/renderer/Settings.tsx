@@ -116,6 +116,8 @@ export default function Settings({
   setMaxDolphins,
   generateTimestamps,
   setGenerateTimestamps,
+  addDelay,
+  setAddDelay,
   splitOption,
   setSplitOption,
   twitchChannel,
@@ -148,6 +150,8 @@ export default function Settings({
   setMaxDolphins: (maxDolphins: number) => void;
   generateTimestamps: boolean;
   setGenerateTimestamps: (generateTimestamps: boolean) => void;
+  addDelay: boolean;
+  setAddDelay: (addDelay: boolean) => void;
   splitOption: SplitOption;
   setSplitOption: (splitOption: SplitOption) => void;
   twitchChannel: string;
@@ -320,6 +324,21 @@ export default function Settings({
                 />
               }
               label="Generate Timestamps"
+            />
+          </Box>
+          <Box>
+            <FormControlLabel
+              control={
+                <Checkbox
+                  checked={addDelay}
+                  onChange={async (event) => {
+                    const newAddDelay = event.target.checked;
+                    await window.electron.setAddDelay(newAddDelay);
+                    setAddDelay(newAddDelay);
+                  }}
+                />
+              }
+              label="Add Delay"
             />
           </Box>
           <Stack direction="row" spacing="8px">

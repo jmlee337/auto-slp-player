@@ -19,6 +19,7 @@ export type Context = {
   bestOf?: number;
   durationMs?: number;
   scores?: ContextScore[];
+  finalScore?: ContextScore;
   startgg?: {
     tournament?: {
       name?: string;
@@ -82,6 +83,7 @@ export type MainContext = {
   bestOf: number;
   durationMs: number;
   scores: MainContextScore[];
+  finalScore?: MainContextScore;
   startgg?: {
     tournament: {
       name: string;
@@ -195,6 +197,7 @@ export type TwitchSettings = {
 export type OverlaySet = {
   roundName: string;
   bestOf: number;
+  isFinal: boolean;
   leftPrefixes: string[];
   leftNames: string[];
   leftPronouns: string[];

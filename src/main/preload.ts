@@ -44,6 +44,9 @@ const electronHandler = {
     ipcRenderer.invoke('getGenerateTimestamps'),
   setGenerateTimestamps: (newGenerateTimestamps: boolean) =>
     ipcRenderer.invoke('setGenerateTimestamps', newGenerateTimestamps),
+  getAddDelay: (): Promise<boolean> => ipcRenderer.invoke('getAddDelay'),
+  setAddDelay: (addDelay: boolean): Promise<void> =>
+    ipcRenderer.invoke('setAddDelay', addDelay),
   getSplitOption: (): Promise<SplitOption> =>
     ipcRenderer.invoke('getSplitOption'),
   setSplitOption: (newSplitOption: SplitOption): Promise<void> =>

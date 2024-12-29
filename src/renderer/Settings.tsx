@@ -338,7 +338,25 @@ export default function Settings({
                   }}
                 />
               }
-              label="Add Delay"
+              label={
+                <>
+                  Add Delay
+                  {addDelay && (
+                    <>
+                      {' '}
+                      (Recommend{' '}
+                      <a
+                        href={`https://github.com/jmlee337/auto-slp-player/blob/${appVersion}/src/docs/waiting.md`}
+                        target="_blank"
+                        rel="noreferrer"
+                      >
+                        hiding
+                      </a>{' '}
+                      &quot;Waiting For Game&quot;)
+                    </>
+                  )}
+                </>
+              }
             />
           </Box>
           <Stack direction="row" spacing="8px">

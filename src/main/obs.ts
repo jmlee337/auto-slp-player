@@ -327,7 +327,9 @@ export default class OBSConnection {
         if (retries > 0) {
           await timeout(1000 * 2 ** (retries - 1));
         }
-        windows = await getWindows(this.obsWebSocket);
+        windows = (await getWindows(this.obsWebSocket)).sort(
+          (a, b) => a.port - b.port,
+        );
         retries += 1;
       }
       this.portToInputName.clear();
@@ -339,7 +341,79 @@ export default class OBSConnection {
         this.portToInputName.set(windows[i].port, expectedInputNames[i]);
       }
     } else {
-      // windows todo
+      // windows
+      for (const inputName of missingInputNames) {
+        const { inputUuid } = await this.obsWebSocket.call('CreateInput', {
+          sceneName: 'quad 1',
+          inputName,
+          inputKind,
+          inputSettings: {
+            capture_audio: true,
+            capture_mode: 'window',
+            priority: 1,
+            show_cursor: false,
+          },
+        });
+        inputNameToInputUuid.set(inputName, inputUuid);
+      }
+
+      const getWindows = async (obsWebSocket: OBSWebSocket) => {
+        for (let i = 1; i < expectedInputNames.length; i += 1) {
+          await obsWebSocket.call('GetInputPropertiesListPropertyItems', {
+            inputName: expectedInputNames[i],
+            propertyName: 'window',
+          });
+        }
+        const { propertyItems } = await obsWebSocket.call(
+          'GetInputPropertiesListPropertyItems',
+          {
+            inputName: expectedInputNames[0],
+            propertyName: 'window',
+          },
+        );
+        const startsWith = `[Slippi Dolphin.exe]: ${prefix}`;
+        return propertyItems
+          .filter((propertyItem) => {
+            const itemName = propertyItem.itemName as string;
+            if (!itemName.startsWith(startsWith)) {
+              return false;
+            }
+            if (!itemName.slice(-5).match('[0-9][0-9][0-9][0-9][0-9]')) {
+              return false;
+            }
+            return true;
+          })
+          .map((propertyItem) => ({
+            port: parseInt((propertyItem.itemName as string).slice(-5), 10),
+            window: propertyItem.itemValue as string,
+          }));
+      };
+      let retries = 0;
+      let windows: { port: number; window: string }[] = [];
+      while (windows.length < this.maxDolphins) {
+        if (retries === 4) {
+          this.setConnectionStatus(
+            OBSConnectionStatus.OBS_NOT_SETUP,
+            'Must open all dolphins',
+          );
+          return;
+        }
+        if (retries > 0) {
+          await timeout(1000 * 2 ** (retries - 1));
+        }
+        windows = (await getWindows(this.obsWebSocket)).sort(
+          (a, b) => a.port - b.port,
+        );
+        retries += 1;
+      }
+      this.portToInputName.clear();
+      for (let i = 0; i < this.maxDolphins; i += 1) {
+        await this.obsWebSocket.call('SetInputSettings', {
+          inputName: expectedInputNames[i],
+          inputSettings: { window: windows[i].window },
+        });
+        this.portToInputName.set(windows[i].port, expectedInputNames[i]);
+      }
     }
     const sceneNameToExpectedSourceNames = new Map([
       ['quad 1', [...expectedInputNames]],
@@ -475,7 +549,7 @@ export default class OBSConnection {
       let retries = 0;
       let setTransformsSucceeded = false;
       while (!setTransformsSucceeded) {
-        if (retries === 5) {
+        if (retries === 6) {
           this.setConnectionStatus(
             OBSConnectionStatus.OBS_NOT_SETUP,
             'OBS failed to capture Slippi Dolphin',

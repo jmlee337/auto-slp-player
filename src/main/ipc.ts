@@ -1354,7 +1354,7 @@ export default async function setupIPCs(
 
   app.on('before-quit', async (event) => {
     let prevented = false;
-    if (process.platform !== 'win32' && dolphins.size > 0) {
+    if (dolphins.size > 0) {
       event.preventDefault();
       prevented = true;
       for (const [port, dolphin] of dolphins) {

@@ -79,60 +79,64 @@ export type MainContextScore = {
   slots: MainContextSlot[];
 };
 
+export type MainContextStartgg = {
+  tournament: {
+    name: string;
+    location: string;
+  };
+  event: {
+    name: string;
+    slug: string;
+    hasSiblings: boolean;
+  };
+  phase: {
+    id: number;
+    name: string;
+    hasSiblings: boolean;
+  };
+  phaseGroup: {
+    id: number;
+    name: string;
+    /**
+     * 1: SINGLE_ELIMINATION
+     * 2: DOUBLE_ELIMINATION
+     * 3: ROUND_ROBIN
+     * 4: SWISS
+     * https://developer.start.gg/reference/brackettype.doc
+     */
+    bracketType: number;
+    hasSiblings: boolean;
+  };
+  set: {
+    fullRoundText: string;
+    ordinal: number | null;
+    round: number;
+    stream: Stream | null;
+  };
+};
+
+export type MainContextChallonge = {
+  tournament: {
+    name: string;
+    slug: string;
+    // can be 'swiss' or 'round robin' among others
+    tournamentType: string;
+  };
+  set: {
+    fullRoundText: string;
+    ordinal: number | null;
+    round: number;
+    stream: Stream | null;
+  };
+};
+
 export type MainContext = {
   bestOf: number;
   durationMs: number;
   scores: MainContextScore[];
   finalScore?: MainContextScore;
-  startgg?: {
-    tournament: {
-      name: string;
-      location: string;
-    };
-    event: {
-      name: string;
-      slug: string;
-      hasSiblings: boolean;
-    };
-    phase: {
-      id: number;
-      name: string;
-      hasSiblings: boolean;
-    };
-    phaseGroup: {
-      id: number;
-      name: string;
-      /**
-       * 1: SINGLE_ELIMINATION
-       * 2: DOUBLE_ELIMINATION
-       * 3: ROUND_ROBIN
-       * 4: SWISS
-       * https://developer.start.gg/reference/brackettype.doc
-       */
-      bracketType: number;
-      hasSiblings: boolean;
-    };
-    set: {
-      fullRoundText: string;
-      ordinal: number | null;
-      round: number;
-      stream: Stream | null;
-    };
-  };
-  challonge?: {
-    tournament: {
-      name: string;
-      slug: string;
-      // can be 'swiss' or 'round robin' among others
-      tournamentType: string;
-    };
-    set: {
-      fullRoundText: string;
-      ordinal: number | null;
-      round: number;
-      stream: Stream | null;
-    };
-  };
+  startgg?: MainContextStartgg;
+  challonge?: MainContextChallonge;
   startMs: number;
 };
 

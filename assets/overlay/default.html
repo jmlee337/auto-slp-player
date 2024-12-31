@@ -14,6 +14,7 @@
         background: black;
         color: white;
         font-family: robotocjksc, Arial;
+        margin: 0;
         overflow: hidden;
       }
       .round-bo, .event-phase-name, .location {
@@ -43,8 +44,13 @@
       }
       .set {
         box-sizing: border-box;
+        display: flex;
+        flex-direction: column;
         height: 124px;
         padding-bottom: 6px;
+      }
+      .set-0 {
+        align-items: start;
       }
       .half {
         display: flex;
@@ -57,6 +63,7 @@
       }
       .round-bo {
         direction: rtl;
+        max-width: 100%;
         overflow: hidden;
         text-overflow: ellipsis;
         white-space: nowrap;

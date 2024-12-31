@@ -28,6 +28,8 @@ import { HttpStatusCodeError } from '@twurple/api-call';
 import { deleteZipDir, scan, unzip } from './unzip';
 import {
   AvailableSet,
+  MainContextChallonge,
+  MainContextStartgg,
   OBSSettings,
   OverlayContext,
   OverlaySet,
@@ -351,6 +353,8 @@ export default async function setupIPCs(
     const entriesWithContexts = Array.from(playingSets.entries()).filter(
       ([, playingSet]) => playingSet.context,
     );
+    let representativeStartgg: MainContextStartgg | undefined;
+    let representativeChallonge: MainContextChallonge | undefined;
     entriesWithContexts.forEach(([, playingSet]) => {
       const startgg = playingSet.context?.startgg;
       const challonge = playingSet.context?.challonge;
@@ -366,9 +370,8 @@ export default async function setupIPCs(
     });
     if (entriesWithContexts.length > 0) {
       const representativePlayingSet = entriesWithContexts[0][1];
-      const representativeStartgg = representativePlayingSet.context?.startgg;
-      const representativeChallonge =
-        representativePlayingSet.context?.challonge;
+      representativeStartgg = representativePlayingSet.context?.startgg;
+      representativeChallonge = representativePlayingSet.context?.challonge;
       if (representativeStartgg) {
         startggTournamentName = representativeStartgg.tournament.name;
         startggTournamentLocation = representativeStartgg.tournament.location;
@@ -438,16 +441,15 @@ export default async function setupIPCs(
         }
       });
     }
-    const startgg =
-      startggTournamentName && startggEventName && startggPhaseName
-        ? {
-            tournamentName: startggTournamentName,
-            location: startggTournamentLocation,
-            eventName: startggEventName,
-            phaseName: startggPhaseName,
-          }
-        : undefined;
-    const challonge = challongeTournamentName
+    const startgg = representativeStartgg
+      ? {
+          tournamentName: startggTournamentName,
+          location: startggTournamentLocation,
+          eventName: startggEventName,
+          phaseName: startggPhaseName,
+        }
+      : undefined;
+    const challonge = representativeChallonge
       ? {
           tournamentName: challongeTournamentName,
         }

@@ -198,24 +198,6 @@ export default async function setupIPCs(
     'AutoSLPPlayer',
     'overlay',
   );
-  await mkdir(overlayPath, { recursive: true });
-  await Promise.all(
-    [
-      'default.html',
-      'default 2.html',
-      'default 34.html',
-      'RobotoCJKSC-Regular.ttf',
-    ].map(async (fileName) =>
-      copyFile(
-        path.join(resourcesPath, 'overlay', fileName),
-        path.join(overlayPath, fileName),
-      ),
-    ),
-  );
-  await writeFile(
-    path.join(overlayPath, 'overlay.json'),
-    JSON.stringify({ sets: [] }),
-  );
 
   const dolphinVersionPromiseFn = (
     resolve: (value: string) => void,
@@ -1389,4 +1371,23 @@ export default async function setupIPCs(
       app.quit();
     }
   });
+
+  await mkdir(overlayPath, { recursive: true });
+  await Promise.all(
+    [
+      'default.html',
+      'default 2.html',
+      'default 34.html',
+      'RobotoCJKSC-Regular.ttf',
+    ].map(async (fileName) =>
+      copyFile(
+        path.join(resourcesPath, 'overlay', fileName),
+        path.join(overlayPath, fileName),
+      ),
+    ),
+  );
+  await writeFile(
+    path.join(overlayPath, 'overlay.json'),
+    JSON.stringify({ sets: [] }),
+  );
 }

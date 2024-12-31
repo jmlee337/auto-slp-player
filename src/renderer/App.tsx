@@ -344,7 +344,8 @@ function Hello() {
             endIcon={obsButtonIcon}
             onClick={async () => {
               if (
-                obsConnectionStatus === OBSConnectionStatus.OBS_NOT_CONNECTED
+                obsConnectionStatus === OBSConnectionStatus.OBS_NOT_CONNECTED ||
+                obsConnectionStatus === OBSConnectionStatus.OBS_NOT_SETUP
               ) {
                 try {
                   setObsConnecting(true);
@@ -356,10 +357,6 @@ function Hello() {
                 } finally {
                   setObsConnecting(false);
                 }
-              } else if (
-                obsConnectionStatus === OBSConnectionStatus.OBS_NOT_SETUP
-              ) {
-                setObsErrorDialogOpen(true);
               }
             }}
             variant="contained"

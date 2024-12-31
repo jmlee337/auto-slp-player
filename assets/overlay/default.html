@@ -110,12 +110,17 @@
           if (newContext.startgg) {
             replace('tournament-name', newContext.startgg.tournamentName);
             replace('location', newContext.startgg.location);
-            replace(
-              'event-phase-name',
-              newContext.startgg.eventName &&
-                newContext.startgg.phaseName ?
-                  `${newContext.startgg.eventName}, ${newContext.startgg.phaseName}`
-                : '');
+            const names = [];
+            if (newContext.startgg.eventName) {
+              names.push(newContext.startgg.eventName);
+            }
+            if (newContext.startgg.phaseName) {
+              names.push(newContext.startgg.phaseName);
+            }
+            if (newContext.startgg.phaseGroupName) {
+              names.push(newContext.startgg.phaseGroupName);
+            }
+            replace('event-phase-name', names.length > 0 ? names.join(', ') : '');
           } else if (newContext.challonge) {
             replace('tournament-name', newContext.challonge.tournamentName);
             replace('location', '');

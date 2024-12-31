@@ -31,8 +31,10 @@ import {
   MainContextChallonge,
   MainContextStartgg,
   OBSSettings,
+  OverlayChallonge,
   OverlayContext,
   OverlaySet,
+  OverlayStartgg,
   SetType,
   SplitOption,
   TwitchSettings,
@@ -341,6 +343,7 @@ export default async function setupIPCs(
     let startggTournamentLocation = lastStartggTournamentLocation;
     let startggEventName = lastStartggEventName;
     let startggPhaseName = '';
+    let startggPhaseGroupName = '';
     let challongeTournamentName = lastChallongeTournamentName;
     const sets: OverlaySet[] = [];
 
@@ -349,6 +352,7 @@ export default async function setupIPCs(
     const phaseIds = new Set<number>();
     let phaseHasSiblings = false;
     const phaseGroupIds = new Set<number>();
+    let phaseGroupHasSiblings = false;
     const challongeSlugs = new Set<string>();
     const entriesWithContexts = Array.from(playingSets.entries()).filter(
       ([, playingSet]) => playingSet.context,
@@ -364,6 +368,7 @@ export default async function setupIPCs(
         phaseIds.add(startgg.phase.id);
         phaseHasSiblings = startgg.phase.hasSiblings;
         phaseGroupIds.add(startgg.phaseGroup.id);
+        phaseGroupHasSiblings = startgg.phaseGroup.hasSiblings;
       } else if (challonge) {
         challongeSlugs.add(challonge.tournament.slug);
       }
@@ -382,6 +387,10 @@ export default async function setupIPCs(
         startggPhaseName =
           phaseIds.size === 1 && phaseHasSiblings
             ? representativeStartgg.phase.name
+            : '';
+        startggPhaseGroupName =
+          phaseGroupIds.size === 1 && phaseGroupHasSiblings
+            ? `Pool ${representativeStartgg.phaseGroup.name}`
             : '';
       } else if (representativeChallonge) {
         challongeTournamentName =
@@ -441,15 +450,16 @@ export default async function setupIPCs(
         }
       });
     }
-    const startgg = representativeStartgg
+    const startgg: OverlayStartgg | undefined = representativeStartgg
       ? {
           tournamentName: startggTournamentName,
           location: startggTournamentLocation,
           eventName: startggEventName,
           phaseName: startggPhaseName,
+          phaseGroupName: startggPhaseGroupName,
         }
       : undefined;
-    const challonge = representativeChallonge
+    const challonge: OverlayChallonge | undefined = representativeChallonge
       ? {
           tournamentName: challongeTournamentName,
         }

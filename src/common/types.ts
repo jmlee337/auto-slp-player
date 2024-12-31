@@ -212,17 +212,22 @@ export type OverlaySet = {
   rightScore: number;
 };
 
+export type OverlayStartgg = {
+  tournamentName: string;
+  location: string;
+  eventName: string;
+  phaseName: string;
+  phaseGroupName: string;
+};
+
+export type OverlayChallonge = {
+  tournamentName: string;
+};
+
 export type OverlayContext = {
   sets: OverlaySet[];
-  startgg?: {
-    tournamentName: string;
-    location: string;
-    eventName: string;
-    phaseName: string;
-  };
-  challonge?: {
-    tournamentName: string;
-  };
+  startgg?: OverlayStartgg;
+  challonge?: OverlayChallonge;
 };
 
 export enum OBSConnectionStatus {

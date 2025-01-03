@@ -44,6 +44,8 @@ const electronHandler = {
     ipcRenderer.invoke('getGenerateTimestamps'),
   setGenerateTimestamps: (newGenerateTimestamps: boolean) =>
     ipcRenderer.invoke('setGenerateTimestamps', newGenerateTimestamps),
+  getTimestamps: (): Promise<string> => ipcRenderer.invoke('getTimestamps'),
+  clearTimestamps: (): Promise<void> => ipcRenderer.invoke('clearTimestamps'),
   getAddDelay: (): Promise<boolean> => ipcRenderer.invoke('getAddDelay'),
   setAddDelay: (addDelay: boolean): Promise<void> =>
     ipcRenderer.invoke('setAddDelay', addDelay),

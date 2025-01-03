@@ -36,6 +36,7 @@ import {
 import Settings from './Settings';
 import Queue from './Queue';
 import QueueTabPanel from './QueueTabPanel';
+import Timestamps from './Timestamps';
 
 function Hello() {
   const [appError, setAppError] = useState('');
@@ -385,6 +386,7 @@ function Hello() {
           >
             {streamingMsg}
           </Button>
+          <Timestamps />
         </Stack>
       </Stack>
       {queues.length === 1 && (

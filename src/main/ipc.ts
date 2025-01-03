@@ -15,6 +15,7 @@ import {
   mkdir,
   open,
   readdir,
+  readFile,
   rm,
   unlink,
   writeFile,
@@ -903,7 +904,6 @@ export default async function setupIPCs(
 
   ipcMain.removeHandler('getGenerateTimestamps');
   ipcMain.handle('getGenerateTimestamps', () => generateTimestamps);
-
   ipcMain.removeHandler('setGenerateTimestamps');
   ipcMain.handle(
     'setGenerateTimestamps',
@@ -911,6 +911,22 @@ export default async function setupIPCs(
       store.set('generateTimestamps', newGenerateTimestamps);
       generateTimestamps = newGenerateTimestamps;
     },
+  );
+
+  ipcMain.removeHandler('getTimestamps');
+  ipcMain.handle('getTimestamps', async () => {
+    try {
+      return await readFile(path.join(tempDir, 'timestamps.txt'), {
+        encoding: 'utf8',
+      });
+    } catch {
+      return '';
+    }
+  });
+
+  ipcMain.removeHandler('clearTimestamps');
+  ipcMain.handle('clearTimestamps', () =>
+    rm(path.join(tempDir, 'timestamps.txt'), { force: true }),
   );
 
   ipcMain.removeHandler('getAddDelay');

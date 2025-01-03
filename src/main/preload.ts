@@ -92,7 +92,11 @@ const electronHandler = {
     ipcRenderer.on('dolphins', callback);
   },
   onObsConnectionStatus: (
-    callback: (event: IpcRendererEvent, status: OBSConnectionStatus) => void,
+    callback: (
+      event: IpcRendererEvent,
+      status: OBSConnectionStatus,
+      message?: string,
+    ) => void,
   ) => {
     ipcRenderer.removeAllListeners('obsConnectionStatus');
     ipcRenderer.on('obsConnectionStatus', callback);

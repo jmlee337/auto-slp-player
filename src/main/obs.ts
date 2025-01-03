@@ -116,14 +116,14 @@ export default class OBSConnection {
     );
   }
 
-  private async setupObs() {
+  private async setupObs(): Promise<boolean> {
     if (
       this.obsWebSocket === null ||
       this.connectionStatus === OBSConnectionStatus.OBS_NOT_CONNECTED ||
       !this.dolphinVersionPromise ||
       !(process.platform === 'win32' || process.platform === 'darwin')
     ) {
-      return;
+      return false;
     }
 
     const { baseHeight, baseWidth } =
@@ -133,7 +133,7 @@ export default class OBSConnection {
         OBSConnectionStatus.OBS_NOT_SETUP,
         'OBS base/canvas resolution must be 1920x1080',
       );
-      return;
+      return false;
     }
 
     // scene collection
@@ -322,7 +322,7 @@ export default class OBSConnection {
             OBSConnectionStatus.OBS_NOT_SETUP,
             'Must open all dolphins',
           );
-          return;
+          return false;
         }
         if (retries > 0) {
           await timeout(1000 * 2 ** (retries - 1));
@@ -396,7 +396,7 @@ export default class OBSConnection {
             OBSConnectionStatus.OBS_NOT_SETUP,
             'Must open all dolphins',
           );
-          return;
+          return false;
         }
         if (retries > 0) {
           await timeout(1000 * 2 ** (retries - 1));
@@ -554,7 +554,7 @@ export default class OBSConnection {
             OBSConnectionStatus.OBS_NOT_SETUP,
             'OBS failed to capture Slippi Dolphin',
           );
-          return;
+          return false;
         }
         if (retries > 0) {
           await timeout(1000 * 2 ** (retries - 1));
@@ -564,6 +564,7 @@ export default class OBSConnection {
       }
     }
     this.setConnectionStatus(OBSConnectionStatus.READY);
+    return true;
   }
 
   async connect(settings: OBSSettings) {
@@ -577,15 +578,31 @@ export default class OBSConnection {
         this.mainWindow.webContents.send('streaming', outputState);
       });
     }
+    let canCheckTEB = false;
     if (this.connectionStatus === OBSConnectionStatus.OBS_NOT_CONNECTED) {
       await this.obsWebSocket.connect(
         `${settings.protocol}://${settings.address}:${settings.port}`,
         settings.password.length > 0 ? settings.password : undefined,
       );
       this.connectionStatus = OBSConnectionStatus.OBS_NOT_SETUP;
-      await this.setupObs();
+      canCheckTEB = await this.setupObs();
     } else if (this.connectionStatus === OBSConnectionStatus.OBS_NOT_SETUP) {
-      await this.setupObs();
+      canCheckTEB = await this.setupObs();
+    }
+    if (canCheckTEB) {
+      const { parameterValue } = await this.obsWebSocket.call(
+        'GetProfileParameter',
+        {
+          parameterCategory: 'Stream1',
+          parameterName: 'EnableMultitrackVideo',
+        },
+      );
+      if (parameterValue === 'true') {
+        this.setConnectionStatus(
+          OBSConnectionStatus.READY,
+          'Multitrack Video (likely Twitch Enhanced Broadcasting) is enabled and will interfere with timestamp generation.',
+        );
+      }
     }
   }
 

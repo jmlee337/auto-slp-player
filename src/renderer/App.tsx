@@ -161,16 +161,15 @@ function Hello() {
         message?: string,
       ) => {
         setObsConnectionStatus(newStatus);
-        if (newStatus === OBSConnectionStatus.READY) {
+        if (message) {
+          setObsError(message);
+          setObsErrorDialogOpen(true);
+        } else if (newStatus === OBSConnectionStatus.OBS_NOT_CONNECTED) {
+          setObsError('OBS disconnected.');
+          setObsErrorDialogOpen(true);
+        } else {
           setObsError('');
           setObsErrorDialogOpen(false);
-        } else {
-          if (newStatus === OBSConnectionStatus.OBS_NOT_CONNECTED) {
-            setObsError('OBS disconnected.');
-          } else if (newStatus === OBSConnectionStatus.OBS_NOT_SETUP) {
-            setObsError(message!);
-          }
-          setObsErrorDialogOpen(true);
         }
       },
     );

@@ -1347,27 +1347,27 @@ export default async function setupIPCs(
   });
 
   app.on('before-quit', async (event) => {
-    let prevented = false;
     if (dolphins.size > 0) {
       event.preventDefault();
-      prevented = true;
       for (const [port, dolphin] of dolphins) {
+        dolphin.removeAllListeners();
         dolphin.close();
         dolphins.delete(port);
       }
     }
     if (playingSets.size > 0) {
       event.preventDefault();
-      prevented = true;
-      for (const playingSet of playingSets.values()) {
+      for (const [port, playingSet] of playingSets) {
         try {
           await deleteZipDir(playingSet, tempDir);
         } catch {
           // just catch
+        } finally {
+          playingSets.delete(port);
         }
       }
     }
-    if (prevented) {
+    if (event.defaultPrevented) {
       app.quit();
     }
   });

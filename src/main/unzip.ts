@@ -156,6 +156,27 @@ export async function unzip(set: AvailableSet, tempDir: string): Promise<void> {
   });
 }
 
+async function deleteInner(unzipDir: string, timeoutMs: number) {
+  if (timeoutMs) {
+    return new Promise<boolean>((resolve) => {
+      setTimeout(async () => {
+        try {
+          await rm(unzipDir, { recursive: true, force: true });
+          resolve(true);
+        } catch {
+          resolve(false);
+        }
+      }, timeoutMs);
+    });
+  }
+  try {
+    await rm(unzipDir, { recursive: true, force: true });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 export async function deleteZipDir(
   set: AvailableSet,
   tempDir: string,
@@ -165,5 +186,15 @@ export async function deleteZipDir(
   }
 
   const unzipDir = path.join(tempDir, path.basename(set.originalPath, '.zip'));
-  await rm(unzipDir, { recursive: true, force: true });
+  let success = await deleteInner(unzipDir, 0);
+  if (!success) {
+    let retries = 0;
+    while (!success && retries < 3) {
+      success = await deleteInner(unzipDir, 250 * 2 ** retries);
+      retries += 1;
+    }
+    if (!success) {
+      throw new Error('timed out trying to delete');
+    }
+  }
 }

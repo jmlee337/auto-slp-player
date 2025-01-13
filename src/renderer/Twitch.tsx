@@ -117,7 +117,7 @@ function SetupDialog({
           <DialogContentText>
             See example screenshots{' '}
             <Link
-              href="https://github.com/jmlee337/techobot2/blob/src/docs/twitch.md"
+              href="https://github.com/jmlee337/auto-slp-player/blob/main/src/docs/twitch.md"
               target="_blank"
               rel="noreferrer"
             >

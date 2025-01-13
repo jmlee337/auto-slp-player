@@ -4,7 +4,8 @@ import {
   OBSSettings,
   RendererQueue,
   SplitOption,
-  TwitchSettings,
+  TwitchClient,
+  TwitchStatus,
 } from '../common/types';
 
 const electronHandler = {
@@ -53,20 +54,58 @@ const electronHandler = {
     ipcRenderer.invoke('getSplitOption'),
   setSplitOption: (newSplitOption: SplitOption): Promise<void> =>
     ipcRenderer.invoke('setSplitOption', newSplitOption),
-  getTwitchChannel: (): Promise<string> =>
-    ipcRenderer.invoke('getTwitchChannel'),
-  setTwitchChannel: (twitchChannel: string): Promise<void> =>
-    ipcRenderer.invoke('setTwitchChannel', twitchChannel),
-  getTwitchSettings: (): Promise<TwitchSettings> =>
-    ipcRenderer.invoke('getTwitchSettings'),
-  setTwitchSettings: (
-    newTwitchSettings: TwitchSettings,
-  ): Promise<TwitchSettings> =>
-    ipcRenderer.invoke('setTwitchSettings', newTwitchSettings),
-  getTwitchTokens: (code: string): Promise<void> =>
-    ipcRenderer.invoke('getTwitchTokens', code),
-  getTwitchBotStatus: (): Promise<{ connected: boolean; error: string }> =>
+
+  // twitch
+  getTwitchUserName: (): Promise<string> =>
+    ipcRenderer.invoke('getTwitchUserName'),
+  getTwitchBotEnabled: (): Promise<boolean> =>
+    ipcRenderer.invoke('getTwitchBotEnabled'),
+  setTwitchBotEnabled: (twitchBotEnabled: boolean): Promise<void> =>
+    ipcRenderer.invoke('setTwitchBotEnabled', twitchBotEnabled),
+  getTwitchBotStatus: (): Promise<{ status: TwitchStatus; message: string }> =>
     ipcRenderer.invoke('getTwitchBotStatus'),
+  getTwitchClient: (): Promise<TwitchClient> =>
+    ipcRenderer.invoke('getTwitchClient'),
+  setTwitchClient: (twitchClient: TwitchClient): Promise<void> =>
+    ipcRenderer.invoke('setTwitchClient', twitchClient),
+  getStealth: (): Promise<boolean> => ipcRenderer.invoke('getStealth'),
+  setStealth: (stealth: boolean): Promise<void> =>
+    ipcRenderer.invoke('setStealth', stealth),
+  getTwitchCallbackServerStatus: (): Promise<{
+    status: TwitchStatus;
+    port: number;
+  }> => ipcRenderer.invoke('getTwitchCallbackServerStatus'),
+  startTwitchCallbackServer: (): Promise<void> =>
+    ipcRenderer.invoke('startTwitchCallbackServer'),
+  stopTwitchCallbackServer: (): Promise<void> =>
+    ipcRenderer.invoke('stopTwitchCallbackServer'),
+  onTwitchUserName: (
+    callback: (event: IpcRendererEvent, userName: string) => void,
+  ) => {
+    ipcRenderer.removeAllListeners('twitchUserName');
+    ipcRenderer.on('twitchUserName', callback);
+  },
+  onTwitchBotStatus: (
+    callback: (
+      event: IpcRendererEvent,
+      status: TwitchStatus,
+      message: string,
+    ) => void,
+  ) => {
+    ipcRenderer.removeAllListeners('twitchBotStatus');
+    ipcRenderer.on('twitchBotStatus', callback);
+  },
+  onTwitchCallbackServerStatus: (
+    callback: (
+      event: IpcRendererEvent,
+      status: TwitchStatus,
+      port: number,
+    ) => void,
+  ) => {
+    ipcRenderer.removeAllListeners('twitchCallbackServerStatus');
+    ipcRenderer.on('twitchCallbackServerStatus', callback);
+  },
+
   getQueues: (): Promise<RendererQueue[]> => ipcRenderer.invoke('getQueues'),
   getCanPlay: (): Promise<boolean> => ipcRenderer.invoke('getCanPlay'),
   incrementQueuePriority: (queueId: string): Promise<void> =>
@@ -116,15 +155,6 @@ const electronHandler = {
   onStreaming: (callback: (event: IpcRendererEvent, state: string) => void) => {
     ipcRenderer.removeAllListeners('streaming');
     ipcRenderer.on('streaming', callback);
-  },
-  onTwitchBotStatus: (
-    callback: (
-      event: IpcRendererEvent,
-      status: { connected: boolean; error: string },
-    ) => void,
-  ) => {
-    ipcRenderer.removeAllListeners('twitchBotStatus');
-    ipcRenderer.on('twitchBotStatus', callback);
   },
   update: (): Promise<void> => ipcRenderer.invoke('update'),
 };

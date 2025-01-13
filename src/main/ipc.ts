@@ -21,11 +21,9 @@ import {
   writeFile,
 } from 'fs/promises';
 import path from 'path';
-import { RefreshingAuthProvider } from '@twurple/auth';
-import { Bot, createBotCommand } from '@twurple/easy-bot';
 import { Ports } from '@slippi/slippi-js';
 import { spawn } from 'child_process';
-import { HttpStatusCodeError } from '@twurple/api-call';
+import { AccessToken } from '@twurple/auth';
 import { deleteZipDir, scan, unzip } from './unzip';
 import {
   AvailableSet,
@@ -38,12 +36,14 @@ import {
   OverlayStartgg,
   SetType,
   SplitOption,
-  TwitchSettings,
+  TwitchClient,
+  TwitchStatus,
 } from '../common/types';
 import { Dolphin, DolphinEvent } from './dolphin';
 import { toRendererSet } from './set';
 import OBSConnection from './obs';
 import Queue from './queue';
+import Twitch from './twitch';
 
 // taken from https://semver.org/#is-there-a-suggested-regular-expression-regex-to-check-a-semver-string
 // via https://github.com/project-slippi/slippi-launcher/blob/ae8bb69e235b6e46b24bc966aeaa80f45030c6f9/src/dolphin/install/ishiiruka_installation.ts#L23-L24
@@ -131,7 +131,12 @@ export default async function setupIPCs(
   mainWindow: BrowserWindow,
   resourcesPath: string,
 ): Promise<void> {
-  const store = new Store();
+  const store = new Store<{
+    twitchBotEnabled: boolean;
+    twitchClient: TwitchClient;
+    twitchAccessToken: AccessToken;
+    stealth: boolean;
+  }>();
   let dolphinPath = '';
   if (store.has('dolphinPath')) {
     dolphinPath = store.get('dolphinPath') as string;
@@ -178,21 +183,115 @@ export default async function setupIPCs(
   let splitOption: SplitOption = store.has('splitOption')
     ? (store.get('splitOption') as SplitOption)
     : SplitOption.EVENT;
-  let twitchChannel = store.has('twitchChannel')
-    ? (store.get('twitchChannel') as string)
-    : '';
-  let twitchSettings: TwitchSettings = store.has('twitchSettings')
-    ? (store.get('twitchSettings') as TwitchSettings)
-    : {
-        enabled: false,
-        accessToken: '',
-        refreshToken: '',
-        clientId: '',
-        clientSecret: '',
-      };
+
   let obsSettings: OBSSettings = store.has('obsSettings')
     ? (store.get('obsSettings') as OBSSettings)
     : { protocol: 'ws', address: '127.0.0.1', port: '4455', password: '' };
+
+  // twitch
+  let twitchUserName = '';
+  let twitchBotEnabled = store.get('twitchBotEnabled', false);
+  let twitchClient: TwitchClient = store.get('twitchClient', {
+    clientId: '',
+    clientSecret: '',
+  });
+  let twitchAccessToken: AccessToken | null = null;
+  if (store.has('twitchAccessToken')) {
+    twitchAccessToken = store.get('twitchAccessToken');
+  }
+  let stealth: boolean = store.get('stealth', false);
+  let twitchBotStatus = TwitchStatus.STOPPED;
+  let twitchBotStatusMessage = '';
+  let twitchCallbackServerStatus = TwitchStatus.STOPPED;
+  let twitchCallbackServerPort = 0;
+  const twitch = new Twitch(
+    twitchClient,
+    twitchAccessToken,
+    twitchBotEnabled,
+    stealth,
+    (accessToken) => {
+      twitchAccessToken = accessToken;
+      store.set('twitchAccessToken', twitchAccessToken);
+    },
+    (userName) => {
+      twitchUserName = userName;
+      mainWindow.webContents.send('twitchUserName', twitchUserName);
+    },
+    (botStatus, botStatusMessage) => {
+      twitchBotStatus = botStatus;
+      twitchBotStatusMessage = botStatusMessage;
+      mainWindow.webContents.send(
+        'twitchBotStatus',
+        twitchBotStatus,
+        twitchBotStatusMessage,
+      );
+    },
+    (callbackServerStatus, callbackServerPort) => {
+      twitchCallbackServerStatus = callbackServerStatus;
+      twitchCallbackServerPort = callbackServerPort;
+      mainWindow.webContents.send(
+        'twitchCallbackServerStatus',
+        twitchCallbackServerStatus,
+        twitchCallbackServerPort,
+      );
+    },
+  );
+  twitch.initialize();
+
+  ipcMain.removeAllListeners('getTwitchUserName');
+  ipcMain.handle('getTwitchUserName', () => {
+    return twitchUserName;
+  });
+
+  ipcMain.removeAllListeners('getTwitchBotStatus');
+  ipcMain.handle('getTwitchBotStatus', () => ({
+    status: twitchBotStatus,
+    message: twitchBotStatusMessage,
+  }));
+
+  ipcMain.removeAllListeners('getTwitchCallbackServerStatus');
+  ipcMain.handle('getTwitchCallbackServerStatus', () => ({
+    status: twitchCallbackServerStatus,
+    port: twitchCallbackServerPort,
+  }));
+
+  ipcMain.removeAllListeners('startTwitchCallbackServer');
+  ipcMain.handle('startTwitchCallbackServer', () =>
+    twitch.startCallbackServer(),
+  );
+
+  ipcMain.removeAllListeners('stopTwitchCallbackServer');
+  ipcMain.handle('stopTwitchCallbackServer', () => twitch.stopCallbackServer());
+
+  ipcMain.removeAllListeners('getTwitchBotEnabled');
+  ipcMain.handle('getTwitchBotEnabled', () => twitchBotEnabled);
+  ipcMain.removeAllListeners('setTwitchBotEnabled');
+  ipcMain.handle(
+    'setTwitchBotEnabled',
+    (event, newTwitchBotEnabled: boolean) => {
+      twitchBotEnabled = newTwitchBotEnabled;
+      store.set('twitchBotEnabled', twitchBotEnabled);
+      twitch.setBotEnabled(twitchBotEnabled);
+    },
+  );
+
+  ipcMain.removeAllListeners('getTwitchClient');
+  ipcMain.handle('getTwitchClient', () => twitchClient);
+  ipcMain.removeAllListeners('setTwitchClient');
+  ipcMain.handle('setTwitchClient', (event, newTwitchClient: TwitchClient) => {
+    twitchClient = newTwitchClient;
+    store.set('twitchClient', twitchClient);
+    twitch.setClient(twitchClient);
+  });
+
+  ipcMain.removeAllListeners('getStealth');
+  ipcMain.handle('getStealth', () => stealth);
+  ipcMain.removeAllListeners('setStealth');
+  ipcMain.handle('setStealth', (event, newStealth: boolean) => {
+    stealth = newStealth;
+    store.set('stealth', stealth);
+    twitch.setStealth(stealth);
+  });
 
   const overlayPath = path.join(
     app.getPath('documents'),
@@ -320,7 +419,7 @@ export default async function setupIPCs(
   let lastStartggEventSlug = '';
   let lastChallongeTournamentName = '';
   let lastChallongeTournamentSlug = '';
-  const writeOverlayJson = async () => {
+  const updateOverlayAndTwitchBot = async () => {
     const overlayFilePath = path.join(overlayPath, 'overlay.json');
     let startggTournamentName = lastStartggTournamentName;
     let startggTournamentLocation = lastStartggTournamentLocation;
@@ -453,6 +552,32 @@ export default async function setupIPCs(
       challonge,
     };
     await writeFile(overlayFilePath, JSON.stringify(overlayContext));
+
+    const urls: string[] = [];
+    if (representativeStartgg) {
+      urls.push(
+        ...Array.from(eventSlugs).map(
+          (eventSlug) => `https://www.start.gg/${eventSlug}`,
+        ),
+      );
+    } else if (lastStartggEventSlug) {
+      urls.push(`https://www.start.gg/${lastStartggEventSlug}`);
+    }
+    if (representativeChallonge) {
+      urls.push(
+        ...Array.from(challongeSlugs).map(
+          (challongeSlug) => `https://challonge.com/${challongeSlug}`,
+        ),
+      );
+    } else if (lastChallongeTournamentSlug) {
+      urls.push(`https://challonge.com/${lastChallongeTournamentSlug}`);
+    }
+    twitch.setBrackets({
+      spoilers:
+        representativeStartgg !== undefined ||
+        representativeChallonge !== undefined,
+      urls,
+    });
   };
   const failedPorts = new Set<number>();
   const getNextPort = () => {
@@ -583,20 +708,20 @@ export default async function setupIPCs(
       }
       obsConnection.setDolphins(dolphins);
 
-      writeOverlayJson();
+      updateOverlayAndTwitchBot();
       obsConnection.transition(playingSets);
       mainWindow.webContents.send('dolphins', dolphins.size);
       sendQueues();
     });
     newDolphin.on(DolphinEvent.PLAYING, (newGameIndex: number) => {
       gameIndices.set(port, newGameIndex);
-      writeOverlayJson();
+      updateOverlayAndTwitchBot();
     });
     newDolphin.on(DolphinEvent.ENDING, () => {
       const playingSet = playingSets.get(port);
       if (playingSet?.context?.finalScore) {
         gameIndices.set(port, -1);
-        writeOverlayJson();
+        updateOverlayAndTwitchBot();
       }
     });
     newDolphin.on(DolphinEvent.ENDED, async (failureReason: string) => {
@@ -653,7 +778,7 @@ export default async function setupIPCs(
         }
       }
       sendQueues();
-      writeOverlayJson();
+      updateOverlayAndTwitchBot();
     });
     return new Promise<void>((resolve, reject) => {
       newDolphin.on(DolphinEvent.START_FAILED, (connectFailed: boolean) => {
@@ -730,7 +855,7 @@ export default async function setupIPCs(
         const newSet = await scan(
           newZipPath,
           originalPathToPlayedMs,
-          twitchChannel,
+          twitchUserName,
         );
         const playingEntry = Array.from(playingSets.entries()).find(
           ([, set]) => set.originalPath === newSet.originalPath,
@@ -853,7 +978,7 @@ export default async function setupIPCs(
         playingSets.delete(port);
 
         sendQueues();
-        writeOverlayJson();
+        updateOverlayAndTwitchBot();
         obsConnection.transition(playingSets);
       }
     },
@@ -1034,222 +1159,6 @@ export default async function setupIPCs(
       }
     },
   );
-
-  ipcMain.removeHandler('getTwitchChannel');
-  ipcMain.handle('getTwitchChannel', () => twitchChannel);
-
-  let twitchBot: Bot | null = null;
-  let twitchBotStatus = { connected: false, error: '' };
-  const maybeStartTwitchBot = async (newTwitchSettings: TwitchSettings) => {
-    if (
-      !twitchChannel ||
-      !newTwitchSettings.enabled ||
-      !newTwitchSettings.clientId ||
-      !newTwitchSettings.clientSecret ||
-      !newTwitchSettings.accessToken ||
-      !newTwitchSettings.refreshToken
-    ) {
-      return;
-    }
-
-    const authProvider = new RefreshingAuthProvider({
-      clientId: newTwitchSettings.clientId,
-      clientSecret: newTwitchSettings.clientSecret,
-    });
-    authProvider.onRefresh((userId, token) => {
-      twitchSettings.accessToken = token.accessToken;
-      twitchSettings.refreshToken = token.refreshToken!;
-      store.set('twitchSettings', newTwitchSettings);
-    });
-    try {
-      await authProvider.addUserForToken(
-        {
-          accessToken: newTwitchSettings.accessToken,
-          refreshToken: newTwitchSettings.refreshToken,
-          expiresIn: 0,
-          obtainmentTimestamp: 0,
-        },
-        ['chat'],
-      );
-
-      if (twitchBot) {
-        twitchBot.chat.quit();
-      }
-      twitchBotStatus = { connected: false, error: '' };
-      mainWindow.webContents.send('twitchBotStatus', twitchBotStatus);
-      twitchBot = new Bot({
-        authProvider,
-        channel: twitchChannel,
-        commands: [
-          createBotCommand('auto', (params, { say }) => {
-            say(
-              'This is an auto stream using Slippi replays. Powered by Replay Manager for Slippi and Auto SLP Player: https://github.com/jmlee337',
-            );
-          }),
-          createBotCommand('bracket', (params, { say }) => {
-            const playingSetsWithContextStartgg = Array.from(
-              playingSets.values(),
-            ).filter(
-              (playingSet) => playingSet.context && playingSet.context.startgg,
-            );
-            const playingSetsWithContextChallonge = Array.from(
-              playingSets.values(),
-            ).filter(
-              (playingSet) =>
-                playingSet.context && playingSet.context.challonge,
-            );
-            const prefix =
-              playingSets.size === 0 && tryingPorts.size === 0
-                ? ''
-                : 'SPOILERS: ';
-            if (playingSetsWithContextStartgg.length > 0) {
-              const bracketUrls = new Set<string>();
-              playingSetsWithContextStartgg.forEach((set) => {
-                const startgg = set.context!.startgg!;
-                bracketUrls.add(
-                  `${prefix}https://www.start.gg/${startgg.event.slug}/brackets/${startgg.phase.id}/${startgg.phaseGroup.id}`,
-                );
-              });
-              say(Array.from(bracketUrls.values()).join(' '));
-            } else if (playingSetsWithContextChallonge.length > 0) {
-              const bracketUrls = new Set<string>();
-              playingSetsWithContextChallonge.forEach((set) => {
-                const challonge = set.context!.challonge!;
-                bracketUrls.add(
-                  `${prefix}https://challonge.com/${challonge.tournament.slug}`,
-                );
-              });
-              say(Array.from(bracketUrls.values()).join(' '));
-            } else if (lastStartggEventSlug) {
-              say(`${prefix}https://www.start.gg/${lastStartggEventSlug}`);
-            } else if (lastChallongeTournamentSlug) {
-              say(
-                `${prefix}https://challonge.com/${lastChallongeTournamentSlug}`,
-              );
-            }
-          }),
-          createBotCommand('pronouns', (params, { say }) => {
-            say(
-              'Pronouns are pulled from start.gg. Update yours here: https://start.gg/admin/profile/profile-settings',
-            );
-          }),
-        ],
-      });
-      twitchBot.onAuthenticationFailure((text: string) => {
-        twitchBotStatus = { connected: false, error: text };
-        mainWindow.webContents.send('twitchBotStatus', twitchBotStatus);
-      });
-      twitchBot.onJoinFailure((event) => {
-        twitchBotStatus = { connected: false, error: event.reason };
-        mainWindow.webContents.send('twitchBotStatus', false, twitchBotStatus);
-      });
-      twitchBot.onTokenFetchFailure((error) => {
-        twitchBotStatus = { connected: false, error: error.message };
-        mainWindow.webContents.send('twitchBotStatus', false, twitchBotStatus);
-      });
-      twitchBot.onConnect(() => {
-        twitchBotStatus = { connected: true, error: '' };
-        mainWindow.webContents.send('twitchBotStatus', twitchBotStatus);
-      });
-    } catch (e: any) {
-      if (e instanceof HttpStatusCodeError) {
-        twitchBotStatus = { connected: false, error: e.body };
-      } else {
-        const error = e instanceof Error ? e.message : e;
-        twitchBotStatus = { connected: false, error };
-      }
-      mainWindow.webContents.send('twitchBotStatus', twitchBotStatus);
-    }
-  };
-
-  ipcMain.removeHandler('setTwitchChannel');
-  ipcMain.handle(
-    'setTwitchChannel',
-    (event: IpcMainInvokeEvent, newTwitchChannel: string) => {
-      store.set('twitchChannel', newTwitchChannel);
-      twitchChannel = newTwitchChannel;
-      maybeStartTwitchBot(twitchSettings);
-    },
-  );
-
-  ipcMain.removeHandler('getTwitchSettings');
-  ipcMain.handle('getTwitchSettings', () => {
-    return twitchSettings;
-  });
-
-  ipcMain.removeHandler('setTwitchSettings');
-  ipcMain.handle(
-    'setTwitchSettings',
-    async (event: IpcMainInvokeEvent, newTwitchSettings: TwitchSettings) => {
-      const clientIdDiff =
-        twitchSettings.clientId !== newTwitchSettings.clientId;
-      const clientSecretDiff =
-        twitchSettings.clientSecret !== newTwitchSettings.clientSecret;
-      if (
-        clientIdDiff ||
-        clientSecretDiff ||
-        twitchSettings.enabled !== newTwitchSettings.enabled
-      ) {
-        const actualNewTwitchSettings: TwitchSettings = {
-          enabled: newTwitchSettings.enabled,
-          clientId: newTwitchSettings.clientId,
-          clientSecret: newTwitchSettings.clientSecret,
-          accessToken: twitchSettings.accessToken,
-          refreshToken: twitchSettings.refreshToken,
-        };
-        if (!newTwitchSettings.enabled || clientIdDiff || clientSecretDiff) {
-          if (twitchBot) {
-            twitchBot.chat.quit();
-            twitchBot = null;
-          }
-          if (clientIdDiff || clientSecretDiff) {
-            actualNewTwitchSettings.accessToken = '';
-            actualNewTwitchSettings.refreshToken = '';
-            if (clientIdDiff) {
-              actualNewTwitchSettings.clientSecret = '';
-            }
-          }
-        } else {
-          // channelDiff || twitchSettings.enabled
-          await maybeStartTwitchBot(actualNewTwitchSettings);
-        }
-        store.set('twitchSettings', actualNewTwitchSettings);
-        twitchSettings = actualNewTwitchSettings;
-        return twitchSettings;
-      }
-      return twitchSettings;
-    },
-  );
-
-  ipcMain.removeHandler('getTwitchTokens');
-  ipcMain.handle(
-    'getTwitchTokens',
-    async (event: IpcMainInvokeEvent, code: string) => {
-      const response = await fetch(
-        `https://id.twitch.tv/oauth2/token?client_id=${twitchSettings.clientId}&client_secret=${twitchSettings.clientSecret}&code=${code}&grant_type=authorization_code&redirect_uri=http://localhost`,
-        { method: 'post' },
-      );
-      const json = await response.json();
-      const accessToken = json.access_token;
-      const refreshToken = json.refresh_token;
-      if (
-        !accessToken ||
-        typeof accessToken !== 'string' ||
-        !refreshToken ||
-        typeof refreshToken !== 'string'
-      ) {
-        throw new Error('failed to get Twitch tokens');
-      }
-      twitchSettings.accessToken = accessToken;
-      twitchSettings.refreshToken = refreshToken;
-      store.set('twitchSettings', twitchSettings);
-      maybeStartTwitchBot(twitchSettings);
-    },
-  );
-
-  ipcMain.removeHandler('getTwitchBotStatus');
-  ipcMain.handle('getTwitchBotStatus', () => twitchBotStatus);
-  maybeStartTwitchBot(twitchSettings);
 
   ipcMain.removeHandler('getQueues');
   ipcMain.handle('getQueues', () =>

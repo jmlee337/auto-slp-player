@@ -3,7 +3,6 @@ import {
   Box,
   Button,
   Checkbox,
-  CircularProgress,
   Dialog,
   DialogContent,
   DialogContentText,
@@ -24,88 +23,13 @@ import { useMemo, useState } from 'react';
 import {
   CheckCircle,
   CloudDownload,
-  ContentCopy,
   Report,
   SdCard,
   Settings as SettingsIcon,
   Terminal,
 } from '@mui/icons-material';
-import styled from '@emotion/styled';
-import { SplitOption, TwitchSettings } from '../common/types';
-
-const Form = styled.form`
-  display: flex;
-  align-items: center;
-  flex-direction: row;
-  gap: 8px;
-`;
-
-function IfClientIdAndScecretSet({
-  twitchSettings,
-  setTwitchSettings,
-  twitchTokenError,
-  setTwitchTokenError,
-}: {
-  twitchSettings: TwitchSettings;
-  setTwitchSettings: (twitchSettings: TwitchSettings) => void;
-  twitchTokenError: string;
-  setTwitchTokenError: (twitchTokenError: string) => void;
-}) {
-  const [getting, setGetting] = useState(false);
-
-  return (
-    (!twitchSettings.accessToken || !twitchSettings.refreshToken) && (
-      <Box marginTop="8px">
-        <DialogContentText>
-          <a
-            href={`https://id.twitch.tv/oauth2/authorize?client_id=${twitchSettings.clientId}&redirect_uri=http://localhost&response_type=code&scope=chat:read+chat:edit`}
-            target="_blank"
-            rel="noreferrer"
-          >
-            Authorize here
-          </a>
-          , and paste the code parameter from the redirect URL below (
-          <a href="https://imgur.com/1QFJwvJ" target="_blank" rel="noreferrer">
-            example screenshot
-          </a>
-          ):
-        </DialogContentText>
-        {twitchTokenError && <Alert severity="error">{twitchTokenError}</Alert>}
-        <Form
-          onSubmit={async (event) => {
-            const target = event.target as typeof event.target & {
-              code: { value: string };
-            };
-            const code = target.code.value;
-            event.preventDefault();
-            event.stopPropagation();
-            if (code && !getting) {
-              try {
-                setGetting(true);
-                await window.electron.getTwitchTokens(code);
-                setTwitchSettings(await window.electron.getTwitchSettings());
-              } catch (e: any) {
-                setTwitchTokenError('Twitch error, please try again');
-              } finally {
-                setGetting(false);
-              }
-            }
-          }}
-        >
-          <TextField label="code" name="code" size="small" variant="filled" />
-          <Button
-            disabled={getting}
-            endIcon={getting && <CircularProgress size={24} />}
-            type="submit"
-            variant="contained"
-          >
-            Go!
-          </Button>
-        </Form>
-      </Box>
-    )
-  );
-}
+import { SplitOption } from '../common/types';
+import Twitch from './Twitch';
 
 export default function Settings({
   dolphinPath,
@@ -120,12 +44,7 @@ export default function Settings({
   setAddDelay,
   splitOption,
   setSplitOption,
-  twitchChannel,
-  setTwitchChannel,
-  twitchSettings,
-  setTwitchSettings,
-  twitchBotConnected,
-  twitchBotError,
+  twitchUserName,
   dolphinVersion,
   setDolphinVersion,
   dolphinVersionError,
@@ -154,12 +73,7 @@ export default function Settings({
   setAddDelay: (addDelay: boolean) => void;
   splitOption: SplitOption;
   setSplitOption: (splitOption: SplitOption) => void;
-  twitchChannel: string;
-  setTwitchChannel: (twitchChannel: string) => void;
-  twitchSettings: TwitchSettings;
-  setTwitchSettings: (twitchSettings: TwitchSettings) => void;
-  twitchBotConnected: boolean;
-  twitchBotError: string;
+  twitchUserName: string;
   dolphinVersion: string;
   setDolphinVersion: (dolphinVersion: string) => void;
   dolphinVersionError: string;
@@ -178,8 +92,6 @@ export default function Settings({
 }) {
   const [open, setOpen] = useState(false);
   const [hasAutoOpened, setHasAutoOpened] = useState(false);
-  const [twitchTokenError, setTwitchTokenError] = useState('');
-  const [copied, setCopied] = useState(false);
 
   const needUpdate = useMemo(() => {
     if (!appVersion || !latestAppVersion) {
@@ -242,7 +154,6 @@ export default function Settings({
               port: obsPort,
               password: obsPassword,
             }),
-            window.electron.setTwitchChannel(twitchChannel),
           ]);
           setOpen(false);
         }}
@@ -468,126 +379,7 @@ export default function Settings({
               />
             </Stack>
           </Stack>
-          <Stack marginTop="8px">
-            <DialogContentText>
-              Will automatically unqueue any sets that were marked on start.gg
-              as streamed elsewhere
-            </DialogContentText>
-            <Stack direction="row" alignItems="center" spacing="8px">
-              <TextField
-                label="Twitch channel"
-                onChange={(event) => {
-                  setTwitchChannel(event.target.value);
-                }}
-                size="small"
-                value={twitchChannel}
-                variant="filled"
-              />
-              <FormControlLabel
-                control={
-                  <Checkbox
-                    checked={twitchSettings.enabled}
-                    disabled={!twitchChannel}
-                    onChange={async (event) => {
-                      twitchSettings.enabled = event.target.checked;
-                      setTwitchSettings(
-                        await window.electron.setTwitchSettings(twitchSettings),
-                      );
-                    }}
-                  />
-                }
-                label="Twitch Bot (!auto, !bracket, !pronouns)"
-              />
-            </Stack>
-            {twitchSettings.enabled && twitchChannel && (
-              <Box marginTop="8px">
-                {(!twitchSettings.clientId || !twitchSettings.clientSecret) && (
-                  <DialogContentText>
-                    Create an application from the{' '}
-                    <a
-                      href="https://dev.twitch.tv/console/apps"
-                      target="_blank"
-                      rel="noreferrer"
-                    >
-                      Twitch Developer Console
-                    </a>
-                    , using &apos;http://localhost&apos; for the OAuth Redirect
-                    URL (
-                    <a
-                      href="https://imgur.com/vtkFo2R"
-                      target="_blank"
-                      rel="noreferrer"
-                    >
-                      example screenshot
-                    </a>
-                    ). Then paste the client ID and client secret below:
-                  </DialogContentText>
-                )}
-                <Stack direction="row" alignItems="center" spacing="8px">
-                  <TextField
-                    defaultValue={twitchSettings.clientId}
-                    label="Client ID"
-                    size="small"
-                    variant="filled"
-                    onChange={async (event) => {
-                      twitchSettings.clientId = event.target.value;
-                      setTwitchSettings(
-                        await window.electron.setTwitchSettings(twitchSettings),
-                      );
-                    }}
-                  />
-                  <TextField
-                    defaultValue={twitchSettings.clientSecret}
-                    label="Client Secret (Keep it private!)"
-                    size="small"
-                    type="password"
-                    variant="filled"
-                    onChange={async (event) => {
-                      twitchSettings.clientSecret = event.target.value;
-                      setTwitchSettings(
-                        await window.electron.setTwitchSettings(twitchSettings),
-                      );
-                    }}
-                  />
-                  <Button
-                    disabled={copied}
-                    endIcon={copied ? undefined : <ContentCopy />}
-                    onClick={async () => {
-                      await window.electron.copyToClipboard(
-                        twitchSettings.clientSecret,
-                      );
-                      setCopied(true);
-                      setTimeout(() => setCopied(false), 5000);
-                    }}
-                    variant="contained"
-                  >
-                    {copied ? 'Copied!' : 'Copy'}
-                  </Button>
-                  {twitchBotConnected && (
-                    <Tooltip arrow title="Connected!">
-                      <CheckCircle style={{ padding: '9px' }} />
-                    </Tooltip>
-                  )}
-                  {!twitchBotConnected && !twitchBotError && (
-                    <CircularProgress size="24px" />
-                  )}
-                  {!twitchBotConnected && twitchBotError && (
-                    <Tooltip arrow title={twitchBotError}>
-                      <Report style={{ padding: '9px' }} />
-                    </Tooltip>
-                  )}
-                </Stack>
-                {twitchSettings.clientId && twitchSettings.clientSecret && (
-                  <IfClientIdAndScecretSet
-                    twitchSettings={twitchSettings}
-                    setTwitchSettings={setTwitchSettings}
-                    twitchTokenError={twitchTokenError}
-                    setTwitchTokenError={setTwitchTokenError}
-                  />
-                )}
-              </Box>
-            )}
-          </Stack>
+          <Twitch userName={twitchUserName} />
           <Stack alignItems="end" marginRight="8px" spacing="8px">
             <Button
               onClick={() => {

@@ -248,3 +248,14 @@ export enum SplitOption {
   EVENT,
   PHASE,
 }
+
+export type TwitchClient = {
+  clientId: string;
+  clientSecret: string;
+};
+
+export enum TwitchStatus {
+  STOPPED,
+  STARTING,
+  STARTED,
+}

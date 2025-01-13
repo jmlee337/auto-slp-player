@@ -31,7 +31,6 @@ import {
   OBSConnectionStatus,
   RendererQueue,
   SplitOption,
-  TwitchSettings,
 } from '../common/types';
 import Settings from './Settings';
 import Queue from './Queue';
@@ -54,14 +53,6 @@ function Hello() {
   const [generateTimestamps, setGenerateTimestamps] = useState(false);
   const [addDelay, setAddDelay] = useState(false);
   const [splitOption, setSplitOption] = useState(SplitOption.NONE);
-  const [twitchChannel, setTwitchChannel] = useState('');
-  const [twitchSettings, setTwitchSettings] = useState<TwitchSettings>({
-    enabled: false,
-    accessToken: '',
-    refreshToken: '',
-    clientId: '',
-    clientSecret: '',
-  });
   const [dolphinVersion, setDolphinVersion] = useState('');
   const [dolphinVersionError, setDolphinVersionError] = useState('');
   const [obsProtocol, setObsProtocol] = useState('');
@@ -73,8 +64,7 @@ function Hello() {
     OBSConnectionStatus.OBS_NOT_CONNECTED,
   );
   const [streamingState, setStreamingState] = useState('');
-  const [twitchBotConnected, setTwitchBotConnected] = useState(false);
-  const [twitchBotError, setTwitchBotError] = useState('');
+  const [twitchUserName, setTwitchUserName] = useState('');
   const [watchDir, setWatchDir] = useState('');
   const [canPlay, setCanPlay] = useState(false);
   const [queues, setQueues] = useState<RendererQueue[]>([]);
@@ -89,15 +79,13 @@ function Hello() {
       const generateTimestampsPromise = window.electron.getGenerateTimestamps();
       const addDelayPromise = window.electron.getAddDelay();
       const splitOptionPromise = window.electron.getSplitOption();
-      const twitchChannelPromise = window.electron.getTwitchChannel();
-      const twitchSettingsPromise = window.electron.getTwitchSettings();
       const dolphinVersionPromise = window.electron.getDolphinVersion();
       const obsSettingsPromise = window.electron.getObsSettings();
       const numDolphinsPromise = window.electron.getNumDolphins();
       const obsConnectionStatusPromise =
         window.electron.getObsConnectionStatus();
       const streamingStatePromise = window.electron.getStreamingState();
-      const twitchBotStatusPromise = window.electron.getTwitchBotStatus();
+      const twitchUserNamePromise = window.electron.getTwitchUserName();
       const watchDirPromise = window.electron.getWatchDir();
       const canPlayPromise = window.electron.getCanPlay();
       const queuesPromise = window.electron.getQueues();
@@ -112,8 +100,6 @@ function Hello() {
       setGenerateTimestamps(await generateTimestampsPromise);
       setAddDelay(await addDelayPromise);
       setSplitOption(await splitOptionPromise);
-      setTwitchChannel(await twitchChannelPromise);
-      setTwitchSettings(await twitchSettingsPromise);
       setDolphinVersion((await dolphinVersionPromise).version);
       setDolphinVersionError((await dolphinVersionPromise).error);
       setObsProtocol((await obsSettingsPromise).protocol);
@@ -123,8 +109,8 @@ function Hello() {
       setNumDolphins(await numDolphinsPromise);
       setObsConnectionStatus(await obsConnectionStatusPromise);
       setStreamingState(await streamingStatePromise);
-      setTwitchBotConnected((await twitchBotStatusPromise).connected);
-      setTwitchBotError((await twitchBotStatusPromise).error);
+      const initialTwitchUserName = await twitchUserNamePromise;
+      setTwitchUserName((prev) => prev || initialTwitchUserName);
       setWatchDir(await watchDirPromise);
       setCanPlay(await canPlayPromise);
 
@@ -190,9 +176,8 @@ function Hello() {
       setQueues(newQueues);
       setCanPlay(newCanPlay);
     });
-    window.electron.onTwitchBotStatus((event, { connected, error }) => {
-      setTwitchBotConnected(connected);
-      setTwitchBotError(error);
+    window.electron.onTwitchUserName((event, newTwitchUserName) => {
+      setTwitchUserName(newTwitchUserName);
     });
   }, []);
 
@@ -292,12 +277,7 @@ function Hello() {
             setSplitOption={setSplitOption}
             maxDolphins={maxDolphins}
             setMaxDolphins={setMaxDolphins}
-            twitchChannel={twitchChannel}
-            setTwitchChannel={setTwitchChannel}
-            twitchSettings={twitchSettings}
-            setTwitchSettings={setTwitchSettings}
-            twitchBotConnected={twitchBotConnected}
-            twitchBotError={twitchBotError}
+            twitchUserName={twitchUserName}
             dolphinVersion={dolphinVersion}
             setDolphinVersion={setDolphinVersion}
             dolphinVersionError={dolphinVersionError}
@@ -393,7 +373,7 @@ function Hello() {
         <Queue
           queue={queues[0]}
           canPlay={canPlay}
-          twitchChannel={twitchChannel}
+          twitchChannel={twitchUserName}
         />
       )}
       {queues.length > 1 && (
@@ -422,7 +402,7 @@ function Hello() {
             <QueueTabPanel
               queue={queue}
               canPlay={canPlay}
-              twitchChannel={twitchChannel}
+              twitchChannel={twitchUserName}
               visibleQueueId={visibleQueueId}
             />
           ))}

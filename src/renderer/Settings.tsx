@@ -12,6 +12,7 @@ import {
   IconButton,
   InputBase,
   InputLabel,
+  Link,
   MenuItem,
   Select,
   Stack,
@@ -256,13 +257,13 @@ export default function Settings({
                     <>
                       {' '}
                       (Recommend{' '}
-                      <a
+                      <Link
                         href={`https://github.com/jmlee337/auto-slp-player/blob/${appVersion}/src/docs/waiting.md`}
                         target="_blank"
                         rel="noreferrer"
                       >
                         hiding
-                      </a>{' '}
+                      </Link>{' '}
                       &quot;Waiting For Game&quot;)
                     </>
                   )}
@@ -322,13 +323,13 @@ export default function Settings({
           <Stack marginTop="8px">
             <DialogContentText>
               OBS Scene/Source setup info{' '}
-              <a
+              <Link
                 href={`https://github.com/jmlee337/auto-slp-player/blob/${appVersion}/src/docs/obs.md`}
                 target="_blank"
                 rel="noreferrer"
               >
                 here
-              </a>
+              </Link>
             </DialogContentText>
             <Stack direction="row" spacing="8px">
               <Select

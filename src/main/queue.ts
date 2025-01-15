@@ -216,6 +216,15 @@ export default class Queue {
     this.nextSetIsManual = false;
   }
 
+  public clearNextSetManually(): void {
+    this.nextSet = null;
+    this.nextSetIsManual = true;
+  }
+
+  public isManuallyStopped(): boolean {
+    return this.nextSet === null && this.nextSetIsManual;
+  }
+
   public isPlaying(): boolean {
     return this.sets.some((set) => set.playing);
   }

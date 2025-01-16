@@ -114,6 +114,10 @@ export default class OBSConnection {
         port,
       ]),
     );
+    if (this.connectionStatus !== OBSConnectionStatus.OBS_NOT_CONNECTED) {
+      this.setConnectionStatus(OBSConnectionStatus.OBS_NOT_SETUP);
+      this.setupObs();
+    }
   }
 
   private async setupObs(): Promise<boolean> {

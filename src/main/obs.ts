@@ -415,7 +415,28 @@ export default class OBSConnection {
         this.portToInputName.set(windows[i].port, expectedInputNames[i]);
       }
     }
+    if (
+      !(
+        await this.obsWebSocket.call('GetInputList', {
+          inputKind: 'browser_source',
+        })
+      ).inputs.find((input) => input.inputName === 'Chat')
+    ) {
+      const { inputUuid } = await this.obsWebSocket.call('CreateInput', {
+        sceneName: 'quad 0',
+        inputName: 'Chat',
+        inputKind: 'browser_source',
+        inputSettings: {
+          height: 291,
+          width: 606,
+          url: '',
+        },
+      });
+      inputNameToInputUuid.set('Chat', inputUuid);
+    }
+
     const sceneNameToExpectedSourceNames = new Map([
+      ['quad 0', []],
       ['quad 1', [...expectedInputNames]],
     ]);
     if (this.maxDolphins > 1) {
@@ -464,6 +485,9 @@ export default class OBSConnection {
         ]),
       );
       const missingSourceNames: string[] = [];
+      if (!sourceNameToSceneItemId.has('Chat')) {
+        missingSourceNames.push('Chat');
+      }
       expectedSourceNames.forEach((expectedSourceName) => {
         if (!sourceNameToSceneItemId.has(expectedSourceName)) {
           missingSourceNames.push(expectedSourceName);
@@ -562,6 +586,27 @@ export default class OBSConnection {
         setTransformsSucceeded = await setTransforms(this.obsWebSocket);
         retries += 1;
       }
+
+      const sceneItemId = sourceNameToSceneItemId.get('Chat')!;
+      await this.obsWebSocket.call('SetSceneItemLocked', {
+        sceneName,
+        sceneItemId,
+        sceneItemLocked: false,
+      });
+      await this.obsWebSocket!.call('SetSceneItemTransform', {
+        sceneName,
+        sceneItemId,
+        sceneItemTransform: {
+          positionX:
+            sceneName === 'quad 0' || sceneName === 'quad 1' ? 1314 : 657,
+          positionY: 789,
+        },
+      });
+      await this.obsWebSocket!.call('SetSceneItemLocked', {
+        sceneName,
+        sceneItemId,
+        sceneItemLocked: true,
+      });
     }
     this.setConnectionStatus(OBSConnectionStatus.READY);
     return true;

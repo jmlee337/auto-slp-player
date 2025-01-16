@@ -245,4 +245,15 @@ export default class Queue {
   public getSets(): AvailableSet[] {
     return this.sets;
   }
+
+  public getLast(): AvailableSet | undefined {
+    return this.sets[this.sets.length - 1];
+  }
+
+  public isExhuasted(): boolean {
+    return (
+      !this.isPlaying() &&
+      (this.sets.length === 0 || this.getLast()!.playedMs !== 0)
+    );
+  }
 }

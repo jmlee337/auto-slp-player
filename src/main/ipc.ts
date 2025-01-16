@@ -886,7 +886,7 @@ export default async function setupIPCs(
         const queueIsNew = !idToQueue.has(queueId);
         const queue = idToQueue.get(queueId) ?? new Queue(queueId, queueName);
         const hadPlayable = queue.hasPlayable();
-        const wasExhausted = !queue.getSets().some((set) => set.playedMs === 0);
+        const wasExhausted = queue.isExhuasted();
         queue.enqueue(newSet);
         if (queueIsNew) {
           idToQueue.set(queueId, queue);
@@ -900,7 +900,8 @@ export default async function setupIPCs(
 
         if (
           playingSets.size + tryingPorts.size < maxDolphins &&
-          (queue.getCalculatedNextSet() === newSet || wasExhausted) &&
+          (queue.getCalculatedNextSet() === newSet ||
+            (wasExhausted && queue.getLast() === newSet)) &&
           willNotSpoilPlayingSets(newSet) &&
           !queue.isManuallyStopped()
         ) {

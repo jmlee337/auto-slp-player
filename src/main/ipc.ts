@@ -756,9 +756,7 @@ export default async function setupIPCs(
         return setsPlayed;
       };
       const setsPlayed = await maybePlaySets(getQueues());
-      if (setsPlayed !== 1) {
-        obsConnection.transition(playingSets);
-      }
+      obsConnection.transition(playingSets);
       if (setsPlayed > 0) {
         return;
       }

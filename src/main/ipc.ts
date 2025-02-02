@@ -96,6 +96,22 @@ function willNotSpoil(
       if (aStartgg.set.round === bStartgg.set.round) {
         return true;
       }
+      if (aStartgg.set.ordinal !== null && bStartgg.set.ordinal !== null) {
+        if (
+          aStartgg.set.round < 0 &&
+          bStartgg.set.round > 0 &&
+          aStartgg.set.ordinal < bStartgg.set.ordinal
+        ) {
+          return true;
+        }
+        if (
+          bStartgg.set.round < 0 &&
+          aStartgg.set.round > 0 &&
+          bStartgg.set.ordinal < aStartgg.set.ordinal
+        ) {
+          return true;
+        }
+      }
     }
   }
   if (aChallonge && bChallonge) {
@@ -121,6 +137,22 @@ function willNotSpoil(
       }
       if (aChallonge.set.round === bChallonge.set.round) {
         return true;
+      }
+      if (aChallonge.set.ordinal !== null && bChallonge.set.ordinal !== null) {
+        if (
+          aChallonge.set.round < 0 &&
+          bChallonge.set.round > 0 &&
+          aChallonge.set.ordinal < bChallonge.set.ordinal
+        ) {
+          return true;
+        }
+        if (
+          bChallonge.set.round < 0 &&
+          aChallonge.set.round > 0 &&
+          bChallonge.set.ordinal < aChallonge.set.ordinal
+        ) {
+          return true;
+        }
       }
     }
   }

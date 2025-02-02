@@ -668,8 +668,7 @@ export default class OBSConnection {
     }
 
     let sceneName = `quad ${ports.length}`;
-    const isQuad2SpecialCase = ports.length === 2 && this.maxDolphins > 2;
-    if (isQuad2SpecialCase) {
+    if (ports.length === 2) {
       const postfix = ports
         .map((port) => {
           const i = this.dolphinPorts.indexOf(port);
@@ -699,7 +698,10 @@ export default class OBSConnection {
           });
         }
       });
-      if (!isQuad2SpecialCase) {
+      if (
+        (ports.length === 1 && this.maxDolphins > 1) ||
+        (ports.length === 3 && this.maxDolphins > 3)
+      ) {
         const enabledPorts = new Set(ports);
         this.dolphinPorts.forEach((port) => {
           const inputName = this.portToInputName.get(port);

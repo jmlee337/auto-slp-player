@@ -930,6 +930,7 @@ export default async function setupIPCs(
         }
 
         if (
+          newSet.playedMs === 0 &&
           playingSets.size + tryingPorts.size < maxDolphins &&
           (queue.getCalculatedNextSet() === newSet ||
             (wasExhausted && queue.getLast() === newSet)) &&

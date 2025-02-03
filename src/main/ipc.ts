@@ -404,16 +404,6 @@ export default async function setupIPCs(
     return isoPath;
   });
 
-  ipcMain.removeHandler('getMaxDolphins');
-  ipcMain.handle('getMaxDolphins', () => maxDolphins);
-
-  ipcMain.removeHandler('setMaxDolphins');
-  ipcMain.handle('setMaxDolphins', (event, newMaxDolphins: number) => {
-    store.set('maxDolphins', newMaxDolphins);
-    maxDolphins = newMaxDolphins;
-    obsConnection.setMaxDolphins(maxDolphins);
-  });
-
   const tempDir = path.join(app.getPath('temp'), 'auto-slp-player');
   try {
     await access(tempDir).catch(() => mkdir(tempDir));
@@ -442,6 +432,17 @@ export default async function setupIPCs(
       playingSets.size + tryingPorts.size < maxDolphins,
     );
   };
+
+  ipcMain.removeHandler('getMaxDolphins');
+  ipcMain.handle('getMaxDolphins', () => maxDolphins);
+
+  ipcMain.removeHandler('setMaxDolphins');
+  ipcMain.handle('setMaxDolphins', (event, newMaxDolphins: number) => {
+    store.set('maxDolphins', newMaxDolphins);
+    maxDolphins = newMaxDolphins;
+    obsConnection.setMaxDolphins(maxDolphins);
+    sendQueues();
+  });
 
   const dolphins: Map<number, Dolphin> = new Map();
   const gameIndices: Map<number, number> = new Map();

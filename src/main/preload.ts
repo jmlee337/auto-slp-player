@@ -1,6 +1,7 @@
 import { IpcRendererEvent, contextBridge, ipcRenderer } from 'electron';
 import {
   OBSConnectionStatus,
+  ObsGamecaptureResult,
   OBSSettings,
   RendererQueue,
   SplitOption,
@@ -112,6 +113,8 @@ const electronHandler = {
     ipcRenderer.invoke('incrementQueuePriority', queueId),
   decrementQueuePriority: (queueId: string): Promise<void> =>
     ipcRenderer.invoke('decrementQueuePriority', queueId),
+  checkObsGamecapture: (): Promise<ObsGamecaptureResult> =>
+    ipcRenderer.invoke('checkObsGamecapture'),
   getDolphinVersion: (): Promise<{ version: string; error: string }> =>
     ipcRenderer.invoke('getDolphinVersion'),
   getObsSettings: (): Promise<OBSSettings> =>

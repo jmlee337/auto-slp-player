@@ -30,6 +30,7 @@ import {
 import { IpcRendererEvent } from 'electron';
 import {
   OBSConnectionStatus,
+  ObsGamecaptureResult,
   RendererQueue,
   SplitOption,
 } from '../common/types';
@@ -54,6 +55,9 @@ function Hello() {
   const [generateTimestamps, setGenerateTimestamps] = useState(false);
   const [addDelay, setAddDelay] = useState(false);
   const [splitOption, setSplitOption] = useState(SplitOption.NONE);
+  const [obsGamecaptureResult, setObsGamecaptureResult] = useState(
+    ObsGamecaptureResult.NOT_APPLICABLE,
+  );
   const [dolphinVersion, setDolphinVersion] = useState('');
   const [dolphinVersionError, setDolphinVersionError] = useState('');
   const [obsProtocol, setObsProtocol] = useState('');
@@ -80,6 +84,7 @@ function Hello() {
       const generateTimestampsPromise = window.electron.getGenerateTimestamps();
       const addDelayPromise = window.electron.getAddDelay();
       const splitOptionPromise = window.electron.getSplitOption();
+      const obsGamecaptureResultPromise = window.electron.checkObsGamecapture();
       const dolphinVersionPromise = window.electron.getDolphinVersion();
       const obsSettingsPromise = window.electron.getObsSettings();
       const numDolphinsPromise = window.electron.getNumDolphins();
@@ -101,6 +106,7 @@ function Hello() {
       setGenerateTimestamps(await generateTimestampsPromise);
       setAddDelay(await addDelayPromise);
       setSplitOption(await splitOptionPromise);
+      setObsGamecaptureResult(await obsGamecaptureResultPromise);
       setDolphinVersion((await dolphinVersionPromise).version);
       setDolphinVersionError((await dolphinVersionPromise).error);
       setObsProtocol((await obsSettingsPromise).protocol);
@@ -288,6 +294,7 @@ function Hello() {
               maxDolphins={maxDolphins}
               setMaxDolphins={setMaxDolphins}
               twitchUserName={twitchUserName}
+              obsGamecaptureResult={obsGamecaptureResult}
               dolphinVersion={dolphinVersion}
               setDolphinVersion={setDolphinVersion}
               dolphinVersionError={dolphinVersionError}

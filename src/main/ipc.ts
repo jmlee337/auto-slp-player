@@ -29,6 +29,7 @@ import {
   AvailableSet,
   MainContextChallonge,
   MainContextStartgg,
+  ObsGamecaptureResult,
   OBSSettings,
   OverlayChallonge,
   OverlayContext,
@@ -331,6 +332,22 @@ export default async function setupIPCs(
     'overlay',
   );
 
+  const obsGamecapturePromise =
+    process.platform === 'linux'
+      ? new Promise<void>((resolve, reject) => {
+          const process = spawn('obs-gamecapture');
+          process.stdout.on('data', () => {
+            resolve();
+          });
+          process.on('close', () => {
+            reject(new Error('obs-gamecapture did not output'));
+          });
+          process.on('error', (e) => {
+            reject(e);
+          });
+        })
+      : null;
+
   const dolphinVersionPromiseFn = (
     resolve: (value: string) => void,
     reject: (reason?: any) => void,
@@ -346,7 +363,7 @@ export default async function setupIPCs(
       reject(new Error('Valid dolphin path, but could not get version'));
     });
     process.on('error', (e) => {
-      reject(`Invalid dolphin path: ${e.message}`);
+      reject(new Error(`Invalid dolphin path: ${e.message}`));
     });
   };
   let dolphinVersionPromise = dolphinPath
@@ -1226,6 +1243,23 @@ export default async function setupIPCs(
     }
     [queueIds[i], queueIds[i + 1]] = [queueIds[i + 1], queueIds[i]];
     sendQueues();
+  });
+
+  ipcMain.removeHandler('checkObsGamecapture');
+  ipcMain.handle('checkObsGamecapture', async () => {
+    if (process.platform !== 'linux') {
+      return ObsGamecaptureResult.NOT_APPLICABLE;
+    }
+    if (!obsGamecapturePromise) {
+      throw new Error('unreachable');
+    }
+
+    try {
+      await obsGamecapturePromise;
+      return ObsGamecaptureResult.PASS;
+    } catch {
+      return ObsGamecaptureResult.FAIL;
+    }
   });
 
   ipcMain.removeHandler('getDolphinVersion');

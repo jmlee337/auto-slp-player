@@ -29,7 +29,7 @@ import {
   Settings as SettingsIcon,
   Terminal,
 } from '@mui/icons-material';
-import { SplitOption } from '../common/types';
+import { ObsGamecaptureResult, SplitOption } from '../common/types';
 import Twitch from './Twitch';
 
 export default function Settings({
@@ -46,6 +46,7 @@ export default function Settings({
   splitOption,
   setSplitOption,
   twitchUserName,
+  obsGamecaptureResult,
   dolphinVersion,
   setDolphinVersion,
   dolphinVersionError,
@@ -75,6 +76,7 @@ export default function Settings({
   splitOption: SplitOption;
   setSplitOption: (splitOption: SplitOption) => void;
   twitchUserName: string;
+  obsGamecaptureResult: ObsGamecaptureResult;
   dolphinVersion: string;
   setDolphinVersion: (dolphinVersion: string) => void;
   dolphinVersionError: string;
@@ -128,7 +130,10 @@ export default function Settings({
   if (
     gotSettings &&
     !hasAutoOpened &&
-    (!dolphinPath || !isoPath || needUpdate)
+    (obsGamecaptureResult === ObsGamecaptureResult.FAIL ||
+      !dolphinPath ||
+      !isoPath ||
+      needUpdate)
   ) {
     setOpen(true);
     setHasAutoOpened(true);
@@ -173,6 +178,35 @@ export default function Settings({
           </Typography>
         </Stack>
         <DialogContent sx={{ pt: 0 }}>
+          {obsGamecaptureResult !== ObsGamecaptureResult.NOT_APPLICABLE && (
+            <>
+              {obsGamecaptureResult === ObsGamecaptureResult.PASS && (
+                <Stack direction="row">
+                  <InputBase
+                    disabled
+                    size="small"
+                    value="obs-gamecapture found!"
+                    style={{ flexGrow: 1 }}
+                  />
+                  <CheckCircle style={{ padding: '9px' }} />
+                  <div style={{ width: '40px' }} />
+                </Stack>
+              )}
+              {obsGamecaptureResult === ObsGamecaptureResult.FAIL && (
+                <Alert severity="error">
+                  obs-vkcapture is required, install from{' '}
+                  <Link
+                    href="https://github.com/jmlee337/obs-vkcapture"
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    here
+                  </Link>
+                  .
+                </Alert>
+              )}
+            </>
+          )}
           <Stack direction="row">
             <InputBase
               disabled

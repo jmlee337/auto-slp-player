@@ -245,7 +245,13 @@ export class Dolphin extends EventEmitter {
         maxBuffer: 1000 * 1000 * 100,
       });
     } else if (process.platform === 'linux') {
-      this.process = spawn(this.dolphinPath, params, { detached: true });
+      this.process = spawn(
+        'obs-gamecapture',
+        [`${this.dolphinPath}`, ...params],
+        {
+          detached: true,
+        },
+      );
     } else {
       throw new Error('unreachable: unsupported platform');
     }

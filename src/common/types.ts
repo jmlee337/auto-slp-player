@@ -259,3 +259,9 @@ export enum TwitchStatus {
   STARTING,
   STARTED,
 }
+
+export enum ObsGamecaptureResult {
+  NOT_APPLICABLE,
+  PASS,
+  FAIL,
+}

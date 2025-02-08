@@ -41,7 +41,7 @@ export default class OBSConnection {
 
   private obsWebSocket: OBSWebSocket | null;
 
-  private pidToPort: Map<number, number>;
+  private portToPid: Map<number, number>;
 
   private portToInputName: Map<number, string>;
 
@@ -71,7 +71,7 @@ export default class OBSConnection {
     this.dolphinVersionPromise = null;
     this.maxDolphins = 0;
     this.obsWebSocket = null;
-    this.pidToPort = new Map();
+    this.portToPid = new Map();
     this.portToInputName = new Map();
     this.sceneNameToInputNameToSceneItemId = new Map();
     this.streamingState = '';
@@ -108,10 +108,10 @@ export default class OBSConnection {
 
   setDolphins(dolphins: Map<number, Dolphin>) {
     this.dolphinPorts = Array.from(dolphins.keys()).sort((a, b) => a - b);
-    this.pidToPort = new Map(
+    this.portToPid = new Map(
       Array.from(dolphins.entries()).map(([port, dolphin]) => [
-        dolphin.pid,
         port,
+        dolphin.pid,
       ]),
     );
     if (this.connectionStatus !== OBSConnectionStatus.OBS_NOT_CONNECTED) {
@@ -125,7 +125,11 @@ export default class OBSConnection {
       this.obsWebSocket === null ||
       this.connectionStatus === OBSConnectionStatus.OBS_NOT_CONNECTED ||
       !this.dolphinVersionPromise ||
-      !(process.platform === 'win32' || process.platform === 'darwin')
+      !(
+        process.platform === 'win32' ||
+        process.platform === 'darwin' ||
+        process.platform === 'linux'
+      )
     ) {
       return false;
     }
@@ -238,8 +242,15 @@ export default class OBSConnection {
       await this.obsWebSocket.call('RemoveScene', { sceneName: 'Scene' });
     }
 
-    const inputKind =
-      process.platform === 'darwin' ? 'screen_capture' : 'game_capture';
+    let inputKind = '';
+    if (process.platform === 'darwin') {
+      inputKind = 'screen_capture';
+    } else if (process.platform === 'linux') {
+      inputKind = 'vkcapture-source';
+    } else {
+      // windows
+      inputKind = 'game_capture';
+    }
     const { inputs } = await this.obsWebSocket.call('GetInputList', {
       inputKind,
     });
@@ -343,6 +354,87 @@ export default class OBSConnection {
           inputSettings: { window: windows[i].window },
         });
         this.portToInputName.set(windows[i].port, expectedInputNames[i]);
+      }
+    } else if (process.platform === 'linux') {
+      for (const inputName of missingInputNames) {
+        const { inputUuid } = await this.obsWebSocket.call('CreateInput', {
+          sceneName: 'quad 1',
+          inputName,
+          inputKind,
+          inputSettings: {
+            show_cursor: 'false',
+          },
+        });
+        inputNameToInputUuid.set(inputName, inputUuid);
+      }
+      for (const expectedInputName of expectedInputNames) {
+        const { propertyItems } = await this.obsWebSocket.call(
+          'GetInputPropertiesListPropertyItems',
+          { inputName: expectedInputName, propertyName: 'window' },
+        );
+        if (
+          propertyItems.every(
+            (propertyItem) => propertyItem.itemValue !== 'dolphin-emu',
+          )
+        ) {
+          this.setConnectionStatus(
+            OBSConnectionStatus.OBS_NOT_SETUP,
+            'Could not find Slippi Dolphin (dolphin-emu)',
+          );
+          return false;
+        }
+
+        await this.obsWebSocket.call('SetInputSettings', {
+          inputName: expectedInputName,
+          inputSettings: { window: 'dolphin-emu' },
+        });
+      }
+      for (let i = 1; i < expectedInputNames.length; i += 1) {
+        await this.obsWebSocket.call('GetInputPropertiesListPropertyItems', {
+          inputName: expectedInputNames[i],
+          propertyName: 'pid',
+        });
+      }
+      const { propertyItems } = await this.obsWebSocket.call(
+        'GetInputPropertiesListPropertyItems',
+        {
+          inputName: expectedInputNames[0],
+          propertyName: 'pid',
+        },
+      );
+      const presentPids = new Set(
+        propertyItems
+          .filter(
+            (propertyItem) =>
+              propertyItem.itemValue &&
+              Number.isInteger(propertyItem.itemValue),
+          )
+          .map((propertyItem) => propertyItem.itemValue as number),
+      );
+      const portAndPids = Array.from(this.portToPid).sort(([a], [b]) => a - b);
+      if (portAndPids.length < this.maxDolphins) {
+        this.setConnectionStatus(
+          OBSConnectionStatus.OBS_NOT_SETUP,
+          'Must open all dolphins',
+        );
+        return false;
+      }
+      for (const [port, pid] of portAndPids) {
+        if (!presentPids.has(pid)) {
+          this.setConnectionStatus(
+            OBSConnectionStatus.OBS_NOT_SETUP,
+            `Could not find Slippi Dolphin for port ${port} and PID ${pid}`,
+          );
+          return false;
+        }
+      }
+      for (let i = 0; i < this.maxDolphins; i += 1) {
+        const [port, pid] = portAndPids[i];
+        await this.obsWebSocket.call('SetInputSettings', {
+          inputName: expectedInputNames[i],
+          inputSettings: { pid },
+        });
+        this.portToInputName.set(port, expectedInputNames[i]);
       }
     } else {
       // windows

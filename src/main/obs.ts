@@ -511,6 +511,14 @@ export default class OBSConnection {
         this.portToInputName.set(windows[i].port, expectedInputNames[i]);
       }
     }
+    if (process.platform === 'darwin' || process.platform === 'win32') {
+      for (const inputName of expectedInputNames) {
+        await this.obsWebSocket.call('SetInputVolume', {
+          inputName,
+          inputVolumeDb: -6,
+        });
+      }
+    }
     if (
       !(
         await this.obsWebSocket.call('GetInputList', {

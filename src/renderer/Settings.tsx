@@ -5,7 +5,6 @@ import {
   Checkbox,
   Dialog,
   DialogContent,
-  DialogContentText,
   DialogTitle,
   FormControl,
   FormControlLabel,
@@ -51,6 +50,8 @@ export default function Settings({
   setDolphinVersion,
   dolphinVersionError,
   setDolphinVersionError,
+  setupObs,
+  setSetupObs,
   obsProtocol,
   setObsProtocol,
   obsAddress,
@@ -81,6 +82,8 @@ export default function Settings({
   setDolphinVersion: (dolphinVersion: string) => void;
   dolphinVersionError: string;
   setDolphinVersionError: (dolphinVersionError: string) => void;
+  setupObs: boolean;
+  setSetupObs: (setupObs: boolean) => void;
   obsProtocol: string;
   setObsProtocol: (protocol: string) => void;
   obsAddress: string;
@@ -355,16 +358,33 @@ export default function Settings({
             </FormControl>
           </Stack>
           <Stack marginTop="8px">
-            <DialogContentText>
-              OBS Scene/Source setup info{' '}
-              <Link
-                href={`https://github.com/jmlee337/auto-slp-player/blob/${appVersion}/src/docs/obs.md`}
-                target="_blank"
-                rel="noreferrer"
-              >
-                here
-              </Link>
-            </DialogContentText>
+            <Box>
+              <FormControlLabel
+                control={
+                  <Checkbox
+                    checked={setupObs}
+                    onChange={async (event) => {
+                      const newSetupObs = event.target.checked;
+                      await window.electron.setSetupObs(newSetupObs);
+                      setSetupObs(newSetupObs);
+                    }}
+                  />
+                }
+                label={
+                  <>
+                    Auto OBS Setup/Scene Switching (see info{' '}
+                    <Link
+                      href={`https://github.com/jmlee337/auto-slp-player/blob/${appVersion}/src/docs/obs.md`}
+                      target="_blank"
+                      rel="noreferrer"
+                    >
+                      here
+                    </Link>
+                    )
+                  </>
+                }
+              />
+            </Box>
             <Stack direction="row" spacing="8px">
               <Select
                 label="OBS Protocol"

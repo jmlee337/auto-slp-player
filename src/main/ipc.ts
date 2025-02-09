@@ -348,6 +348,8 @@ export default async function setupIPCs(
         })
       : null;
 
+  let setupObs = store.get('setupObs', true) as boolean;
+
   const dolphinVersionPromiseFn = (
     resolve: (value: string) => void,
     reject: (reason?: any) => void,
@@ -376,10 +378,20 @@ export default async function setupIPCs(
     path.join(overlayPath, 'default 2.html'),
     path.join(overlayPath, 'default 34.html'),
   );
+  obsConnection.setSetup(setupObs);
   obsConnection.setMaxDolphins(maxDolphins);
   if (dolphinVersionPromise) {
     obsConnection.setDolphinVersionPromise(dolphinVersionPromise);
   }
+
+  ipcMain.removeHandler('getSetupObs');
+  ipcMain.handle('getSetupObs', () => setupObs);
+  ipcMain.removeHandler('setSetupObs');
+  ipcMain.handle('setSetupObs', (event, newSetupObs: boolean) => {
+    store.set('setupObs', newSetupObs);
+    setupObs = newSetupObs;
+    obsConnection.setSetup(setupObs);
+  });
 
   ipcMain.removeHandler('getDolphinPath');
   ipcMain.handle('getDolphinPath', (): string => dolphinPath);

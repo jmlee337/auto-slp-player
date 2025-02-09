@@ -55,6 +55,8 @@ export default class OBSConnection {
 
   private overlay34Path: string;
 
+  private setup: boolean;
+
   constructor(
     mainWindow: BrowserWindow,
     overlay01Path: string,
@@ -75,6 +77,14 @@ export default class OBSConnection {
     this.portToInputName = new Map();
     this.sceneNameToInputNameToSceneItemId = new Map();
     this.streamingState = '';
+    this.setup = false;
+  }
+
+  setSetup(setup: boolean) {
+    this.setup = setup;
+    if (this.setup) {
+      this.setupObs();
+    }
   }
 
   setDolphinVersionPromise(dolphinVersionPromise: Promise<string>) {
@@ -124,13 +134,21 @@ export default class OBSConnection {
     if (
       this.obsWebSocket === null ||
       this.connectionStatus === OBSConnectionStatus.OBS_NOT_CONNECTED ||
-      !this.dolphinVersionPromise ||
       !(
         process.platform === 'win32' ||
         process.platform === 'darwin' ||
         process.platform === 'linux'
       )
     ) {
+      return false;
+    }
+
+    if (!this.setup) {
+      this.setConnectionStatus(OBSConnectionStatus.READY);
+      return true;
+    }
+
+    if (!this.dolphinVersionPromise) {
       return false;
     }
 
@@ -758,7 +776,8 @@ export default class OBSConnection {
   async transition(playingSets: Map<number, AvailableSet>) {
     if (
       !this.obsWebSocket ||
-      this.connectionStatus === OBSConnectionStatus.OBS_NOT_CONNECTED
+      this.connectionStatus === OBSConnectionStatus.OBS_NOT_CONNECTED ||
+      !this.setupObs
     ) {
       return;
     }

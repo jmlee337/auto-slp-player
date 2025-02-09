@@ -60,6 +60,7 @@ function Hello() {
   );
   const [dolphinVersion, setDolphinVersion] = useState('');
   const [dolphinVersionError, setDolphinVersionError] = useState('');
+  const [setupObs, setSetupObs] = useState(false);
   const [obsProtocol, setObsProtocol] = useState('');
   const [obsAddress, setObsAddress] = useState('');
   const [obsPort, setObsPort] = useState('');
@@ -86,6 +87,7 @@ function Hello() {
       const splitOptionPromise = window.electron.getSplitOption();
       const obsGamecaptureResultPromise = window.electron.checkObsGamecapture();
       const dolphinVersionPromise = window.electron.getDolphinVersion();
+      const setupObsPromise = window.electron.getSetupObs();
       const obsSettingsPromise = window.electron.getObsSettings();
       const numDolphinsPromise = window.electron.getNumDolphins();
       const obsConnectionStatusPromise =
@@ -109,6 +111,7 @@ function Hello() {
       setObsGamecaptureResult(await obsGamecaptureResultPromise);
       setDolphinVersion((await dolphinVersionPromise).version);
       setDolphinVersionError((await dolphinVersionPromise).error);
+      setSetupObs(await setupObsPromise);
       setObsProtocol((await obsSettingsPromise).protocol);
       setObsAddress((await obsSettingsPromise).address);
       setObsPort((await obsSettingsPromise).port);
@@ -299,6 +302,8 @@ function Hello() {
               setDolphinVersion={setDolphinVersion}
               dolphinVersionError={dolphinVersionError}
               setDolphinVersionError={setDolphinVersionError}
+              setupObs={setupObs}
+              setSetupObs={setSetupObs}
               obsProtocol={obsProtocol}
               setObsProtocol={setObsProtocol}
               obsAddress={obsAddress}
@@ -338,7 +343,8 @@ function Hello() {
                 !dolphinVersion ||
                 (numDolphins < maxDolphins &&
                   obsConnectionStatus ===
-                    OBSConnectionStatus.OBS_NOT_CONNECTED) ||
+                    OBSConnectionStatus.OBS_NOT_CONNECTED &&
+                  setupObs) ||
                 obsConnecting ||
                 obsConnectionStatus === OBSConnectionStatus.READY
               }

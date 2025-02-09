@@ -326,11 +326,7 @@ export default async function setupIPCs(
     twitch.setStealth(stealth);
   });
 
-  const overlayPath = path.join(
-    app.getPath('documents'),
-    'AutoSLPPlayer',
-    'overlay',
-  );
+  const overlayPath = path.join(app.getPath('userData'), 'overlay');
 
   const obsGamecapturePromise =
     process.platform === 'linux'

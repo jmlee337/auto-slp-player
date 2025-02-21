@@ -101,6 +101,8 @@ function willNotSpoil(
         if (
           aStartgg.set.round < 0 &&
           bStartgg.set.round > 0 &&
+          bStartgg.set.fullRoundText !== 'Grand Final' &&
+          bStartgg.set.fullRoundText !== 'Grand Final Reset' &&
           aStartgg.set.ordinal < bStartgg.set.ordinal
         ) {
           return true;
@@ -108,6 +110,8 @@ function willNotSpoil(
         if (
           bStartgg.set.round < 0 &&
           aStartgg.set.round > 0 &&
+          aStartgg.set.fullRoundText !== 'Grand Final' &&
+          aStartgg.set.fullRoundText !== 'Grand Final Reset' &&
           bStartgg.set.ordinal < aStartgg.set.ordinal
         ) {
           return true;
@@ -143,6 +147,8 @@ function willNotSpoil(
         if (
           aChallonge.set.round < 0 &&
           bChallonge.set.round > 0 &&
+          bChallonge.set.fullRoundText !== 'Grand Final' &&
+          bChallonge.set.fullRoundText !== 'Grand Final Reset' &&
           aChallonge.set.ordinal < bChallonge.set.ordinal
         ) {
           return true;
@@ -150,6 +156,8 @@ function willNotSpoil(
         if (
           bChallonge.set.round < 0 &&
           aChallonge.set.round > 0 &&
+          aChallonge.set.fullRoundText !== 'Grand Final' &&
+          aChallonge.set.fullRoundText !== 'Grand Final Reset' &&
           bChallonge.set.ordinal < aChallonge.set.ordinal
         ) {
           return true;

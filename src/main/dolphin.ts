@@ -48,6 +48,8 @@ export class Dolphin extends EventEmitter {
 
   private timeout: NodeJS.Timeout | null;
 
+  private lastWriteTimeMs: number;
+
   constructor(
     dolphinPath: string,
     isoPath: string,
@@ -69,6 +71,7 @@ export class Dolphin extends EventEmitter {
     this.ignoreEndGame = false;
     this.waitingForStart = false;
     this.timeout = null;
+    this.lastWriteTimeMs = 0;
 
     this.commPath = path.join(tempDir, `${port}.json`);
     this.dolphinConnection = new DolphinConnection();
@@ -113,6 +116,20 @@ export class Dolphin extends EventEmitter {
     });
   }
 
+  private async write(comm: Object) {
+    this.commNum += 1;
+    const diffMs = Date.now() - this.lastWriteTimeMs;
+    if (diffMs < 1000) {
+      await new Promise<void>((resolve) => {
+        setTimeout(() => {
+          resolve();
+        }, 1000 - diffMs);
+      });
+    }
+    await writeFile(this.commPath, JSON.stringify(comm));
+    this.lastWriteTimeMs = Date.now();
+  }
+
   private async writeCommEmpty() {
     if (this.timeout) {
       clearTimeout(this.timeout);
@@ -124,8 +141,9 @@ export class Dolphin extends EventEmitter {
       gameStation: `${this.port}`,
       replay: 'invalidpath',
     };
-    this.commNum += 1;
-    await writeFile(this.commPath, JSON.stringify(comm));
+
+    await this.write(comm);
+
     // If we interrupt a replay in progress Dolphin will emit an END_GAME event.
     // We don't actually want that here.
     this.ignoreEndGame = true;
@@ -150,10 +168,11 @@ export class Dolphin extends EventEmitter {
       gameStation: `${this.port}`,
       queue: replayPaths.map((replayPath) => ({ path: replayPath })),
     };
-    this.commNum += 1;
+
+    await this.write(comm);
     this.gameIndex = 0;
     this.replayPaths = replayPaths;
-    await writeFile(this.commPath, JSON.stringify(comm));
+
     // If we interrupt a replay in progress Dolphin will emit an END_GAME event
     // before starting our new replay. This would cause us to miscount so
     // ignore that.

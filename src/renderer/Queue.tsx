@@ -19,7 +19,8 @@ import {
   SubdirectoryArrowRight,
   Tv,
 } from '@mui/icons-material';
-import { RendererQueue, Stream } from '../common/types';
+import { useState } from 'react';
+import { RendererQueue, RendererSet, Stream } from '../common/types';
 
 function TwitchStreamIcon({ stream }: { stream: Stream }) {
   let icon = <Tv />;
@@ -63,6 +64,160 @@ function TwitchStreamIcon({ stream }: { stream: Stream }) {
   );
 }
 
+function QueueSet({
+  set,
+  queueId,
+  queueNextOriginalPath,
+  canPlay,
+  twitchChannel,
+}: {
+  set: RendererSet;
+  queueId: string;
+  queueNextOriginalPath: string;
+  canPlay: boolean;
+  twitchChannel: string;
+}) {
+  const [stopping, setStopping] = useState(false);
+  const [starting, setStarting] = useState(false);
+
+  return (
+    <ListItem
+      dense
+      disablePadding
+      key={set.originalPath}
+      style={{
+        gap: '8px',
+        opacity: set.played ? '0.54' : '100%',
+      }}
+    >
+      <Checkbox
+        checked={!set.played}
+        disableRipple
+        onClick={() => {
+          window.electron.markPlayed(queueId, set.originalPath, !set.played);
+        }}
+      />
+      {set.invalidReason && (
+        <Tooltip arrow title={set.invalidReason}>
+          <Report style={{ padding: '9px' }} />
+        </Tooltip>
+      )}
+      {set.context ? (
+        <Stack direction="row" flexGrow={1} spacing="8px">
+          <ListItemText primaryTypographyProps={{ noWrap: true }}>
+            {set.context.namesLeft} vs {set.context.namesRight}
+          </ListItemText>
+          {twitchChannel &&
+            set.context.startgg?.stream &&
+            (set.context.startgg.stream.domain !== 'twitch' ||
+              set.context.startgg.stream.path !== twitchChannel) && (
+              <TwitchStreamIcon stream={set.context.startgg.stream} />
+            )}
+          {twitchChannel &&
+            set.context.challonge?.stream &&
+            (set.context.challonge.stream.domain !== 'twitch' ||
+              set.context.challonge.stream.path !== twitchChannel) && (
+              <TwitchStreamIcon stream={set.context.challonge.stream} />
+            )}
+          <ListItemText sx={{ flexGrow: 0, flexShrink: 0 }}>
+            {set.context.startgg && `${set.context.startgg.fullRoundText} `}
+            {set.context.challonge && `${set.context.challonge.fullRoundText} `}
+            (BO{set.context.bestOf})
+          </ListItemText>
+          {set.context.startgg && (
+            <ListItemText sx={{ flexGrow: 0, flexShrink: 0 }}>
+              {set.context.startgg.eventName}, {set.context.startgg.phaseName}
+            </ListItemText>
+          )}
+          {set.context.challonge && (
+            <ListItemText sx={{ flexGrow: 0, flexShrink: 0 }}>
+              {set.context.challonge.tournamentName}
+            </ListItemText>
+          )}
+          <ListItemText sx={{ flexGrow: 0, flexShrink: 0 }}>
+            {set.context.duration}
+          </ListItemText>
+        </Stack>
+      ) : (
+        <ListItemText>{set.originalPath}</ListItemText>
+      )}
+      {set.playing && (
+        <Tooltip arrow placement="left" title="Stop">
+          <IconButton
+            style={{ color: 'rgba(0, 0, 0, 1' }}
+            onClick={async () => {
+              setStopping(true);
+              try {
+                await window.electron.stop(queueId, set.originalPath);
+              } catch {
+                // ignore
+              }
+              setStopping(false);
+            }}
+          >
+            {stopping ? <CircularProgress size="24px" /> : <Stop />}
+          </IconButton>
+        </Tooltip>
+      )}
+      {!set.playing && set.originalPath !== queueNextOriginalPath && (
+        <Tooltip arrow placement="left" title="Play next">
+          <IconButton
+            onClick={() => {
+              window.electron.playNext(queueId, set.originalPath);
+            }}
+          >
+            <SubdirectoryArrowRight />
+          </IconButton>
+        </Tooltip>
+      )}
+      {!set.playing && set.originalPath === queueNextOriginalPath && (
+        <Tooltip arrow placement="left" title="Cancel next">
+          <IconButton
+            onClick={() => {
+              window.electron.unqueue(queueId);
+            }}
+          >
+            <PlaylistRemove />
+          </IconButton>
+        </Tooltip>
+      )}
+      <Tooltip arrow title="Play now">
+        <IconButton
+          disabled={!canPlay || set.playing}
+          style={
+            set.played && (!canPlay || set.playing)
+              ? { color: 'rgba(0, 0, 0, 0.5)' }
+              : {}
+          }
+          onClick={async () => {
+            setStarting(true);
+            try {
+              await window.electron.playNow(queueId, set.originalPath);
+            } catch {
+              // ignore
+            }
+            setStarting(false);
+          }}
+        >
+          {starting ? <CircularProgress size="24px" /> : <PlayArrow />}
+        </IconButton>
+      </Tooltip>
+      <Box padding="8px" height="24px" width="24px">
+        {set.playing && (
+          <Tooltip arrow title="Playing...">
+            <CircularProgress size="24px" />
+          </Tooltip>
+        )}
+        {set.originalPath === queueNextOriginalPath && (
+          <Tooltip arrow title="Next...">
+            <PlaylistAddCheck />
+          </Tooltip>
+        )}
+      </Box>
+    </ListItem>
+  );
+}
+
 export default function Queue({
   queue,
   canPlay,
@@ -75,134 +230,13 @@ export default function Queue({
   return (
     <List>
       {queue.sets.map((set) => (
-        <ListItem
-          dense
-          disablePadding
-          key={set.originalPath}
-          style={{
-            gap: '8px',
-            opacity: set.played ? '0.54' : '100%',
-          }}
-        >
-          <Checkbox
-            checked={!set.played}
-            disableRipple
-            onClick={() => {
-              window.electron.markPlayed(
-                queue.id,
-                set.originalPath,
-                !set.played,
-              );
-            }}
-          />
-          {set.invalidReason && (
-            <Tooltip arrow title={set.invalidReason}>
-              <Report style={{ padding: '9px' }} />
-            </Tooltip>
-          )}
-          {set.context ? (
-            <Stack direction="row" flexGrow={1} spacing="8px">
-              <ListItemText primaryTypographyProps={{ noWrap: true }}>
-                {set.context.namesLeft} vs {set.context.namesRight}
-              </ListItemText>
-              {twitchChannel &&
-                set.context.startgg?.stream &&
-                (set.context.startgg.stream.domain !== 'twitch' ||
-                  set.context.startgg.stream.path !== twitchChannel) && (
-                  <TwitchStreamIcon stream={set.context.startgg.stream} />
-                )}
-              {twitchChannel &&
-                set.context.challonge?.stream &&
-                (set.context.challonge.stream.domain !== 'twitch' ||
-                  set.context.challonge.stream.path !== twitchChannel) && (
-                  <TwitchStreamIcon stream={set.context.challonge.stream} />
-                )}
-              <ListItemText sx={{ flexGrow: 0, flexShrink: 0 }}>
-                {set.context.startgg && `${set.context.startgg.fullRoundText} `}
-                {set.context.challonge &&
-                  `${set.context.challonge.fullRoundText} `}
-                (BO{set.context.bestOf})
-              </ListItemText>
-              {set.context.startgg && (
-                <ListItemText sx={{ flexGrow: 0, flexShrink: 0 }}>
-                  {set.context.startgg.eventName},{' '}
-                  {set.context.startgg.phaseName}
-                </ListItemText>
-              )}
-              {set.context.challonge && (
-                <ListItemText sx={{ flexGrow: 0, flexShrink: 0 }}>
-                  {set.context.challonge.tournamentName}
-                </ListItemText>
-              )}
-              <ListItemText sx={{ flexGrow: 0, flexShrink: 0 }}>
-                {set.context.duration}
-              </ListItemText>
-            </Stack>
-          ) : (
-            <ListItemText>{set.originalPath}</ListItemText>
-          )}
-          {set.playing && (
-            <Tooltip arrow title="Stop">
-              <IconButton
-                style={{ color: 'rgba(0, 0, 0, 1' }}
-                onClick={() => {
-                  window.electron.stop(queue.id, set.originalPath);
-                }}
-              >
-                <Stop />
-              </IconButton>
-            </Tooltip>
-          )}
-          {!set.playing && set.originalPath !== queue.nextSetOriginalPath && (
-            <Tooltip arrow title="Play next">
-              <IconButton
-                onClick={() => {
-                  window.electron.playNext(queue.id, set.originalPath);
-                }}
-              >
-                <SubdirectoryArrowRight />
-              </IconButton>
-            </Tooltip>
-          )}
-          {!set.playing && set.originalPath === queue.nextSetOriginalPath && (
-            <Tooltip arrow title="Cancel next">
-              <IconButton
-                onClick={() => {
-                  window.electron.unqueue(queue.id);
-                }}
-              >
-                <PlaylistRemove />
-              </IconButton>
-            </Tooltip>
-          )}
-          <Tooltip arrow title="Play now">
-            <IconButton
-              disabled={!canPlay || set.playing}
-              style={
-                set.played && (!canPlay || set.playing)
-                  ? { color: 'rgba(0, 0, 0, 0.5)' }
-                  : {}
-              }
-              onClick={() => {
-                window.electron.playNow(queue.id, set.originalPath);
-              }}
-            >
-              <PlayArrow />
-            </IconButton>
-          </Tooltip>
-          <Box padding="8px" height="24px" width="24px">
-            {set.playing && (
-              <Tooltip arrow title="Playing...">
-                <CircularProgress size="24px" />
-              </Tooltip>
-            )}
-            {set.originalPath === queue.nextSetOriginalPath && (
-              <Tooltip arrow title="Next...">
-                <PlaylistAddCheck />
-              </Tooltip>
-            )}
-          </Box>
-        </ListItem>
+        <QueueSet
+          set={set}
+          queueId={queue.id}
+          queueNextOriginalPath={queue.nextSetOriginalPath}
+          canPlay={canPlay}
+          twitchChannel={twitchChannel}
+        />
       ))}
     </List>
   );

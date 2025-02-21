@@ -41,6 +41,7 @@ export type Context = {
       name?: string;
       bracketType?: number;
       hasSiblings?: boolean;
+      waveId?: number | null;
     };
     set?: {
       id?: number;
@@ -106,6 +107,7 @@ export type MainContextStartgg = {
      */
     bracketType: number;
     hasSiblings: boolean;
+    waveId: number | null;
   };
   set: {
     fullRoundText: string;

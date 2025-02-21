@@ -99,6 +99,7 @@ export async function unzip(set: AvailableSet, tempDir: string): Promise<void> {
   if (set.type !== SetType.ZIP) {
     return;
   }
+  set.replayPaths.length = 0;
 
   const unzipDir = path.join(tempDir, path.basename(set.originalPath, '.zip'));
   await emptyDir(unzipDir);

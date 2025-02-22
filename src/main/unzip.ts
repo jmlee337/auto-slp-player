@@ -101,6 +101,7 @@ export async function unzip(set: AvailableSet, tempDir: string): Promise<void> {
   }
   set.replayPaths.length = 0;
 
+  const replayPaths = new Set<string>();
   const unzipDir = path.join(tempDir, path.basename(set.originalPath, '.zip'));
   await emptyDir(unzipDir);
   await new Promise<void>((resolve, reject) => {
@@ -118,6 +119,7 @@ export async function unzip(set: AvailableSet, tempDir: string): Promise<void> {
           if (failureReason) {
             reject(new Error(failureReason));
           } else {
+            set.replayPaths.push(...Array.from(replayPaths));
             set.replayPaths.sort();
             resolve();
           }
@@ -138,7 +140,7 @@ export async function unzip(set: AvailableSet, tempDir: string): Promise<void> {
 
                 const unzipPath = path.join(unzipDir, entry.fileName);
                 readStream.on('end', () => {
-                  set.replayPaths.push(unzipPath);
+                  replayPaths.add(unzipPath);
                   zipFile.readEntry();
                 });
                 const writeStream = createWriteStream(unzipPath);

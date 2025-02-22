@@ -92,6 +92,7 @@ export function toMainContext(context: Context): MainContext | undefined {
   const startggPhaseGroupBracketType = context.startgg?.phaseGroup?.bracketType;
   const startggPhaseGroupHasSiblings =
     context.startgg?.phaseGroup?.hasSiblings ?? true;
+  const startggPhaseGroupWaveId = context.startgg?.phaseGroup?.waveId ?? null;
   const startggFullRoundText = context.startgg?.set?.fullRoundText;
   const startggRound = context.startgg?.set?.round;
   const startggOrdinal = context.startgg?.set?.ordinal ?? null;
@@ -107,6 +108,8 @@ export function toMainContext(context: Context): MainContext | undefined {
     Number.isInteger(startggPhaseGroupId) &&
     typeof startggPhaseGroupName === 'string' &&
     Number.isInteger(startggPhaseGroupBracketType) &&
+    (startggPhaseGroupWaveId === null ||
+      Number.isInteger(startggPhaseGroupWaveId)) &&
     typeof startggFullRoundText === 'string' &&
     Number.isInteger(startggRound) &&
     (startggOrdinal === null || Number.isFinite(startggOrdinal)) &&
@@ -132,6 +135,7 @@ export function toMainContext(context: Context): MainContext | undefined {
         name: startggPhaseGroupName,
         bracketType: startggPhaseGroupBracketType!,
         hasSiblings: startggPhaseGroupHasSiblings,
+        waveId: startggPhaseGroupWaveId,
       },
       set: {
         fullRoundText: startggFullRoundText,

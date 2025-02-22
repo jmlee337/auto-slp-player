@@ -950,7 +950,6 @@ export default async function setupIPCs(
         const queueIsNew = !idToQueue.has(queueId);
         const queue = idToQueue.get(queueId) ?? new Queue(queueId, queueName);
         const hadPlayable = queue.hasPlayable();
-        const wasExhausted = queue.isExhuasted();
         queue.enqueue(newSet);
         if (queueIsNew) {
           idToQueue.set(queueId, queue);
@@ -965,10 +964,8 @@ export default async function setupIPCs(
         if (
           newSet.playedMs === 0 &&
           playingSets.size + tryingPorts.size < maxDolphins &&
-          (queue.getCalculatedNextSet() === newSet ||
-            (wasExhausted && queue.getLast() === newSet)) &&
-          willNotSpoilPlayingSets(newSet) &&
-          !queue.isManuallyStopped()
+          queue.getCalculatedNextSet() === newSet &&
+          willNotSpoilPlayingSets(newSet)
         ) {
           await playDolphin(queue, newSet);
           obsConnection.transition(playingSets);
@@ -1063,16 +1060,6 @@ export default async function setupIPCs(
       sendQueues();
     },
   );
-  ipcMain.removeHandler('unqueue');
-  ipcMain.handle('unqueue', (event, queueId: string) => {
-    const queue = idToQueue.get(queueId);
-    if (!queue) {
-      throw new Error(`no such queue: ${queueId}`);
-    }
-
-    queue.clearNextSetManually();
-    sendQueues();
-  });
   ipcMain.removeHandler('playNow');
   ipcMain.handle(
     'playNow',

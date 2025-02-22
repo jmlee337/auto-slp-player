@@ -38,8 +38,6 @@ const electronHandler = {
     ipcRenderer.invoke('stop', queueId, originalPath),
   playNext: (queueId: string, originalPath: string): Promise<void> =>
     ipcRenderer.invoke('playNext', queueId, originalPath),
-  unqueue: (queueId: string): Promise<void> =>
-    ipcRenderer.invoke('unqueue', queueId),
   playNow: (queueId: string, originalPath: string): Promise<void> =>
     ipcRenderer.invoke('playNow', queueId, originalPath),
   getGenerateTimestamps: (): Promise<boolean> =>

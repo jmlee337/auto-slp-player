@@ -128,26 +128,33 @@ export default class Queue {
   }
 
   public getCalculatedNextSet() {
-    // if no sets or we're already playing the last set
-    if (this.sets.length === 0 || this.sets[this.sets.length - 1].playing) {
+    // if no sets
+    if (this.sets.length === 0) {
       return null;
     }
 
-    // find last playing set
+    // check playing sets
+    let upperBound = this.sets.length;
     for (let i = this.sets.length - 2; i >= 0; i -= 1) {
       if (this.sets[i].playing) {
         // find next playable set after last playing set
-        for (let j = i + 1; j < this.sets.length; j += 1) {
+        for (let j = i + 1; j < upperBound; j += 1) {
           if (this.sets[j].playedMs === 0) {
             return this.sets[j];
           }
         }
-        // no playable sets after last playing set
-        return null;
+        upperBound = i;
       }
     }
 
-    // no playing sets
+    // no playing set with playable set after, check before
+    for (let i = 0; i < upperBound; i += 1) {
+      if (this.sets[i].playedMs === 0) {
+        return this.sets[i];
+      }
+    }
+
+    // no playable sets at all
     return null;
   }
 
@@ -216,15 +223,6 @@ export default class Queue {
     this.nextSetIsManual = false;
   }
 
-  public clearNextSetManually(): void {
-    this.nextSet = null;
-    this.nextSetIsManual = true;
-  }
-
-  public isManuallyStopped(): boolean {
-    return this.nextSet === null && this.nextSetIsManual;
-  }
-
   public isPlaying(): boolean {
     return this.sets.some((set) => set.playing);
   }
@@ -244,16 +242,5 @@ export default class Queue {
 
   public getSets(): AvailableSet[] {
     return this.sets;
-  }
-
-  public getLast(): AvailableSet | undefined {
-    return this.sets[this.sets.length - 1];
-  }
-
-  public isExhuasted(): boolean {
-    return (
-      !this.isPlaying() &&
-      (this.sets.length === 0 || this.getLast()!.playedMs !== 0)
-    );
   }
 }

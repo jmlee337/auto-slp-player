@@ -13,7 +13,6 @@ import {
 import {
   PlayArrow,
   PlaylistAddCheck,
-  PlaylistRemove,
   Report,
   Stop,
   SubdirectoryArrowRight,
@@ -141,7 +140,7 @@ function QueueSet({
       ) : (
         <ListItemText>{set.originalPath}</ListItemText>
       )}
-      {set.playing && (
+      {set.playing ? (
         <Tooltip arrow placement="left" title="Stop">
           <IconButton
             style={{ color: 'rgba(0, 0, 0, 1' }}
@@ -158,26 +157,15 @@ function QueueSet({
             {stopping ? <CircularProgress size="24px" /> : <Stop />}
           </IconButton>
         </Tooltip>
-      )}
-      {!set.playing && set.originalPath !== queueNextOriginalPath && (
+      ) : (
         <Tooltip arrow placement="left" title="Play next">
           <IconButton
+            disabled={set.originalPath === queueNextOriginalPath}
             onClick={() => {
               window.electron.playNext(queueId, set.originalPath);
             }}
           >
             <SubdirectoryArrowRight />
-          </IconButton>
-        </Tooltip>
-      )}
-      {!set.playing && set.originalPath === queueNextOriginalPath && (
-        <Tooltip arrow placement="left" title="Cancel next">
-          <IconButton
-            onClick={() => {
-              window.electron.unqueue(queueId);
-            }}
-          >
-            <PlaylistRemove />
           </IconButton>
         </Tooltip>
       )}

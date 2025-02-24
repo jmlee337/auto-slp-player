@@ -173,10 +173,11 @@ export default async function setupIPCs(
   resourcesPath: string,
 ): Promise<void> {
   const store = new Store<{
+    splitByWave: boolean;
+    stealth: boolean;
     twitchBotEnabled: boolean;
     twitchClient: TwitchClient;
     twitchAccessToken: AccessToken;
-    stealth: boolean;
   }>();
   let dolphinPath = '';
   if (store.has('dolphinPath')) {
@@ -224,6 +225,7 @@ export default async function setupIPCs(
   let splitOption: SplitOption = store.has('splitOption')
     ? (store.get('splitOption') as SplitOption)
     : SplitOption.EVENT;
+  let splitByWave: boolean = store.get('splitByWave', false);
 
   let obsSettings: OBSSettings = store.has('obsSettings')
     ? (store.get('obsSettings') as OBSSettings)
@@ -886,6 +888,33 @@ export default async function setupIPCs(
   ipcMain.removeHandler('startStream');
   ipcMain.handle('startStream', async () => obsConnection.startStream());
 
+  const getQueueFromSet = (set: AvailableSet) => {
+    let queueId = '';
+    let queueName = 'Unknown';
+    if (splitOption !== SplitOption.NONE && set.context) {
+      if (set.context.startgg) {
+        if (splitOption === SplitOption.EVENT) {
+          queueId = `e:${set.context.startgg.event.slug}`;
+          queueName = set.context.startgg.event.name;
+        } else {
+          queueId = `p:${set.context.startgg.phase.id}`;
+          queueName = set.context.startgg.event.hasSiblings
+            ? `${set.context.startgg.event.name}, ${set.context.startgg.phase.name}`
+            : set.context.startgg.phase.name;
+        }
+      } else if (set.context.challonge) {
+        queueId = `c:${set.context.challonge.tournament.slug}`;
+        queueName = set.context.challonge.tournament.name;
+      }
+    }
+    if (splitByWave && set.context?.startgg?.phaseGroup?.waveId) {
+      const { waveId } = set.context.startgg.phaseGroup;
+      queueId = `${queueId}w:${waveId}`;
+      queueName = `${queueName}, waveId: ${waveId}`;
+    }
+    return { queueId, queueName };
+  };
+
   let watchDir = '';
   ipcMain.removeHandler('getWatchDir');
   ipcMain.handle('getWatchDir', () => watchDir);
@@ -929,24 +958,7 @@ export default async function setupIPCs(
           playingSets.set(playingEntry[0], newSet);
         }
 
-        let queueId = '';
-        let queueName = 'Unknown';
-        if (splitOption !== SplitOption.NONE && newSet.context) {
-          if (newSet.context.startgg) {
-            if (splitOption === SplitOption.EVENT) {
-              queueId = `e:${newSet.context.startgg.event.slug}`;
-              queueName = newSet.context.startgg.event.name;
-            } else {
-              queueId = `p:${newSet.context.startgg.phase.id}`;
-              queueName = newSet.context.startgg.event.hasSiblings
-                ? `${newSet.context.startgg.event.name}, ${newSet.context.startgg.phase.name}`
-                : newSet.context.startgg.phase.name;
-            }
-          } else if (newSet.context.challonge) {
-            queueId = `c:${newSet.context.challonge.tournament.slug}`;
-            queueName = newSet.context.challonge.tournament.name;
-          }
-        }
+        const { queueId, queueName } = getQueueFromSet(newSet);
         const queueIsNew = !idToQueue.has(queueId);
         const queue = idToQueue.get(queueId) ?? new Queue(queueId, queueName);
         const hadPlayable = queue.hasPlayable();
@@ -1120,6 +1132,40 @@ export default async function setupIPCs(
     }
   });
 
+  const requeueAll = () => {
+    const allSets: AvailableSet[] = [];
+    getQueues().forEach((queue) => {
+      allSets.push(...queue.getSets());
+    });
+    idToQueue.clear();
+    queueIds.length = 0;
+    const idToNewQueue = new Map<
+      string,
+      { name: string; sets: AvailableSet[] }
+    >();
+    allSets.forEach((set) => {
+      const { queueId, queueName } = getQueueFromSet(set);
+      if (idToNewQueue.has(queueId)) {
+        idToNewQueue.get(queueId)!.sets.push(set);
+      } else {
+        idToNewQueue.set(queueId, { name: queueName, sets: [set] });
+      }
+    });
+    Array.from(idToNewQueue.entries()).forEach(([queueId, newQueue]) => {
+      idToQueue.set(queueId, new Queue(queueId, newQueue.name, newQueue.sets));
+      queueIds.push(queueId);
+    });
+    getQueues().forEach((queue) => {
+      queue.sortSets();
+      if (queue.isPlaying()) {
+        queue.setCalculatedNextSet();
+      } else {
+        queue.clearNextSet();
+      }
+    });
+    sendQueues();
+  };
+
   ipcMain.removeHandler('getSplitOption');
   ipcMain.handle('getSplitOption', () => splitOption);
 
@@ -1130,86 +1176,22 @@ export default async function setupIPCs(
       if (splitOption !== newSplitOption) {
         store.set('splitOption', newSplitOption);
         splitOption = newSplitOption;
+        requeueAll();
+      }
+    },
+  );
 
-        const allSets: AvailableSet[] = [];
-        getQueues().forEach((queue) => {
-          allSets.push(...queue.getSets());
-        });
+  ipcMain.removeHandler('getSplitByWave');
+  ipcMain.handle('getSplitByWave', () => splitByWave);
 
-        idToQueue.clear();
-        queueIds.length = 0;
-        if (splitOption === SplitOption.EVENT) {
-          const idToNewQueue = new Map<
-            string,
-            { name: string; sets: AvailableSet[] }
-          >();
-          allSets.forEach((set) => {
-            let queueId = '';
-            let name = 'Unknown';
-            if (set.context?.startgg) {
-              queueId = `e:${set.context.startgg.event.slug}`;
-              name = set.context.startgg.event.name;
-            } else if (set.context?.challonge) {
-              queueId = `c:${set.context.challonge.tournament.slug}`;
-              name = set.context.challonge.tournament.name;
-            }
-            if (idToNewQueue.has(queueId)) {
-              idToNewQueue.get(queueId)!.sets.push(set);
-            } else {
-              idToNewQueue.set(queueId, { name, sets: [set] });
-            }
-          });
-          Array.from(idToNewQueue.entries()).forEach(([queueId, newQueue]) => {
-            idToQueue.set(
-              queueId,
-              new Queue(queueId, newQueue.name, newQueue.sets),
-            );
-            queueIds.push(queueId);
-          });
-        } else if (splitOption === SplitOption.PHASE) {
-          const idToNewQueue = new Map<
-            string,
-            { name: string; sets: AvailableSet[] }
-          >();
-          allSets.forEach((set) => {
-            let queueId = '';
-            let name = 'Unknown';
-            if (set.context?.startgg) {
-              queueId = `p:${set.context.startgg.phase.id}`;
-              name = set.context.startgg.event.hasSiblings
-                ? `${set.context.startgg.event.name}, ${set.context.startgg.phase.name}`
-                : set.context.startgg.phase.name;
-            } else if (set.context?.challonge) {
-              queueId = `c:${set.context.challonge.tournament.slug}`;
-              name = set.context.challonge.tournament.name;
-            }
-            if (idToNewQueue.has(queueId)) {
-              idToNewQueue.get(queueId)!.sets.push(set);
-            } else {
-              idToNewQueue.set(queueId, { name, sets: [set] });
-            }
-          });
-          Array.from(idToNewQueue.entries()).forEach(([queueId, newQueue]) => {
-            idToQueue.set(
-              queueId,
-              new Queue(queueId, newQueue.name, newQueue.sets),
-            );
-            queueIds.push(queueId);
-          });
-        } else {
-          // SplitOption.NONE
-          idToQueue.set('', new Queue('', 'Unknown', allSets));
-          queueIds.push('');
-        }
-        getQueues().forEach((queue) => {
-          queue.sortSets();
-          if (queue.isPlaying()) {
-            queue.setCalculatedNextSet();
-          } else {
-            queue.clearNextSet();
-          }
-        });
-        sendQueues();
+  ipcMain.removeHandler('setSplitByWave');
+  ipcMain.handle(
+    'setSplitByWave',
+    (event: IpcMainInvokeEvent, newSplitByWave: boolean) => {
+      if (splitByWave !== newSplitByWave) {
+        store.set('splitByWave', newSplitByWave);
+        splitByWave = newSplitByWave;
+        requeueAll();
       }
     },
   );

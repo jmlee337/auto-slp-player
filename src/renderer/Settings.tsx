@@ -44,6 +44,8 @@ export default function Settings({
   setAddDelay,
   splitOption,
   setSplitOption,
+  splitByWave,
+  setSplitByWave,
   twitchUserName,
   obsGamecaptureResult,
   dolphinVersion,
@@ -76,6 +78,8 @@ export default function Settings({
   setAddDelay: (addDelay: boolean) => void;
   splitOption: SplitOption;
   setSplitOption: (splitOption: SplitOption) => void;
+  splitByWave: boolean;
+  setSplitByWave: (splitByWave: boolean) => void;
   twitchUserName: string;
   obsGamecaptureResult: ObsGamecaptureResult;
   dolphinVersion: string;
@@ -356,6 +360,19 @@ export default function Settings({
                 <MenuItem value={SplitOption.PHASE}>By phase</MenuItem>
               </Select>
             </FormControl>
+            <FormControlLabel
+              control={
+                <Checkbox
+                  checked={splitByWave}
+                  onChange={async (event) => {
+                    const newSplitByWave = event.target.checked;
+                    await window.electron.setSplitByWave(newSplitByWave);
+                    setSplitByWave(newSplitByWave);
+                  }}
+                />
+              }
+              label={SplitOption.NONE ? 'Split by wave' : 'Also split by wave'}
+            />
           </Stack>
           <Stack marginTop="8px">
             <Box>

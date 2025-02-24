@@ -55,6 +55,7 @@ function Hello() {
   const [generateTimestamps, setGenerateTimestamps] = useState(false);
   const [addDelay, setAddDelay] = useState(false);
   const [splitOption, setSplitOption] = useState(SplitOption.NONE);
+  const [splitByWave, setSplitByWave] = useState(false);
   const [obsGamecaptureResult, setObsGamecaptureResult] = useState(
     ObsGamecaptureResult.NOT_APPLICABLE,
   );
@@ -85,6 +86,7 @@ function Hello() {
       const generateTimestampsPromise = window.electron.getGenerateTimestamps();
       const addDelayPromise = window.electron.getAddDelay();
       const splitOptionPromise = window.electron.getSplitOption();
+      const splitByWavePromise = window.electron.getSplitByWave();
       const obsGamecaptureResultPromise = window.electron.checkObsGamecapture();
       const dolphinVersionPromise = window.electron.getDolphinVersion();
       const setupObsPromise = window.electron.getSetupObs();
@@ -108,6 +110,7 @@ function Hello() {
       setGenerateTimestamps(await generateTimestampsPromise);
       setAddDelay(await addDelayPromise);
       setSplitOption(await splitOptionPromise);
+      setSplitByWave(await splitByWavePromise);
       setObsGamecaptureResult(await obsGamecaptureResultPromise);
       setDolphinVersion((await dolphinVersionPromise).version);
       setDolphinVersionError((await dolphinVersionPromise).error);
@@ -294,6 +297,8 @@ function Hello() {
               setAddDelay={setAddDelay}
               splitOption={splitOption}
               setSplitOption={setSplitOption}
+              splitByWave={splitByWave}
+              setSplitByWave={setSplitByWave}
               maxDolphins={maxDolphins}
               setMaxDolphins={setMaxDolphins}
               twitchUserName={twitchUserName}

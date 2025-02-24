@@ -53,6 +53,9 @@ const electronHandler = {
     ipcRenderer.invoke('getSplitOption'),
   setSplitOption: (newSplitOption: SplitOption): Promise<void> =>
     ipcRenderer.invoke('setSplitOption', newSplitOption),
+  getSplitByWave: (): Promise<boolean> => ipcRenderer.invoke('getSplitByWave'),
+  setSplitByWave: (splitByWave: boolean): Promise<void> =>
+    ipcRenderer.invoke('setSplitByWave', splitByWave),
 
   // twitch
   getTwitchUserName: (): Promise<string> =>

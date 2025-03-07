@@ -172,26 +172,6 @@ export default class Queue {
     return { nextSet: this.nextSet, nextSetIsManual: this.nextSetIsManual };
   }
 
-  private queueNextSet(lastSet: AvailableSet) {
-    this.nextSetIsManual = false;
-
-    const startI = this.sets.findIndex(
-      (set) => set.originalPath === lastSet.originalPath,
-    );
-    if (startI < 0) {
-      this.nextSet = null;
-      return;
-    }
-
-    for (let i = startI + 1; i < this.sets.length; i += 1) {
-      if (this.sets[i].playedMs === 0) {
-        this.nextSet = this.sets[i];
-        return;
-      }
-    }
-    this.nextSet = null;
-  }
-
   public dequeue(set: AvailableSet) {
     if (!this.sets.includes(set)) {
       throw new Error(`set not present in queue: ${set.originalPath}`);
@@ -201,7 +181,7 @@ export default class Queue {
     set.playedMs = Date.now();
     set.playing = true;
     this.sortSets();
-    this.queueNextSet(set);
+    this.setCalculatedNextSet();
   }
 
   public find(originalPath: string): AvailableSet {

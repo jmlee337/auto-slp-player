@@ -1157,11 +1157,7 @@ export default async function setupIPCs(
     });
     getQueues().forEach((queue) => {
       queue.sortSets();
-      if (queue.isPlaying()) {
-        queue.setCalculatedNextSet();
-      } else {
-        queue.clearNextSet();
-      }
+      queue.setCalculatedNextSet();
     });
     sendQueues();
   };

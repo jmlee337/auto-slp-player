@@ -813,10 +813,6 @@ export default async function setupIPCs(
       if (failureReason) {
         playingSet.invalidReason = failureReason;
       }
-      if (playingSet.type === SetType.ZIP) {
-        deleteZipDir(playingSet, tempDir);
-      }
-
       playingSets.delete(port);
 
       const maybePlaySets = async (queues: Queue[]): Promise<number> => {
@@ -836,6 +832,14 @@ export default async function setupIPCs(
       };
       const setsPlayed = await maybePlaySets(getQueues());
       obsConnection.transition(playingSets);
+      if (!playingSets.get(port)) {
+        // try to make sure Dolphin releases previous replays
+        await newDolphin.stop();
+      }
+      if (playingSet.type === SetType.ZIP) {
+        deleteZipDir(playingSet, tempDir);
+      }
+
       if (setsPlayed > 0) {
         return;
       }

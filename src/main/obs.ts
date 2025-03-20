@@ -380,7 +380,7 @@ export default class OBSConnection {
           inputName,
           inputKind,
           inputSettings: {
-            show_cursor: 'false',
+            show_cursor: false,
           },
         });
         inputNameToInputUuid.set(inputName, inputUuid);
@@ -463,6 +463,7 @@ export default class OBSConnection {
           inputKind,
           inputSettings: {
             capture_audio: true,
+            capture_cursor: false,
             capture_mode: 'window',
             priority: 1,
             show_cursor: false,

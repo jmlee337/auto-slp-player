@@ -485,6 +485,8 @@ export default async function setupIPCs(
   let lastStartggTournamentLocation = '';
   let lastStartggEventName = '';
   let lastStartggEventSlug = '';
+  let lastStartggPhaseName = '';
+  let lastStartggPhaseGroupName = '';
   let lastChallongeTournamentName = '';
   let lastChallongeTournamentSlug = '';
   const updateOverlayAndTwitchBot = async () => {
@@ -529,24 +531,32 @@ export default async function setupIPCs(
       representativeChallonge = representativePlayingSet.context?.challonge;
       if (representativeStartgg) {
         startggTournamentName = representativeStartgg.tournament.name;
+        lastStartggTournamentName = startggTournamentName;
         startggTournamentLocation = representativeStartgg.tournament.location;
+        lastStartggTournamentLocation = startggTournamentLocation;
         startggEventName =
           eventSlugs.size === 1 && eventHasSiblings
             ? representativeStartgg.event.name
             : '';
+        lastStartggEventName = startggEventName;
+        lastStartggEventSlug = representativeStartgg.event.slug;
         startggPhaseName =
           phaseIds.size === 1 && phaseHasSiblings
             ? representativeStartgg.phase.name
             : '';
+        lastStartggPhaseName = startggPhaseName;
         startggPhaseGroupName =
           phaseGroupIds.size === 1 && phaseGroupHasSiblings
             ? `Pool ${representativeStartgg.phaseGroup.name}`
             : '';
+        lastStartggPhaseGroupName = startggPhaseGroupName;
       } else if (representativeChallonge) {
         challongeTournamentName =
           challongeSlugs.size === 1
             ? representativeChallonge.tournament.name
             : '';
+        lastChallongeTournamentName = challongeTournamentName;
+        lastChallongeTournamentSlug = representativeChallonge.tournament.slug;
       }
       entriesWithContexts.forEach(([port, playingSet]) => {
         const { context } = playingSet;
@@ -600,20 +610,34 @@ export default async function setupIPCs(
         }
       });
     }
-    const startgg: OverlayStartgg | undefined = representativeStartgg
-      ? {
-          tournamentName: startggTournamentName,
-          location: startggTournamentLocation,
-          eventName: startggEventName,
-          phaseName: startggPhaseName,
-          phaseGroupName: startggPhaseGroupName,
-        }
-      : undefined;
-    const challonge: OverlayChallonge | undefined = representativeChallonge
-      ? {
-          tournamentName: challongeTournamentName,
-        }
-      : undefined;
+    let startgg: OverlayStartgg | undefined;
+    if (representativeStartgg) {
+      startgg = {
+        tournamentName: startggTournamentName,
+        location: startggTournamentLocation,
+        eventName: startggEventName,
+        phaseName: startggPhaseName,
+        phaseGroupName: startggPhaseGroupName,
+      };
+    } else if (lastStartggTournamentName) {
+      startgg = {
+        tournamentName: lastStartggTournamentName,
+        location: lastStartggTournamentLocation,
+        eventName: lastStartggEventName,
+        phaseName: lastStartggPhaseName,
+        phaseGroupName: lastStartggPhaseGroupName,
+      };
+    }
+    let challonge: OverlayChallonge | undefined;
+    if (representativeChallonge) {
+      challonge = {
+        tournamentName: challongeTournamentName,
+      };
+    } else if (lastChallongeTournamentName) {
+      challonge = {
+        tournamentName: lastChallongeTournamentName,
+      };
+    }
     const overlayContext: OverlayContext = {
       sets,
       startgg,
@@ -751,19 +775,6 @@ export default async function setupIPCs(
           deleteZipDir(playingSet, tempDir);
         }
         playingSets.delete(port);
-        if (playingSets.size === 0) {
-          const startgg = playingSet.context?.startgg;
-          const challonge = playingSet.context?.challonge;
-          if (startgg) {
-            lastStartggTournamentName = startgg.tournament.name;
-            lastStartggTournamentLocation = startgg.tournament.location;
-            lastStartggEventName = startgg.event.name;
-            lastStartggEventSlug = startgg.event.slug;
-          } else if (challonge) {
-            lastChallongeTournamentName = challonge.tournament.name;
-            lastChallongeTournamentSlug = challonge.tournament.slug;
-          }
-        }
       }
 
       newDolphin.removeAllListeners();
@@ -830,19 +841,6 @@ export default async function setupIPCs(
       }
 
       // if we reach here, we didn't play any sets
-      if (playingSets.size === 0) {
-        const startgg = playingSet.context?.startgg;
-        const challonge = playingSet.context?.challonge;
-        if (startgg) {
-          lastStartggTournamentName = startgg.tournament.name;
-          lastStartggTournamentLocation = startgg.tournament.location;
-          lastStartggEventName = startgg.event.name;
-          lastStartggEventSlug = startgg.event.slug;
-        } else if (challonge) {
-          lastChallongeTournamentName = challonge.tournament.name;
-          lastChallongeTournamentSlug = challonge.tournament.slug;
-        }
-      }
       sendQueues();
       updateOverlayAndTwitchBot();
     });

@@ -7,6 +7,9 @@ import {
 } from '../common/types';
 import { Dolphin } from './dolphin';
 
+const BG_COLOR_INPUT_NAME = 'BG Color';
+const CHAT_INPUT_NAME = 'Chat';
+
 async function timeout(ms: number) {
   await new Promise<void>((resolve) => {
     setTimeout(() => {
@@ -543,11 +546,11 @@ export default class OBSConnection {
         await this.obsWebSocket.call('GetInputList', {
           inputKind: 'browser_source',
         })
-      ).inputs.find((input) => input.inputName === 'Chat')
+      ).inputs.find((input) => input.inputName === CHAT_INPUT_NAME)
     ) {
       const { inputUuid } = await this.obsWebSocket.call('CreateInput', {
         sceneName: 'quad 0',
-        inputName: 'Chat',
+        inputName: CHAT_INPUT_NAME,
         inputKind: 'browser_source',
         inputSettings: {
           height: 291,
@@ -555,7 +558,24 @@ export default class OBSConnection {
           url: '',
         },
       });
-      inputNameToInputUuid.set('Chat', inputUuid);
+      inputNameToInputUuid.set(CHAT_INPUT_NAME, inputUuid);
+    }
+    if (
+      !(
+        await this.obsWebSocket.call('GetInputList', {
+          inputKind: 'color_source_v3',
+        })
+      ).inputs.find((input) => input.inputName === BG_COLOR_INPUT_NAME)
+    ) {
+      const { inputUuid } = await this.obsWebSocket.call('CreateInput', {
+        sceneName: 'quad 0',
+        inputName: BG_COLOR_INPUT_NAME,
+        inputKind: 'color_source_v3',
+        inputSettings: {
+          color: 0xff000000, // ARGB
+        },
+      });
+      inputNameToInputUuid.set(BG_COLOR_INPUT_NAME, inputUuid);
     }
 
     const sceneNameToExpectedSourceNames = new Map([
@@ -608,8 +628,11 @@ export default class OBSConnection {
         ]),
       );
       const missingSourceNames: string[] = [];
-      if (!sourceNameToSceneItemId.has('Chat')) {
-        missingSourceNames.push('Chat');
+      if (!sourceNameToSceneItemId.has(BG_COLOR_INPUT_NAME)) {
+        missingSourceNames.push(BG_COLOR_INPUT_NAME);
+      }
+      if (!sourceNameToSceneItemId.has(CHAT_INPUT_NAME)) {
+        missingSourceNames.push(CHAT_INPUT_NAME);
       }
       expectedSourceNames.forEach((expectedSourceName) => {
         if (!sourceNameToSceneItemId.has(expectedSourceName)) {
@@ -710,15 +733,23 @@ export default class OBSConnection {
         retries += 1;
       }
 
-      const sceneItemId = sourceNameToSceneItemId.get('Chat')!;
+      const bgColorSceneItemId =
+        sourceNameToSceneItemId.get(BG_COLOR_INPUT_NAME)!;
       await this.obsWebSocket.call('SetSceneItemLocked', {
         sceneName,
-        sceneItemId,
+        sceneItemId: bgColorSceneItemId,
+        sceneItemLocked: true,
+      });
+
+      const chatSceneItemId = sourceNameToSceneItemId.get(CHAT_INPUT_NAME)!;
+      await this.obsWebSocket.call('SetSceneItemLocked', {
+        sceneName,
+        sceneItemId: chatSceneItemId,
         sceneItemLocked: false,
       });
       await this.obsWebSocket!.call('SetSceneItemTransform', {
         sceneName,
-        sceneItemId,
+        sceneItemId: chatSceneItemId,
         sceneItemTransform: {
           positionX:
             sceneName === 'quad 0' || sceneName === 'quad 1' ? 1314 : 657,
@@ -727,7 +758,7 @@ export default class OBSConnection {
       });
       await this.obsWebSocket!.call('SetSceneItemLocked', {
         sceneName,
-        sceneItemId,
+        sceneItemId: chatSceneItemId,
         sceneItemLocked: true,
       });
     }

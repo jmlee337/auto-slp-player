@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+<!doctype html>
 <html>
   <head>
     <meta charset="UTF-8" />
@@ -24,25 +24,32 @@
         padding: 8px;
         width: 657px;
       }
-      .round-bo, .event-phase-name, .location {
+      .round-bo,
+      .event-phase-name,
+      .location {
         font-size: 24px;
         line-height: 30px;
       }
-      .left, .right {
+      .left,
+      .right {
         display: flex;
         flex-direction: row;
         width: 100%;
       }
-      .left-full-names, .right-full-names {
+      .left-full-names,
+      .right-full-names {
         flex-grow: 1;
         overflow: hidden;
         text-overflow: ellipsis;
         white-space: nowrap;
       }
-      .left-score, .right-score {
+      .left-score,
+      .right-score {
         width: 44px;
       }
-      .tournament-name, .left, .right {
+      .tournament-name,
+      .left,
+      .right {
         font-size: 36px;
         line-height: 44px;
       }
@@ -103,7 +110,9 @@
         const element = parentEl ?? document;
         const elements = element.getElementsByClassName(className);
         if (elements.length !== 1) {
-          throw new Error(`${elements.length} elements with className ${className}`);
+          throw new Error(
+            `${elements.length} elements with className ${className}`,
+          );
         }
         return elements[0];
       }
@@ -128,7 +137,10 @@
             if (newContext.startgg.phaseGroupName) {
               names.push(newContext.startgg.phaseGroupName);
             }
-            replace('event-phase-name', names.length > 0 ? names.join(', ') : '');
+            replace(
+              'event-phase-name',
+              names.length > 0 ? names.join(', ') : '',
+            );
           } else if (newContext.challonge) {
             replace('tournament-name', newContext.challonge.tournamentName);
             replace('location', '');
@@ -149,10 +161,10 @@
               replace('left-full-names', '', setEl);
               replace('left-score', '', setEl);
               replace('right-full-names', '', setEl);
-              replace('right-score', '', setEl)
+              replace('right-score', '', setEl);
             } else {
-            const bo = set.isFinal ? 'Final' : `(BO${set.bestOf})`;
-            replace('round-bo', `${set.roundName} ${bo}`, setEl);
+              const bo = set.isFinal ? 'Final' : `BO${set.bestOf}`;
+              replace('round-bo', `${set.roundName} (${bo})`, setEl);
               const leftFullNames = [];
               for (let i = 0; i < set.leftPrefixes.length; i += 1) {
                 let fullName = '';
@@ -165,7 +177,8 @@
                 }
                 leftFullNames.push(fullName);
               }
-              const leftScore = leftFullNames.length > 0 ? set.leftScore.toString() : '';
+              const leftScore =
+                leftFullNames.length > 0 ? set.leftScore.toString() : '';
               replace('left-full-names', leftFullNames.join(', '), setEl);
               replace('left-score', leftScore, setEl);
 
@@ -181,7 +194,8 @@
                 }
                 rightFullNames.push(fullName);
               }
-              const rightScore = rightFullNames.length > 0 ? set.rightScore.toString() : '';
+              const rightScore =
+                rightFullNames.length > 0 ? set.rightScore.toString() : '';
               replace('right-full-names', rightFullNames.join(', '), setEl);
               replace('right-score', rightScore, setEl);
             }
@@ -190,7 +204,9 @@
           context = newContext;
         }
       }
-      setInterval(() => { update(); }, 1000);
+      setInterval(() => {
+        update();
+      }, 1000);
     </script>
   </body>
 </html>

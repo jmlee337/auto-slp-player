@@ -561,7 +561,6 @@ export default class OBSConnection {
       inputNameToInputUuid.set(CHAT_INPUT_NAME, inputUuid);
     }
     if (
-      (process.platform === 'darwin' || process.platform === 'win32') &&
       !(
         await this.obsWebSocket.call('GetInputList', {
           inputKind: 'color_source_v3',
@@ -629,10 +628,7 @@ export default class OBSConnection {
         ]),
       );
       const missingSourceNames: string[] = [];
-      if (
-        (process.platform === 'darwin' || process.platform === 'win32') &&
-        !sourceNameToSceneItemId.has(BG_COLOR_INPUT_NAME)
-      ) {
+      if (!sourceNameToSceneItemId.has(BG_COLOR_INPUT_NAME)) {
         missingSourceNames.push(BG_COLOR_INPUT_NAME);
       }
       if (!sourceNameToSceneItemId.has(CHAT_INPUT_NAME)) {
@@ -737,15 +733,13 @@ export default class OBSConnection {
         retries += 1;
       }
 
-      if (process.platform === 'darwin' || process.platform === 'win32') {
-        const bgColorSceneItemId =
-          sourceNameToSceneItemId.get(BG_COLOR_INPUT_NAME)!;
-        await this.obsWebSocket.call('SetSceneItemLocked', {
-          sceneName,
-          sceneItemId: bgColorSceneItemId,
-          sceneItemLocked: true,
-        });
-      }
+      const bgColorSceneItemId =
+        sourceNameToSceneItemId.get(BG_COLOR_INPUT_NAME)!;
+      await this.obsWebSocket.call('SetSceneItemLocked', {
+        sceneName,
+        sceneItemId: bgColorSceneItemId,
+        sceneItemLocked: true,
+      });
 
       const chatSceneItemId = sourceNameToSceneItemId.get(CHAT_INPUT_NAME)!;
       await this.obsWebSocket.call('SetSceneItemLocked', {

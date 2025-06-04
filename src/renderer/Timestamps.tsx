@@ -1,6 +1,5 @@
-import { ContentCopy, DeleteForever, Timer } from '@mui/icons-material';
+import { ContentCopy, Timer } from '@mui/icons-material';
 import {
-  Alert,
   Button,
   CircularProgress,
   Dialog,
@@ -19,8 +18,6 @@ export default function Timestamps() {
   const [getting, setGetting] = useState(false);
   const [timestamps, setTimestamps] = useState('');
   const [copied, setCopied] = useState(false);
-  const [clearOpen, setClearOpen] = useState(false);
-  const [clearError, setClearError] = useState('');
 
   return (
     <>
@@ -82,55 +79,6 @@ export default function Timestamps() {
             variant="contained"
           >
             {copied ? 'Copied!' : 'Copy'}
-          </Button>
-          <Tooltip title="Clear timestamps">
-            <IconButton
-              disabled={!timestamps}
-              onClick={() => {
-                setClearError('');
-                setClearOpen(true);
-              }}
-            >
-              <DeleteForever />
-            </IconButton>
-          </Tooltip>
-        </DialogActions>
-      </Dialog>
-      <Dialog
-        open={clearOpen}
-        onClose={() => {
-          setClearOpen(false);
-        }}
-      >
-        <DialogTitle>Clear Timestamps?</DialogTitle>
-        {clearError && (
-          <DialogContent>
-            <Alert title={clearError} severity="error" />
-          </DialogContent>
-        )}
-        <DialogActions>
-          <Button
-            onClick={() => {
-              setClearOpen(false);
-            }}
-            variant="contained"
-          >
-            Cancel
-          </Button>
-          <Button
-            onClick={async () => {
-              try {
-                await window.electron.clearTimestamps();
-                setClearOpen(false);
-                setOpen(false);
-              } catch (e: any) {
-                setClearError(e instanceof Error ? e.message : e);
-              }
-            }}
-            variant="contained"
-            color="error"
-          >
-            Clear
           </Button>
         </DialogActions>
       </Dialog>

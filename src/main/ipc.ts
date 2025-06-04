@@ -479,6 +479,7 @@ export default async function setupIPCs(
     sendQueues();
   });
 
+  let watchDir = '';
   const dolphins: Map<number, Dolphin> = new Map();
   const gameIndices: Map<number, number> = new Map();
   let lastStartggTournamentName = '';
@@ -738,16 +739,22 @@ export default async function setupIPCs(
     }
     await dolphins.get(actualPort)!.play(set.replayPaths);
 
-    if (generateTimestamps) {
+    if (generateTimestamps && watchDir) {
       const writeTimestamps = async () => {
         const timecode = await obsConnection.getTimecode();
-        if (timecode) {
-          const rendererSet = toRendererSet(set);
-          const desc = rendererSet.context
-            ? `${rendererSet.context.namesLeft} vs ${rendererSet.context.namesRight}`
-            : path.basename(rendererSet.originalPath, '.zip');
-          const file = await open(path.join(tempDir, 'timestamps.txt'), 'a');
-          await file.write(`${timecode} ${desc}\n`);
+        const rendererSet = toRendererSet(set);
+        if (timecode && rendererSet.context) {
+          const lineParts = [
+            rendererSet.context.namesLeft.replaceAll(',', ''),
+            rendererSet.context.namesRight.replaceAll(',', ''),
+            rendererSet.context.startgg?.phaseName?.replaceAll(',', '') ?? '',
+            rendererSet.context.startgg?.fullRoundText?.replaceAll(',', '') ??
+              '',
+            timecode,
+            '', // base VOD URL
+          ];
+          const file = await open(path.join(watchDir, 'timestamps.csv'), 'a');
+          await file.write(`${lineParts.join(',')}\n`);
           await file.close();
         }
       };
@@ -917,7 +924,6 @@ export default async function setupIPCs(
     return { queueId, queueName };
   };
 
-  let watchDir = '';
   ipcMain.removeHandler('getWatchDir');
   ipcMain.handle('getWatchDir', () => watchDir);
 
@@ -1109,18 +1115,27 @@ export default async function setupIPCs(
   ipcMain.removeHandler('getTimestamps');
   ipcMain.handle('getTimestamps', async () => {
     try {
-      return await readFile(path.join(tempDir, 'timestamps.txt'), {
+      const csv = await readFile(path.join(watchDir, 'timestamps.csv'), {
         encoding: 'utf8',
       });
+      return csv
+        .split('\n')
+        .map((line) => {
+          const parts = line.split(',');
+          const namesLeft = parts[0];
+          const namesRight = parts[1];
+          const timecode = parts[4];
+          if (namesLeft && namesRight && timecode) {
+            return `${timecode} ${namesLeft} vs ${namesRight}`;
+          }
+          return '';
+        })
+        .filter((line) => line.length > 0)
+        .join('\n');
     } catch {
       return '';
     }
   });
-
-  ipcMain.removeHandler('clearTimestamps');
-  ipcMain.handle('clearTimestamps', () =>
-    rm(path.join(tempDir, 'timestamps.txt'), { force: true }),
-  );
 
   ipcMain.removeHandler('getAddDelay');
   ipcMain.handle('getAddDelay', () => addDelay);

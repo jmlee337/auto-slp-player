@@ -15,7 +15,6 @@ import {
   mkdir,
   open,
   readdir,
-  readFile,
   rm,
   unlink,
   writeFile,
@@ -24,6 +23,7 @@ import path from 'path';
 import { Ports } from '@slippi/slippi-js';
 import { spawn } from 'child_process';
 import { AccessToken } from '@twurple/auth';
+import { parseFile, writeToString } from 'fast-csv';
 import { deleteZipDir, scan, unzip } from './unzip';
 import {
   AvailableSet,
@@ -744,17 +744,27 @@ export default async function setupIPCs(
         const timecode = await obsConnection.getTimecode();
         const rendererSet = toRendererSet(set);
         if (timecode && rendererSet.context) {
+          const entrant1Names = rendererSet.context.players
+            ? rendererSet.context.players.entrant1
+                .map((player) => player.name)
+                .join(' + ')
+            : rendererSet.context.namesLeft;
+          const entrant2Names = rendererSet.context.players
+            ? rendererSet.context.players.entrant2
+                .map((player) => player.name)
+                .join(' + ')
+            : rendererSet.context.namesRight;
           const lineParts = [
-            rendererSet.context.namesLeft.replaceAll(',', ''),
-            rendererSet.context.namesRight.replaceAll(',', ''),
-            rendererSet.context.startgg?.phaseName?.replaceAll(',', '') ?? '',
-            rendererSet.context.startgg?.fullRoundText?.replaceAll(',', '') ??
-              '',
+            entrant1Names,
+            entrant2Names,
+            rendererSet.context.startgg?.phaseName ?? '',
+            rendererSet.context.startgg?.fullRoundText ?? '',
             timecode,
             '', // base VOD URL
           ];
           const file = await open(path.join(watchDir, 'timestamps.csv'), 'a');
-          await file.write(`${lineParts.join(',')}\n`);
+          const csvLine = await writeToString([lineParts]);
+          await file.write(`${csvLine}\n`);
           await file.close();
         }
       };
@@ -1110,17 +1120,25 @@ export default async function setupIPCs(
 
   ipcMain.removeHandler('getTimestamps');
   ipcMain.handle('getTimestamps', async () => {
+    if (!watchDir) {
+      return '';
+    }
+
     try {
-      const csv = await readFile(path.join(watchDir, 'timestamps.csv'), {
-        encoding: 'utf8',
+      const rows = await new Promise<string[]>((resolve, reject) => {
+        const rowsInner: string[] = [];
+        parseFile(path.join(watchDir, 'timestamps.csv'))
+          .on('data', (row) => {
+            rowsInner.push(row);
+          })
+          .on('end', () => resolve(rowsInner))
+          .on('error', (err) => reject(err));
       });
-      return csv
-        .split('\n')
-        .map((line) => {
-          const parts = line.split(',');
-          const namesLeft = parts[0];
-          const namesRight = parts[1];
-          const timecode = parts[4];
+      return rows
+        .map((row) => {
+          const namesLeft = row[0];
+          const namesRight = row[1];
+          const timecode = row[4];
           if (namesLeft && namesRight && timecode) {
             return `${timecode} ${namesLeft} vs ${namesRight}`;
           }

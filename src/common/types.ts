@@ -6,8 +6,20 @@ export type ContextSlot = {
   score?: number;
 };
 
+// in game 1 port order
 export type ContextScore = {
   slots?: [ContextSlot, ContextSlot];
+};
+
+export type ContextPlayer = {
+  name?: string;
+  characters?: string[];
+};
+
+// in bracket schema order
+export type ContextPlayers = {
+  entrant1?: ContextPlayer[];
+  entrant2?: ContextPlayer[];
 };
 
 export type Stream = {
@@ -20,6 +32,7 @@ export type Context = {
   durationMs?: number;
   scores?: ContextScore[];
   finalScore?: ContextScore;
+  players?: ContextPlayers;
   startgg?: {
     tournament?: {
       name?: string;
@@ -75,9 +88,21 @@ export type MainContextSlot = {
   score: number;
 };
 
+// in game 1 port order
 export type MainContextScore = {
   // slots.length === 2
   slots: MainContextSlot[];
+};
+
+export type MainContextPlayer = {
+  name: string;
+  characters: string[];
+};
+
+// in bracket schema order
+export type MainContextPlayers = {
+  entrant1: MainContextPlayer[];
+  entrant2: MainContextPlayer[];
 };
 
 export type MainContextStartgg = {
@@ -137,6 +162,7 @@ export type MainContext = {
   durationMs: number;
   scores: MainContextScore[];
   finalScore?: MainContextScore;
+  players?: MainContextPlayers;
   startgg?: MainContextStartgg;
   challonge?: MainContextChallonge;
   startMs: number;
@@ -163,6 +189,7 @@ export type RendererContext = {
   duration: string;
   namesLeft: string;
   namesRight: string;
+  players?: MainContextPlayers;
   startgg?: {
     eventName: string;
     phaseName: string;

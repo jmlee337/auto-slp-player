@@ -2,7 +2,10 @@ import { format } from 'date-fns';
 import {
   AvailableSet,
   Context,
+  ContextPlayer,
   MainContext,
+  MainContextPlayer,
+  MainContextPlayers,
   MainContextScore,
   MainContextSlot,
   RendererSet,
@@ -71,11 +74,42 @@ export function toMainContext(context: Context): MainContext | undefined {
     }
   }
 
+  let mainPlayers: undefined | MainContextPlayers;
+  if (
+    Array.isArray(context.players?.entrant1) &&
+    context.players.entrant1.length > 0 &&
+    Array.isArray(context.players?.entrant2) &&
+    context.players.entrant2.length > 0
+  ) {
+    const playerEveryPred = (player: ContextPlayer) =>
+      typeof player.name === 'string' &&
+      player.name.length > 0 &&
+      Array.isArray(player.characters) &&
+      player.characters.length > 0 &&
+      player.characters.every(
+        (character) => typeof character === 'string' && character.length > 0,
+      );
+    if (
+      context.players.entrant1.every(playerEveryPred) &&
+      context.players.entrant2.every(playerEveryPred)
+    ) {
+      const playerMapPred = (player: ContextPlayer): MainContextPlayer => ({
+        name: player.name!,
+        characters: player.characters!,
+      });
+      mainPlayers = {
+        entrant1: context.players.entrant1.map(playerMapPred),
+        entrant2: context.players.entrant2.map(playerMapPred),
+      };
+    }
+  }
+
   const mainContext: MainContext = {
     bestOf: bestOf!,
     durationMs: durationMs!,
     scores: mainScores,
     finalScore: mainFinalScore,
+    players: mainPlayers,
     startMs: startMs!,
   };
 
@@ -192,6 +226,7 @@ export function toRendererSet(set: AvailableSet): RendererSet {
   if (set.context) {
     rendererSet.context = {
       bestOf: set.context.bestOf,
+      players: set.context.players,
       namesLeft: set.context.scores[0].slots[0].displayNames.join(' + '),
       namesRight: set.context.scores[0].slots[1].displayNames.join(' + '),
       duration: format(new Date(set.context.durationMs), 'm:ss'),

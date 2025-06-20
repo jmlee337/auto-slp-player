@@ -192,8 +192,8 @@ export function toRendererSet(set: AvailableSet): RendererSet {
   if (set.context) {
     rendererSet.context = {
       bestOf: set.context.bestOf,
-      namesLeft: set.context.scores[0].slots[0].displayNames.join(' & '),
-      namesRight: set.context.scores[0].slots[1].displayNames.join(' & '),
+      namesLeft: set.context.scores[0].slots[0].displayNames.join(' + '),
+      namesRight: set.context.scores[0].slots[1].displayNames.join(' + '),
       duration: format(new Date(set.context.durationMs), 'm:ss'),
     };
     if (set.context.startgg) {

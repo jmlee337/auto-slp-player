@@ -127,7 +127,75 @@ export default class Queue {
     });
   }
 
-  public getCalculatedNextSet() {
+  public setQualifiesToPlayNext(set: AvailableSet) {
+    const playableAndPlayingSets = this.sets.filter(
+      (queueSet) => queueSet.playing || queueSet.playedMs === 0,
+    );
+    const setI = playableAndPlayingSets.indexOf(set);
+    if (setI === -1) {
+      return false;
+    }
+
+    if (this.sets.length === 1) {
+      return true;
+    }
+    if (playableAndPlayingSets[0] === set && !this.isPlaying()) {
+      return true;
+    }
+
+    const preceedingI =
+      setI === 0 ? playableAndPlayingSets.length - 1 : setI - 1;
+    return playableAndPlayingSets[preceedingI].playing;
+  }
+
+  public maybePlayNext(set: AvailableSet) {
+    if (set.playing || set.playedMs !== 0) {
+      return;
+    }
+    const playableAndPlayingSets = this.sets.filter(
+      (queueSet) => queueSet.playing || queueSet.playedMs === 0,
+    );
+    const setI = playableAndPlayingSets.indexOf(set);
+    if (setI === -1) {
+      return;
+    }
+
+    if (!this.nextSet) {
+      this.nextSet = set;
+      this.nextSetIsManual = false;
+      return;
+    }
+
+    if (this.nextSetIsManual) {
+      return;
+    }
+
+    if (setI === 0) {
+      if (
+        playableAndPlayingSets[playableAndPlayingSets.length - 1].playing &&
+        playableAndPlayingSets[setI + 1] === this.nextSet
+      ) {
+        this.nextSet = set;
+        this.nextSetIsManual = false;
+      }
+    } else if (setI === playableAndPlayingSets.length - 1) {
+      if (
+        playableAndPlayingSets[setI - 1].playing &&
+        playableAndPlayingSets[0] === this.nextSet
+      ) {
+        this.nextSet = set;
+        this.nextSetIsManual = false;
+      }
+    } else if (
+      playableAndPlayingSets[setI - 1].playing &&
+      playableAndPlayingSets[setI + 1] === this.nextSet
+    ) {
+      this.nextSet = set;
+      this.nextSetIsManual = false;
+    }
+  }
+
+  private getCalculatedNextSet(set?: AvailableSet) {
     // if no sets
     if (this.sets.length === 0) {
       return null;
@@ -135,7 +203,9 @@ export default class Queue {
 
     // check playing sets
     let upperBound = this.sets.length;
-    for (let i = this.sets.length - 2; i >= 0; i -= 1) {
+    const earlyI = set ? this.sets.indexOf(set) : -1;
+    const playingI = earlyI >= 0 ? earlyI : this.sets.length - 2;
+    for (let i = playingI; i >= 0; i -= 1) {
       if (this.sets[i].playing) {
         // find next playable set after last playing set
         for (let j = i + 1; j < upperBound; j += 1) {
@@ -158,9 +228,9 @@ export default class Queue {
     return null;
   }
 
-  public setCalculatedNextSet() {
+  public setCalculatedNextSet(set?: AvailableSet) {
     this.nextSetIsManual = false;
-    this.nextSet = this.getCalculatedNextSet();
+    this.nextSet = this.getCalculatedNextSet(set);
   }
 
   public enqueue(set: AvailableSet) {
@@ -181,7 +251,7 @@ export default class Queue {
     set.playedMs = Date.now();
     set.playing = true;
     this.sortSets();
-    this.setCalculatedNextSet();
+    this.setCalculatedNextSet(set);
   }
 
   public find(originalPath: string): AvailableSet {
@@ -214,10 +284,6 @@ export default class Queue {
       sets: this.sets.map(toRendererSet),
       nextSetOriginalPath: this.nextSet?.originalPath ?? '',
     };
-  }
-
-  public hasPlayable(): boolean {
-    return this.sets.some((set) => set.playedMs === 0);
   }
 
   public getSets(): AvailableSet[] {

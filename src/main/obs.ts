@@ -193,13 +193,46 @@ export default class OBSConnection {
     missingSceneNames.reverse();
     for (const sceneName of missingSceneNames) {
       await this.obsWebSocket.call('CreateScene', { sceneName });
+
+      let bgColorSceneItemId = 0;
+      if (
+        (
+          await this.obsWebSocket.call('GetInputList', {
+            inputKind: 'color_source_v3',
+          })
+        ).inputs.find((input) => input.inputName === BG_COLOR_INPUT_NAME)
+      ) {
+        bgColorSceneItemId = (
+          await this.obsWebSocket.call('CreateSceneItem', {
+            sceneName,
+            sourceName: BG_COLOR_INPUT_NAME,
+          })
+        ).sceneItemId;
+      } else {
+        bgColorSceneItemId = (
+          await this.obsWebSocket.call('CreateInput', {
+            sceneName,
+            inputName: BG_COLOR_INPUT_NAME,
+            inputKind: 'color_source_v3',
+            inputSettings: {
+              color: 0xff000000, // ARGB
+            },
+          })
+        ).sceneItemId;
+      }
+      await this.obsWebSocket.call('SetSceneItemLocked', {
+        sceneName,
+        sceneItemId: bgColorSceneItemId,
+        sceneItemLocked: true,
+      });
+
       const overlayName = exepctedSceneNameToOverlayName.get(sceneName)!;
       const { inputs } = await this.obsWebSocket.call('GetInputList', {
         inputKind: 'browser_source',
       });
-      let sceneItemId = 0;
+      let overlaySceneItemId = 0;
       if (inputs.find((input) => input.inputName === overlayName)) {
-        sceneItemId = (
+        overlaySceneItemId = (
           await this.obsWebSocket.call('CreateSceneItem', {
             sceneName,
             sourceName: overlayName,
@@ -230,7 +263,7 @@ export default class OBSConnection {
         } else {
           throw Error;
         }
-        sceneItemId = (
+        overlaySceneItemId = (
           await this.obsWebSocket.call('CreateInput', {
             sceneName,
             inputName: overlayName,
@@ -250,12 +283,12 @@ export default class OBSConnection {
       }
       await this.obsWebSocket.call('SetSceneItemTransform', {
         sceneName,
-        sceneItemId,
+        sceneItemId: overlaySceneItemId,
         sceneItemTransform: { positionX, positionY },
       });
       await this.obsWebSocket.call('SetSceneItemLocked', {
         sceneName,
-        sceneItemId,
+        sceneItemId: overlaySceneItemId,
         sceneItemLocked: true,
       });
     }
@@ -560,23 +593,6 @@ export default class OBSConnection {
       });
       inputNameToInputUuid.set(CHAT_INPUT_NAME, inputUuid);
     }
-    if (
-      !(
-        await this.obsWebSocket.call('GetInputList', {
-          inputKind: 'color_source_v3',
-        })
-      ).inputs.find((input) => input.inputName === BG_COLOR_INPUT_NAME)
-    ) {
-      const { inputUuid } = await this.obsWebSocket.call('CreateInput', {
-        sceneName: 'quad 0',
-        inputName: BG_COLOR_INPUT_NAME,
-        inputKind: 'color_source_v3',
-        inputSettings: {
-          color: 0xff000000, // ARGB
-        },
-      });
-      inputNameToInputUuid.set(BG_COLOR_INPUT_NAME, inputUuid);
-    }
 
     const sceneNameToExpectedSourceNames = new Map([
       ['quad 0', []],
@@ -628,9 +644,6 @@ export default class OBSConnection {
         ]),
       );
       const missingSourceNames: string[] = [];
-      if (!sourceNameToSceneItemId.has(BG_COLOR_INPUT_NAME)) {
-        missingSourceNames.push(BG_COLOR_INPUT_NAME);
-      }
       if (!sourceNameToSceneItemId.has(CHAT_INPUT_NAME)) {
         missingSourceNames.push(CHAT_INPUT_NAME);
       }
@@ -732,14 +745,6 @@ export default class OBSConnection {
         setTransformsSucceeded = await setTransforms(this.obsWebSocket);
         retries += 1;
       }
-
-      const bgColorSceneItemId =
-        sourceNameToSceneItemId.get(BG_COLOR_INPUT_NAME)!;
-      await this.obsWebSocket.call('SetSceneItemLocked', {
-        sceneName,
-        sceneItemId: bgColorSceneItemId,
-        sceneItemLocked: true,
-      });
 
       const chatSceneItemId = sourceNameToSceneItemId.get(CHAT_INPUT_NAME)!;
       await this.obsWebSocket.call('SetSceneItemLocked', {

@@ -57,7 +57,7 @@ export type Context = {
       waveId?: number | null;
     };
     set?: {
-      id?: number;
+      id?: number | string;
       fullRoundText?: string;
       ordinal?: number | null;
       round?: number;
@@ -71,7 +71,6 @@ export type Context = {
       tournamentType?: string;
     };
     set?: {
-      id?: number;
       fullRoundText?: string;
       ordinal?: number | null;
       round?: number;
@@ -135,6 +134,7 @@ export type MainContextStartgg = {
     waveId: number | null;
   };
   set: {
+    id: number | null;
     fullRoundText: string;
     ordinal: number | null;
     round: number;

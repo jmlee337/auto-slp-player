@@ -127,6 +127,11 @@ export function toMainContext(context: Context): MainContext | undefined {
   const startggPhaseGroupHasSiblings =
     context.startgg?.phaseGroup?.hasSiblings ?? true;
   const startggPhaseGroupWaveId = context.startgg?.phaseGroup?.waveId ?? null;
+  const startggSetId =
+    Number.isInteger(context.startgg?.set?.id) &&
+    (context.startgg!.set!.id as number) > 0
+      ? (context.startgg!.set!.id as number)
+      : null;
   const startggFullRoundText = context.startgg?.set?.fullRoundText;
   const startggRound = context.startgg?.set?.round;
   const startggOrdinal = context.startgg?.set?.ordinal ?? null;
@@ -172,6 +177,7 @@ export function toMainContext(context: Context): MainContext | undefined {
         waveId: startggPhaseGroupWaveId,
       },
       set: {
+        id: startggSetId,
         fullRoundText: startggFullRoundText,
         round: startggRound!,
         ordinal: startggOrdinal as number | null,

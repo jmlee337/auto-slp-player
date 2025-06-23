@@ -742,25 +742,29 @@ export default async function setupIPCs(
     if (generateTimestamps && watchDir) {
       const writeTimestamps = async () => {
         const timecode = await obsConnection.getTimecode();
-        const rendererSet = toRendererSet(set);
-        if (timecode && rendererSet.context) {
-          const entrant1Names = rendererSet.context.players
-            ? rendererSet.context.players.entrant1
-                .map((player) => player.name)
+        if (timecode && set.context) {
+          const hasPlayers = Boolean(set.context.players);
+          const rendererSet = !hasPlayers ? toRendererSet(set) : null;
+          const entrant1Names = hasPlayers
+            ? set.context
+                .players!.entrant1.map((player) => player.name)
                 .join(' + ')
-            : rendererSet.context.namesLeft;
-          const entrant2Names = rendererSet.context.players
-            ? rendererSet.context.players.entrant2
-                .map((player) => player.name)
+            : rendererSet!.context!.namesLeft;
+          const entrant2Names = hasPlayers
+            ? set.context
+                .players!.entrant2.map((player) => player.name)
                 .join(' + ')
-            : rendererSet.context.namesRight;
+            : rendererSet!.context!.namesRight;
           const lineParts = [
             entrant1Names,
             entrant2Names,
-            rendererSet.context.startgg?.phaseName ?? '',
-            rendererSet.context.startgg?.fullRoundText ?? '',
+            set.context.startgg?.phase.name ?? '',
+            set.context.startgg?.set.fullRoundText ?? '',
             timecode,
             '', // base VOD URL
+            set.context.startgg?.set.id
+              ? set.context.startgg.set.id.toString(10)
+              : '',
           ];
           const file = await open(path.join(watchDir, 'timestamps.csv'), 'a');
           const csvLine = await writeToString([lineParts]);

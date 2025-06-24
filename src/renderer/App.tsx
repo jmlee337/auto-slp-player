@@ -4,32 +4,19 @@ import './App.css';
 import {
   Alert,
   AppBar,
-  Button,
-  CircularProgress,
   Dialog,
   DialogContent,
   DialogContentText,
   DialogTitle,
   IconButton,
-  InputBase,
   Stack,
   Tab,
   Tabs,
   Tooltip,
   Typography,
 } from '@mui/material';
+import { Add, Remove } from '@mui/icons-material';
 import {
-  Add,
-  Check,
-  PlayCircle,
-  PriorityHigh,
-  Remove,
-  Visibility,
-  WebAsset,
-} from '@mui/icons-material';
-import { IpcRendererEvent } from 'electron';
-import {
-  OBSConnectionStatus,
   ObsGamecaptureResult,
   RendererQueue,
   SplitOption,
@@ -38,6 +25,7 @@ import Settings from './Settings';
 import Queue from './Queue';
 import QueueTabPanel from './QueueTabPanel';
 import Timestamps from './Timestamps';
+import Setup from './Setup';
 
 function Hello() {
   const [appError, setAppError] = useState('');
@@ -66,13 +54,7 @@ function Hello() {
   const [obsAddress, setObsAddress] = useState('');
   const [obsPort, setObsPort] = useState('');
   const [obsPassword, setObsPassword] = useState('');
-  const [numDolphins, setNumDolphins] = useState(0);
-  const [obsConnectionStatus, setObsConnectionStatus] = useState(
-    OBSConnectionStatus.OBS_NOT_CONNECTED,
-  );
-  const [streamingState, setStreamingState] = useState('');
   const [twitchUserName, setTwitchUserName] = useState('');
-  const [watchDir, setWatchDir] = useState('');
   const [canPlay, setCanPlay] = useState(false);
   const [queues, setQueues] = useState<RendererQueue[]>([]);
   const [visibleQueueId, setVisibleQueueId] = useState('');
@@ -91,12 +73,7 @@ function Hello() {
       const dolphinVersionPromise = window.electron.getDolphinVersion();
       const setupObsPromise = window.electron.getSetupObs();
       const obsSettingsPromise = window.electron.getObsSettings();
-      const numDolphinsPromise = window.electron.getNumDolphins();
-      const obsConnectionStatusPromise =
-        window.electron.getObsConnectionStatus();
-      const streamingStatePromise = window.electron.getStreamingState();
       const twitchUserNamePromise = window.electron.getTwitchUserName();
-      const watchDirPromise = window.electron.getWatchDir();
       const canPlayPromise = window.electron.getCanPlay();
       const queuesPromise = window.electron.getQueues();
 
@@ -119,12 +96,8 @@ function Hello() {
       setObsAddress((await obsSettingsPromise).address);
       setObsPort((await obsSettingsPromise).port);
       setObsPassword((await obsSettingsPromise).password);
-      setNumDolphins(await numDolphinsPromise);
-      setObsConnectionStatus(await obsConnectionStatusPromise);
-      setStreamingState(await streamingStatePromise);
       const initialTwitchUserName = await twitchUserNamePromise;
       setTwitchUserName((prev) => prev || initialTwitchUserName);
-      setWatchDir(await watchDirPromise);
       setCanPlay(await canPlayPromise);
 
       const initialQueues = await queuesPromise;
@@ -145,37 +118,7 @@ function Hello() {
     inner();
   }, []);
 
-  const [dolphinsOpening, setDolphinsOpening] = useState(false);
-  const [obsError, setObsError] = useState('');
-  const [obsErrorDialogOpen, setObsErrorDialogOpen] = useState(false);
   useEffect(() => {
-    window.electron.onDolphins(
-      (event: IpcRendererEvent, newNumDolphins: number) => {
-        setNumDolphins(newNumDolphins);
-      },
-    );
-    window.electron.onObsConnectionStatus(
-      (
-        event: IpcRendererEvent,
-        newStatus: OBSConnectionStatus,
-        message?: string,
-      ) => {
-        setObsConnectionStatus(newStatus);
-        if (message) {
-          setObsError(message);
-          setObsErrorDialogOpen(true);
-        } else if (newStatus === OBSConnectionStatus.OBS_NOT_CONNECTED) {
-          setObsError('OBS disconnected.');
-          setObsErrorDialogOpen(true);
-        } else {
-          setObsError('');
-          setObsErrorDialogOpen(false);
-        }
-      },
-    );
-    window.electron.onStreaming((event: IpcRendererEvent, state: string) => {
-      setStreamingState(state);
-    });
     window.electron.onQueues((event, newQueues, newCanPlay) => {
       setVisibleQueueId((oldVisibleQueueId) => {
         if (newQueues.length === 0) {
@@ -193,23 +136,6 @@ function Hello() {
       setTwitchUserName(newTwitchUserName);
     });
   }, []);
-
-  const [obsConnecting, setObsConnecting] = useState(false);
-  let obsButtonIcon;
-  if (obsConnecting) {
-    obsButtonIcon = <CircularProgress size="24px" />;
-  } else if (obsConnectionStatus === OBSConnectionStatus.OBS_NOT_SETUP) {
-    obsButtonIcon = <PriorityHigh />;
-  } else if (obsConnectionStatus === OBSConnectionStatus.READY) {
-    obsButtonIcon = <Check />;
-  }
-
-  let streamingMsg = 'Start Stream';
-  if (streamingState === 'OBS_WEBSOCKET_OUTPUT_STARTING') {
-    streamingMsg = 'Starting...';
-  } else if (streamingState === 'OBS_WEBSOCKET_OUTPUT_STARTED') {
-    streamingMsg = 'Streaming';
-  }
 
   let watchFolderMsg = 'Set watch folder...';
   if (!dolphinPath && !isoPath) {
@@ -230,24 +156,6 @@ function Hello() {
           width: 'initial',
         }}
       >
-        <Stack direction="row">
-          <InputBase
-            disabled
-            size="small"
-            value={watchDir || watchFolderMsg}
-            style={{ flexGrow: 1 }}
-          />
-          <Tooltip arrow title={watchFolderMsg}>
-            <IconButton
-              disabled={!dolphinPath || !isoPath}
-              onClick={async () => {
-                setWatchDir(await window.electron.chooseWatchDir());
-              }}
-            >
-              <Visibility />
-            </IconButton>
-          </Tooltip>
-        </Stack>
         <Stack direction="row" marginTop="8px" justifyContent="space-between">
           {queues.length > 1 && (
             <Stack
@@ -321,84 +229,13 @@ function Hello() {
               latestAppVersion={latestAppVersion}
               gotSettings={gotSettings}
             />
-            <Button
-              disabled={numDolphins === maxDolphins || dolphinsOpening}
-              endIcon={
-                dolphinsOpening ? (
-                  <CircularProgress size="24px" />
-                ) : (
-                  <WebAsset />
-                )
-              }
-              onClick={async () => {
-                setDolphinsOpening(true);
-                try {
-                  await window.electron.openDolphins();
-                } finally {
-                  setDolphinsOpening(false);
-                }
-              }}
-              variant="contained"
-            >
-              {numDolphins === maxDolphins ? 'Dolphins Open' : 'Open Dolphins'}{' '}
-              {`(${numDolphins}/${maxDolphins})`}
-            </Button>
-            <Button
-              disabled={
-                !dolphinVersion ||
-                (numDolphins < maxDolphins &&
-                  obsConnectionStatus ===
-                    OBSConnectionStatus.OBS_NOT_CONNECTED &&
-                  setupObs) ||
-                obsConnecting ||
-                obsConnectionStatus === OBSConnectionStatus.READY
-              }
-              endIcon={obsButtonIcon}
-              onClick={async () => {
-                if (
-                  obsConnectionStatus ===
-                    OBSConnectionStatus.OBS_NOT_CONNECTED ||
-                  obsConnectionStatus === OBSConnectionStatus.OBS_NOT_SETUP
-                ) {
-                  try {
-                    setObsConnecting(true);
-                    await window.electron.connectObs();
-                  } catch (e: any) {
-                    const message = e instanceof Error ? e.message : e;
-                    setObsError(message);
-                    setObsErrorDialogOpen(true);
-                  } finally {
-                    setObsConnecting(false);
-                  }
-                }
-              }}
-              variant="contained"
-            >
-              {obsConnectionStatus === OBSConnectionStatus.OBS_NOT_CONNECTED
-                ? 'Connect to OBS'
-                : 'OBS Connected'}
-            </Button>
-            <Button
-              disabled={
-                streamingState === 'OBS_WEBSOCKET_OUTPUT_STARTING' ||
-                streamingState === 'OBS_WEBSOCKET_OUTPUT_STARTED' ||
-                obsConnectionStatus !== OBSConnectionStatus.READY
-              }
-              endIcon={
-                streamingState === 'OBS_WEBSOCKET_OUTPUT_STARTING' ||
-                streamingState === 'OBS_WEBSOCKET_OUTPUT_STARTED' ? (
-                  <CircularProgress size="24px" />
-                ) : (
-                  <PlayCircle />
-                )
-              }
-              onClick={async () => {
-                await window.electron.startStream();
-              }}
-              variant="contained"
-            >
-              {streamingMsg}
-            </Button>
+            <Setup
+              watchFolderMsg={watchFolderMsg}
+              watchFolderDisabled={!dolphinPath || !isoPath}
+              maxDolphins={maxDolphins}
+              dolphinVersion={dolphinVersion}
+              setupObs={setupObs}
+            />
             <Timestamps />
           </Stack>
         </Stack>
@@ -441,16 +278,6 @@ function Hello() {
             visibleQueueId={visibleQueueId}
           />
         ))}
-      <Dialog
-        open={obsErrorDialogOpen}
-        onClose={() => {
-          setObsErrorDialogOpen(false);
-        }}
-      >
-        <DialogContent>
-          <Alert severity="error">{obsError}</Alert>
-        </DialogContent>
-      </Dialog>
       <Dialog
         open={appErrorDialogOpen}
         onClose={() => {

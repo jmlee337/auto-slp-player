@@ -50,6 +50,8 @@ export class Dolphin extends EventEmitter {
 
   private lastWriteTimeMs: number;
 
+  private mirroring: boolean;
+
   constructor(
     dolphinPath: string,
     isoPath: string,
@@ -72,10 +74,15 @@ export class Dolphin extends EventEmitter {
     this.waitingForStart = false;
     this.timeout = null;
     this.lastWriteTimeMs = 0;
+    this.mirroring = false;
 
     this.commPath = path.join(tempDir, `${port}.json`);
     this.dolphinConnection = new DolphinConnection();
     this.dolphinConnection.on(ConnectionEvent.MESSAGE, (messageEvent) => {
+      if (this.mirroring) {
+        return;
+      }
+
       switch (messageEvent.type) {
         case DolphinMessageType.END_GAME:
           if (this.ignoreEndGame) {
@@ -152,7 +159,7 @@ export class Dolphin extends EventEmitter {
     }, 5000);
   }
 
-  private async writeComm(replayPaths: string[]) {
+  private async writeCommQueue(replayPaths: string[]) {
     if (this.timeout) {
       clearTimeout(this.timeout);
     }
@@ -171,6 +178,7 @@ export class Dolphin extends EventEmitter {
 
     await this.write(comm);
     this.gameIndex = 0;
+    this.mirroring = false;
     this.replayPaths = replayPaths;
 
     // If we interrupt a replay in progress Dolphin will emit an END_GAME event
@@ -189,6 +197,18 @@ export class Dolphin extends EventEmitter {
         );
       }
     }, 5000);
+  }
+
+  private async writeCommMirror(replayPath: string) {
+    const comm = {
+      mode: 'mirror',
+      commandId: this.commNum.toString(),
+      gameStation: `${this.port}`,
+      replay: replayPath,
+    };
+
+    await this.write(comm);
+    this.mirroring = true;
   }
 
   private async connectToDolphin(): Promise<void> {
@@ -299,7 +319,7 @@ export class Dolphin extends EventEmitter {
       throw new Error('dolphin not open');
     }
 
-    return this.writeComm(replayPaths);
+    return this.writeCommQueue(replayPaths);
   }
 
   public async stop() {
@@ -308,6 +328,14 @@ export class Dolphin extends EventEmitter {
     }
 
     return this.writeCommEmpty();
+  }
+
+  public async mirror(replayPath: string) {
+    if (!this.process) {
+      throw new Error('dolphin not open');
+    }
+
+    return this.writeCommMirror(replayPath);
   }
 
   public close() {

@@ -810,7 +810,7 @@ export default class OBSConnection {
     }
   }
 
-  async transition(playingSets: Map<number, AvailableSet>) {
+  async transition(playingSets: Map<number, AvailableSet | null>) {
     if (
       !this.obsWebSocket ||
       this.connectionStatus === OBSConnectionStatus.OBS_NOT_CONNECTED ||

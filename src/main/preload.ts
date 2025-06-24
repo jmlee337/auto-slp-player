@@ -127,6 +127,14 @@ const electronHandler = {
   openOverlayDir: (): Promise<void> => ipcRenderer.invoke('openOverlayDir'),
   openTempDir: (): Promise<void> => ipcRenderer.invoke('openTempDir'),
   clearTempDir: (): Promise<void> => ipcRenderer.invoke('clearTempDir'),
+
+  // mirroring
+  getMirrorDir: (): Promise<string> => ipcRenderer.invoke('getMirrorDir'),
+  chooseMirrorDir: (): Promise<string> => ipcRenderer.invoke('chooseMirrorDir'),
+  getIsMirroring: (): Promise<boolean> => ipcRenderer.invoke('getIsMirroring'),
+  startMirroring: (): Promise<boolean> => ipcRenderer.invoke('getIsMirroring'),
+  stopMirroring: (): Promise<boolean> => ipcRenderer.invoke('stopMirroring'),
+
   getVersion: (): Promise<string> => ipcRenderer.invoke('getVersion'),
   getLatestVersion: (): Promise<string> =>
     ipcRenderer.invoke('getLatestVersion'),

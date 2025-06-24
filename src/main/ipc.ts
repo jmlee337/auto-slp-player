@@ -168,11 +168,24 @@ function willNotSpoil(
   return false;
 }
 
+function getDefaultMirrorDir() {
+  let root = app.getPath('home');
+  if (process.platform === 'win32') {
+    try {
+      root = app.getPath('documents');
+    } catch {
+      // just catch
+    }
+  }
+  return path.join(root, 'Slippi', 'Spectate');
+}
+
 export default async function setupIPCs(
   mainWindow: BrowserWindow,
   resourcesPath: string,
 ): Promise<void> {
   const store = new Store<{
+    mirrorDir: string;
     splitByWave: boolean;
     stealth: boolean;
     twitchBotEnabled: boolean;
@@ -449,12 +462,15 @@ export default async function setupIPCs(
   }
 
   const originalPathToPlayedMs = new Map<string, number>();
-  const playingSets: Map<number, AvailableSet> = new Map();
+  const playingSets: Map<number, AvailableSet | null> = new Map();
   const tryingPorts = new Set<number>();
   const willNotSpoilPlayingSets = (prospectiveSet: AvailableSet) => {
-    return Array.from(playingSets.values()).every((playingSet) =>
-      willNotSpoil(playingSet, prospectiveSet, splitOption),
-    );
+    return Array.from(playingSets.values()).every((playingSet) => {
+      if (!playingSet) {
+        return true;
+      }
+      return willNotSpoil(playingSet, prospectiveSet, splitOption);
+    });
   };
 
   const idToQueue = new Map<string, Queue>();
@@ -508,13 +524,13 @@ export default async function setupIPCs(
     let phaseGroupHasSiblings = false;
     const challongeSlugs = new Set<string>();
     const entriesWithContexts = Array.from(playingSets.entries()).filter(
-      ([, playingSet]) => playingSet.context,
+      ([, playingSet]) => playingSet?.context,
     );
     let representativeStartgg: MainContextStartgg | undefined;
     let representativeChallonge: MainContextChallonge | undefined;
     entriesWithContexts.forEach(([, playingSet]) => {
-      const startgg = playingSet.context?.startgg;
-      const challonge = playingSet.context?.challonge;
+      const startgg = playingSet!.context?.startgg;
+      const challonge = playingSet!.context?.challonge;
       if (startgg) {
         eventSlugs.add(startgg.event.slug);
         eventHasSiblings = startgg.event.hasSiblings;
@@ -528,8 +544,8 @@ export default async function setupIPCs(
     });
     if (entriesWithContexts.length > 0) {
       const representativePlayingSet = entriesWithContexts[0][1];
-      representativeStartgg = representativePlayingSet.context?.startgg;
-      representativeChallonge = representativePlayingSet.context?.challonge;
+      representativeStartgg = representativePlayingSet!.context?.startgg;
+      representativeChallonge = representativePlayingSet!.context?.challonge;
       if (representativeStartgg) {
         startggTournamentName = representativeStartgg.tournament.name;
         lastStartggTournamentName = startggTournamentName;
@@ -560,7 +576,7 @@ export default async function setupIPCs(
         lastChallongeTournamentSlug = representativeChallonge.tournament.slug;
       }
       entriesWithContexts.forEach(([port, playingSet]) => {
-        const { context } = playingSet;
+        const { context } = playingSet!;
         const gameIndex = gameIndices.get(port);
         const setIndex = Array.from(dolphins.keys())
           .sort((a, b) => a - b)
@@ -795,8 +811,8 @@ export default async function setupIPCs(
         if (playingSet.type === SetType.ZIP) {
           deleteZipDir(playingSet, tempDir);
         }
-        playingSets.delete(port);
       }
+      playingSets.delete(port);
 
       newDolphin.removeAllListeners();
       gameIndices.delete(port);
@@ -853,7 +869,7 @@ export default async function setupIPCs(
       };
       const setsPlayed = await maybePlaySets(getQueues());
       obsConnection.transition(playingSets);
-      if (!playingSets.get(port)) {
+      if (playingSets.get(port) === undefined) {
         // try to make sure Dolphin releases previous replays
         await newDolphin.stop();
       }
@@ -973,7 +989,7 @@ export default async function setupIPCs(
           twitchUserName,
         );
         const playingEntry = Array.from(playingSets.entries()).find(
-          ([, set]) => set.originalPath === newSet.originalPath,
+          ([, set]) => set && set.originalPath === newSet.originalPath,
         );
         if (playingEntry) {
           newSet.playing = true;
@@ -1061,7 +1077,7 @@ export default async function setupIPCs(
 
       if (setToStop.playing) {
         const entry = Array.from(playingSets.entries()).find(
-          ([, set]) => set === setToStop,
+          ([, set]) => set && set === setToStop,
         )!;
         const [port] = entry;
         await dolphins.get(port)!.stop();
@@ -1327,6 +1343,83 @@ export default async function setupIPCs(
     );
   });
 
+  let mirrorDir = store.get('mirrorDir', getDefaultMirrorDir());
+  let mirrorPort = 0;
+  let mirrorWatcher: FSWatcher | undefined;
+  const startMirrorWatcher = () => {
+    if (!mirrorPort) {
+      throw new Error('mirror port not set');
+    }
+
+    const normalizedDir =
+      process.platform === 'win32'
+        ? mirrorDir.split(path.win32.sep).join(path.posix.sep)
+        : mirrorDir;
+    const glob = `${normalizedDir}/*.slp`;
+    watcher = watch(glob);
+    watcher.on('add', async (newReplayPath) => {
+      const mirrorDolphin = dolphins.get(mirrorPort);
+      if (!mirrorDolphin) {
+        throw new Error(`mirror dolphin not found (port: ${mirrorPort})`);
+      }
+      mirrorDolphin.mirror(newReplayPath);
+    });
+  };
+  ipcMain.removeHandler('getMirrorDir');
+  ipcMain.handle('getMirrorDir', () => mirrorDir);
+  ipcMain.removeHandler('chooseMirrorDir');
+  ipcMain.handle('chooseMirrorDir', async () => {
+    const openDialogRes = await dialog.showOpenDialog({
+      properties: ['openDirectory', 'showHiddenFiles'],
+    });
+    if (openDialogRes.canceled) {
+      return mirrorDir;
+    }
+    const [newMirrorDir] = openDialogRes.filePaths;
+    if (newMirrorDir === mirrorDir) {
+      return mirrorDir;
+    }
+    mirrorDir = newMirrorDir;
+    store.set('mirrorDir', mirrorDir);
+
+    if (mirrorWatcher) {
+      await mirrorWatcher.close();
+      startMirrorWatcher();
+    }
+
+    return mirrorDir;
+  });
+  ipcMain.removeHandler('getIsMirroring');
+  ipcMain.handle('getIsMirroring', () => mirrorPort > 0);
+  ipcMain.removeHandler('startMirroring');
+  ipcMain.handle('startMirroring', (): boolean => {
+    if (mirrorPort) {
+      return true;
+    }
+
+    const eligiblePorts = new Set(dolphins.keys());
+    Array.from(playingSets.keys()).forEach((playingPort) => {
+      eligiblePorts.delete(playingPort);
+    });
+    if (eligiblePorts.size === 0) {
+      return false;
+    }
+
+    [mirrorPort] = Array.from(eligiblePorts.keys()).sort((a, b) => a - b);
+    playingSets.set(mirrorPort, null);
+    startMirrorWatcher();
+    obsConnection.transition(playingSets);
+    return true;
+  });
+  ipcMain.removeHandler('stopMirroring');
+  ipcMain.handle('stopMirroring', async () => {
+    await mirrorWatcher?.close();
+    dolphins.get(mirrorPort)?.stop();
+    playingSets.delete(mirrorPort);
+    mirrorPort = 0;
+    obsConnection.transition(playingSets);
+  });
+
   ipcMain.removeHandler('getVersion');
   ipcMain.handle('getVersion', () => app.getVersion());
 
@@ -1368,7 +1461,9 @@ export default async function setupIPCs(
       event.preventDefault();
       for (const [port, playingSet] of playingSets) {
         try {
-          await deleteZipDir(playingSet, tempDir);
+          if (playingSet) {
+            await deleteZipDir(playingSet, tempDir);
+          }
         } catch {
           // just catch
         } finally {

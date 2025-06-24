@@ -26,6 +26,8 @@ import { AccessToken } from '@twurple/auth';
 import { parseFile, writeToString } from 'fast-csv';
 import { deleteZipDir, scan, unzip } from './unzip';
 import {
+  ApiPhaseGroup,
+  ApiSet,
   AvailableSet,
   MainContextChallonge,
   MainContextStartgg,
@@ -41,7 +43,7 @@ import {
   TwitchStatus,
 } from '../common/types';
 import { Dolphin, DolphinEvent } from './dolphin';
-import { toRendererSet } from './set';
+import { toApiPhaseGroup, toRendererSet } from './set';
 import OBSConnection from './obs';
 import Queue from './queue';
 import Twitch from './twitch';
@@ -498,6 +500,8 @@ export default async function setupIPCs(
   let watchDir = '';
   const dolphins: Map<number, Dolphin> = new Map();
   const gameIndices: Map<number, number> = new Map();
+  let mirrorPort = 0;
+  let mirrorSet: ApiSet | null = null;
   let lastStartggTournamentName = '';
   let lastStartggTournamentLocation = '';
   let lastStartggEventName = '';
@@ -517,11 +521,11 @@ export default async function setupIPCs(
     const sets: OverlaySet[] = [];
 
     const eventSlugs = new Set<string>();
-    let eventHasSiblings = false;
+    let anyEventHasSiblings = false;
     const phaseIds = new Set<number>();
-    let phaseHasSiblings = false;
+    let anyPhaseHasSiblings = false;
     const phaseGroupIds = new Set<number>();
-    let phaseGroupHasSiblings = false;
+    let anyPhaseGroupHasSiblings = false;
     const challongeSlugs = new Set<string>();
     const entriesWithContexts = Array.from(playingSets.entries()).filter(
       ([, playingSet]) => playingSet?.context,
@@ -533,37 +537,48 @@ export default async function setupIPCs(
       const challonge = playingSet!.context?.challonge;
       if (startgg) {
         eventSlugs.add(startgg.event.slug);
-        eventHasSiblings = startgg.event.hasSiblings;
+        anyEventHasSiblings ||= startgg.event.hasSiblings;
         phaseIds.add(startgg.phase.id);
-        phaseHasSiblings = startgg.phase.hasSiblings;
+        anyPhaseHasSiblings ||= startgg.phase.hasSiblings;
         phaseGroupIds.add(startgg.phaseGroup.id);
-        phaseGroupHasSiblings = startgg.phaseGroup.hasSiblings;
+        anyPhaseGroupHasSiblings ||= startgg.phaseGroup.hasSiblings;
       } else if (challonge) {
         challongeSlugs.add(challonge.tournament.slug);
       }
     });
+    if (mirrorSet) {
+      eventSlugs.add(mirrorSet.eventSlug);
+      anyEventHasSiblings ||= mirrorSet.eventHasSiblings;
+      phaseIds.add(mirrorSet.phaseId);
+      anyPhaseHasSiblings ||= mirrorSet.phaseHasSiblings;
+      phaseGroupIds.add(mirrorSet.phaseGroupId);
+      anyPhaseGroupHasSiblings ||= mirrorSet.phaseGroupHasSiblings;
+    }
     if (entriesWithContexts.length > 0) {
-      const representativePlayingSet = entriesWithContexts[0][1];
-      representativeStartgg = representativePlayingSet!.context?.startgg;
-      representativeChallonge = representativePlayingSet!.context?.challonge;
+      representativeStartgg = entriesWithContexts.filter(
+        ([, set]) => set?.context?.startgg,
+      )[0][1]!.context!.startgg!;
+      representativeChallonge = entriesWithContexts.filter(
+        ([, set]) => set?.context?.challonge,
+      )[0][1]!.context!.challonge!;
       if (representativeStartgg) {
         startggTournamentName = representativeStartgg.tournament.name;
         lastStartggTournamentName = startggTournamentName;
         startggTournamentLocation = representativeStartgg.tournament.location;
         lastStartggTournamentLocation = startggTournamentLocation;
         startggEventName =
-          eventSlugs.size === 1 && eventHasSiblings
+          eventSlugs.size === 1 && anyEventHasSiblings
             ? representativeStartgg.event.name
             : '';
         lastStartggEventName = startggEventName;
         lastStartggEventSlug = representativeStartgg.event.slug;
         startggPhaseName =
-          phaseIds.size === 1 && phaseHasSiblings
+          phaseIds.size === 1 && anyPhaseHasSiblings
             ? representativeStartgg.phase.name
             : '';
         lastStartggPhaseName = startggPhaseName;
         startggPhaseGroupName =
-          phaseGroupIds.size === 1 && phaseGroupHasSiblings
+          phaseGroupIds.size === 1 && anyPhaseGroupHasSiblings
             ? `Pool ${representativeStartgg.phaseGroup.name}`
             : '';
         lastStartggPhaseGroupName = startggPhaseGroupName;
@@ -576,56 +591,96 @@ export default async function setupIPCs(
         lastChallongeTournamentSlug = representativeChallonge.tournament.slug;
       }
       entriesWithContexts.forEach(([port, playingSet]) => {
-        const { context } = playingSet!;
+        const context = playingSet!.context!;
         const gameIndex = gameIndices.get(port);
+        if (!gameIndex) {
+          throw new Error(`no gameIndex for port ${port}`);
+        }
         const setIndex = Array.from(dolphins.keys())
           .sort((a, b) => a - b)
           .indexOf(port);
-        if (context && gameIndex !== undefined && setIndex >= 0) {
-          let roundName = '';
-          if (context.startgg) {
-            roundName =
-              context.startgg.phaseGroup.bracketType === 3
-                ? 'Round Robin'
-                : context.startgg.set.fullRoundText;
-            if (
-              phaseGroupIds.size > 1 &&
-              context.startgg.phaseGroup.hasSiblings
-            ) {
-              roundName = `Pool ${context.startgg.phaseGroup.name}, ${roundName}`;
-            }
-            if (phaseIds.size > 1 && context.startgg.phase.hasSiblings) {
-              roundName = `${context.startgg.phase.name}, ${roundName}`;
-            }
-            if (eventSlugs.size > 1 && context.startgg.event.hasSiblings) {
-              roundName = `${context.startgg.event.name}, ${roundName}`;
-            }
-          } else if (context.challonge) {
-            roundName =
-              context.challonge.tournament.tournamentType === 'round robin'
-                ? 'Round Robin'
-                : context.challonge.set.fullRoundText;
-            if (challongeSlugs.size > 1) {
-              roundName = `${context.challonge.tournament.name}, ${roundName}`;
-            }
-          }
-          const { slots } =
-            gameIndex >= 0 ? context.scores[gameIndex] : context.finalScore!;
-          sets[setIndex] = {
-            roundName,
-            bestOf: context.bestOf,
-            isFinal: gameIndex < 0,
-            leftPrefixes: slots[0].prefixes,
-            leftNames: slots[0].displayNames,
-            leftPronouns: slots[0].pronouns,
-            leftScore: slots[0].score,
-            rightPrefixes: slots[1].prefixes,
-            rightNames: slots[1].displayNames,
-            rightPronouns: slots[1].pronouns,
-            rightScore: slots[1].score,
-          };
+        if (setIndex === -1) {
+          throw new Error(`no dolphin for port ${port}`);
         }
+
+        let roundName = '';
+        if (context.startgg) {
+          roundName =
+            context.startgg.phaseGroup.bracketType === 3
+              ? 'Round Robin'
+              : context.startgg.set.fullRoundText;
+          if (
+            phaseGroupIds.size > 1 &&
+            context.startgg.phaseGroup.hasSiblings
+          ) {
+            roundName = `Pool ${context.startgg.phaseGroup.name}, ${roundName}`;
+          }
+          if (phaseIds.size > 1 && context.startgg.phase.hasSiblings) {
+            roundName = `${context.startgg.phase.name}, ${roundName}`;
+          }
+          if (eventSlugs.size > 1 && context.startgg.event.hasSiblings) {
+            roundName = `${context.startgg.event.name}, ${roundName}`;
+          }
+        } else if (context.challonge) {
+          roundName =
+            context.challonge.tournament.tournamentType === 'round robin'
+              ? 'Round Robin'
+              : context.challonge.set.fullRoundText;
+          if (challongeSlugs.size > 1) {
+            roundName = `${context.challonge.tournament.name}, ${roundName}`;
+          }
+        }
+        const { slots } =
+          gameIndex >= 0 ? context.scores[gameIndex] : context.finalScore!;
+        sets[setIndex] = {
+          roundName,
+          bestOf: context.bestOf,
+          isFinal: gameIndex < 0,
+          leftPrefixes: slots[0].prefixes,
+          leftNames: slots[0].displayNames,
+          leftPronouns: slots[0].pronouns,
+          leftScore: slots[0].score,
+          rightPrefixes: slots[1].prefixes,
+          rightNames: slots[1].displayNames,
+          rightPronouns: slots[1].pronouns,
+          rightScore: slots[1].score,
+        };
       });
+      if (mirrorPort && mirrorSet) {
+        const setIndex = Array.from(dolphins.keys())
+          .sort((a, b) => a - b)
+          .indexOf(mirrorPort);
+        if (setIndex === -1) {
+          throw new Error(`no dolphin for port ${mirrorPort}`);
+        }
+
+        let roundName =
+          mirrorSet.phaseGroupBracketType === 3
+            ? 'Round Robin'
+            : mirrorSet.fullRoundText;
+        if (phaseGroupIds.size > 1 && mirrorSet.phaseGroupHasSiblings) {
+          roundName = `Pool ${mirrorSet.phaseGroupName}, ${roundName}`;
+        }
+        if (phaseIds.size > 1 && mirrorSet.phaseHasSiblings) {
+          roundName = `${mirrorSet.phaseName}, ${roundName}`;
+        }
+        if (eventSlugs.size > 1 && mirrorSet.eventHasSiblings) {
+          roundName = `${mirrorSet.eventName}, ${roundName}`;
+        }
+        sets[setIndex] = {
+          roundName,
+          bestOf: -1,
+          isFinal: false,
+          leftPrefixes: mirrorSet.entrant1Prefixes,
+          leftNames: mirrorSet.entrant1Names,
+          leftPronouns: [],
+          leftScore: -1,
+          rightPrefixes: mirrorSet.entrant2Prefixes,
+          rightNames: mirrorSet.entrant2Names,
+          rightPronouns: [],
+          rightScore: -1,
+        };
+      }
     }
     let startgg: OverlayStartgg | undefined;
     if (representativeStartgg) {
@@ -720,6 +775,30 @@ export default async function setupIPCs(
     }
     return actualPort;
   };
+  const writeTimestamps = async (
+    entrant1Names: string[],
+    entrant2Names: string[],
+    phaseName: string,
+    fullRoundText: string,
+    setId: string,
+  ) => {
+    const timecode = await obsConnection.getTimecode();
+    if (timecode) {
+      const lineParts = [
+        entrant1Names.join(' + '),
+        entrant2Names.join(' + '),
+        phaseName,
+        fullRoundText,
+        timecode,
+        '', // base VOD URL
+        setId,
+      ];
+      const file = await open(path.join(watchDir, 'timestamps.csv'), 'a');
+      const csvLine = await writeToString([lineParts]);
+      await file.write(`${csvLine}\n`);
+      await file.close();
+    }
+  };
   const playDolphin = async (
     queue: Queue,
     set: AvailableSet,
@@ -755,40 +834,24 @@ export default async function setupIPCs(
     }
     await dolphins.get(actualPort)!.play(set.replayPaths);
 
-    if (generateTimestamps && watchDir) {
-      const writeTimestamps = async () => {
-        const timecode = await obsConnection.getTimecode();
-        if (timecode && set.context) {
-          const hasPlayers = Boolean(set.context.players);
-          const rendererSet = !hasPlayers ? toRendererSet(set) : null;
-          const entrant1Names = hasPlayers
-            ? set.context
-                .players!.entrant1.map((player) => player.name)
-                .join(' + ')
-            : rendererSet!.context!.namesLeft;
-          const entrant2Names = hasPlayers
-            ? set.context
-                .players!.entrant2.map((player) => player.name)
-                .join(' + ')
-            : rendererSet!.context!.namesRight;
-          const lineParts = [
-            entrant1Names,
-            entrant2Names,
-            set.context.startgg?.phase.name ?? '',
-            set.context.startgg?.set.fullRoundText ?? '',
-            timecode,
-            '', // base VOD URL
-            set.context.startgg?.set.id
-              ? set.context.startgg.set.id.toString(10)
-              : '',
-          ];
-          const file = await open(path.join(watchDir, 'timestamps.csv'), 'a');
-          const csvLine = await writeToString([lineParts]);
-          await file.write(`${csvLine}\n`);
-          await file.close();
-        }
-      };
-      writeTimestamps();
+    if (generateTimestamps && watchDir && set.context) {
+      const hasPlayers = Boolean(set.context.players);
+      const rendererSet = !hasPlayers ? toRendererSet(set) : null;
+      const entrant1Names = hasPlayers
+        ? set.context.players!.entrant1.map((player) => player.name)
+        : [rendererSet!.context!.namesLeft];
+      const entrant2Names = hasPlayers
+        ? set.context.players!.entrant2.map((player) => player.name)
+        : [rendererSet!.context!.namesRight];
+      writeTimestamps(
+        entrant1Names,
+        entrant2Names,
+        set.context.startgg?.phase.name ?? '',
+        set.context.startgg?.set.fullRoundText ?? '',
+        set.context.startgg?.set.id
+          ? set.context.startgg.set.id.toString(10)
+          : '',
+      );
     }
     sendQueues();
   };
@@ -957,6 +1020,7 @@ export default async function setupIPCs(
   ipcMain.removeHandler('getWatchDir');
   ipcMain.handle('getWatchDir', () => watchDir);
 
+  const idToApiPhaseGroup = new Map<number, ApiPhaseGroup>();
   let watcher: FSWatcher | undefined;
   ipcMain.removeHandler('chooseWatchDir');
   ipcMain.handle('chooseWatchDir', async (): Promise<string> => {
@@ -988,6 +1052,10 @@ export default async function setupIPCs(
           originalPathToPlayedMs,
           twitchUserName,
         );
+        const apiPhaseGroup = toApiPhaseGroup(newSet);
+        if (apiPhaseGroup) {
+          idToApiPhaseGroup.set(apiPhaseGroup.phaseGroupId, apiPhaseGroup);
+        }
         const playingEntry = Array.from(playingSets.entries()).find(
           ([, set]) => set && set.originalPath === newSet.originalPath,
         );
@@ -1344,7 +1412,6 @@ export default async function setupIPCs(
   });
 
   let mirrorDir = store.get('mirrorDir', getDefaultMirrorDir());
-  let mirrorPort = 0;
   let mirrorWatcher: FSWatcher | undefined;
   const startMirrorWatcher = () => {
     if (!mirrorPort) {
@@ -1420,6 +1487,123 @@ export default async function setupIPCs(
     mirrorPort = 0;
     obsConnection.transition(playingSets);
     sendQueues();
+  });
+
+  ipcMain.removeHandler('getPhaseGroups');
+  ipcMain.handle('getPhaseGroups', () =>
+    Array.from(idToApiPhaseGroup.values()),
+  );
+
+  const idToApiSet = new Map<number, ApiSet>();
+  ipcMain.removeHandler('getPendingSets');
+  ipcMain.handle(
+    'getPendingSets',
+    async (event: IpcMainInvokeEvent, phaseGroupId: number) => {
+      const phaseGroup = idToApiPhaseGroup.get(phaseGroupId);
+      if (!phaseGroup) {
+        throw new Error(`no known phaseGroup for id ${phaseGroupId}`);
+      }
+
+      let response: Response | undefined;
+      try {
+        response = await fetch(
+          `https://api.start.gg/phase_group/${phaseGroupId}?expand[]=sets&expand[]=entrants`,
+        );
+      } catch {
+        throw new Error('***You may not be connected to the internet***');
+      }
+      if (!response.ok) {
+        throw new Error(`${response.status} - ${response.statusText}.`);
+      }
+
+      const json = await response.json();
+      const { entrants } = json.entities;
+      const { sets } = json.entities;
+      if (
+        !Array.isArray(entrants) ||
+        entrants.length === 0 ||
+        !Array.isArray(sets) ||
+        sets.length === 0
+      ) {
+        // return nothing
+      }
+
+      const pendingSets = sets.filter((set: any) => set.state !== 3);
+      if (pendingSets.length === 0) {
+        // return nothing
+      }
+
+      const idToEntrantNames = new Map<number, string[]>();
+      const idToEntrantPrefixes = new Map<number, string[]>();
+      entrants.forEach((entrant: any) => {
+        const { id: entrantId } = entrant;
+        if (!Number.isInteger(entrantId)) {
+          return;
+        }
+
+        const apiParticipants = Array.from(
+          Object.values(entrant.mutations.participants),
+        );
+        const entrantNames = apiParticipants.map(
+          (participant: any) => participant.gamerTag,
+        );
+        if (entrantNames.length > 0) {
+          idToEntrantNames.set(entrantId, entrantNames);
+        }
+        const entrantPrefixes = apiParticipants.map(
+          (participant: any) => participant.prefix ?? '',
+        );
+        if (entrantPrefixes.length > 0) {
+          idToEntrantPrefixes.set(entrantId, entrantPrefixes);
+        }
+      });
+
+      const retSets: ApiSet[] = [];
+      pendingSets.forEach((set: any) => {
+        const entrant1Names = idToEntrantNames.get(set.entrant1Id);
+        const entrant1Prefixes = idToEntrantPrefixes.get(set.entrant1Id);
+        const entrant2Names = idToEntrantNames.get(set.entrant2Id);
+        const entrant2Prefixes = idToEntrantPrefixes.get(set.entrant2Id);
+        if (
+          entrant1Names &&
+          entrant1Prefixes &&
+          entrant2Names &&
+          entrant2Prefixes
+        ) {
+          const retSet: ApiSet = {
+            ...phaseGroup,
+            id: set.id,
+            entrant1Names,
+            entrant1Prefixes,
+            entrant2Names,
+            entrant2Prefixes,
+            fullRoundText: set.fullRoundText,
+          };
+          idToApiSet.set(retSet.id, retSet);
+          retSets.push(retSet);
+        }
+      });
+      return retSets;
+    },
+  );
+  ipcMain.removeHandler('setMirrorSet');
+  ipcMain.handle('setMirrorSet', (event: IpcMainInvokeEvent, setId: number) => {
+    const set = idToApiSet.get(setId);
+    if (!set) {
+      throw new Error(`no known set for id: ${setId}`);
+    }
+
+    mirrorSet = set;
+    if (generateTimestamps && watchDir) {
+      writeTimestamps(
+        set.entrant1Names,
+        set.entrant2Names,
+        set.phaseName,
+        set.fullRoundText,
+        set.id.toString(10),
+      );
+    }
+    updateOverlayAndTwitchBot();
   });
 
   ipcMain.removeHandler('getVersion');

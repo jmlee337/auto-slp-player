@@ -294,3 +294,33 @@ export enum ObsGamecaptureResult {
   PASS,
   FAIL,
 }
+
+export type ApiPhaseGroup = {
+  tournamentName: string;
+  eventSlug: string;
+  eventName: string;
+  eventHasSiblings: boolean;
+  phaseId: number;
+  phaseName: string;
+  phaseHasSiblings: boolean;
+  phaseGroupId: number;
+  phaseGroupName: string;
+  phaseGroupHasSiblings: boolean;
+  /**
+   * 1: SINGLE_ELIMINATION
+   * 2: DOUBLE_ELIMINATION
+   * 3: ROUND_ROBIN
+   * 4: SWISS
+   * https://developer.start.gg/reference/brackettype.doc
+   */
+  phaseGroupBracketType: number;
+};
+
+export type ApiSet = ApiPhaseGroup & {
+  id: number;
+  entrant1Names: string[];
+  entrant1Prefixes: string[];
+  entrant2Names: string[];
+  entrant2Prefixes: string[];
+  fullRoundText: string;
+};

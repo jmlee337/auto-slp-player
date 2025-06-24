@@ -1,5 +1,6 @@
 import { format } from 'date-fns';
 import {
+  ApiPhaseGroup,
   AvailableSet,
   Context,
   ContextPlayer,
@@ -255,4 +256,24 @@ export function toRendererSet(set: AvailableSet): RendererSet {
     }
   }
   return rendererSet;
+}
+
+export function toApiPhaseGroup(set: AvailableSet): ApiPhaseGroup | null {
+  if (set.context?.startgg) {
+    return {
+      tournamentName: set.context.startgg.tournament.name,
+      eventSlug: set.context.startgg.event.slug,
+      eventName: set.context.startgg.event.name,
+      eventHasSiblings: set.context.startgg.event.hasSiblings,
+      phaseId: set.context.startgg.phase.id,
+      phaseName: set.context.startgg.phase.name,
+      phaseHasSiblings: set.context.startgg.phase.hasSiblings,
+      phaseGroupId: set.context.startgg.phaseGroup.id,
+      phaseGroupName: set.context.startgg.phaseGroup.name,
+      phaseGroupHasSiblings: set.context.startgg.phaseGroup.hasSiblings,
+      phaseGroupBracketType: set.context.startgg.phaseGroup.bracketType,
+    };
+  }
+
+  return null;
 }

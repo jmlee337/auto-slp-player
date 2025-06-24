@@ -26,6 +26,7 @@ import Queue from './Queue';
 import QueueTabPanel from './QueueTabPanel';
 import Timestamps from './Timestamps';
 import Setup from './Setup';
+import Mirror from './Mirror';
 
 function Hello() {
   const [appError, setAppError] = useState('');
@@ -236,6 +237,7 @@ function Hello() {
               dolphinVersion={dolphinVersion}
               setupObs={setupObs}
             />
+            <Mirror canPlay={canPlay} />
             <Timestamps />
           </Stack>
         </Stack>

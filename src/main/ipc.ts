@@ -1409,6 +1409,7 @@ export default async function setupIPCs(
     playingSets.set(mirrorPort, null);
     startMirrorWatcher();
     obsConnection.transition(playingSets);
+    sendQueues();
     return true;
   });
   ipcMain.removeHandler('stopMirroring');
@@ -1418,6 +1419,7 @@ export default async function setupIPCs(
     playingSets.delete(mirrorPort);
     mirrorPort = 0;
     obsConnection.transition(playingSets);
+    sendQueues();
   });
 
   ipcMain.removeHandler('getVersion');

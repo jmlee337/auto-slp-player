@@ -106,26 +106,22 @@ export default function Setup({
     streamingMsg = 'Streaming';
   }
 
-  let endIcon;
-  if (
+  const isSetup =
     watchDir &&
     numDolphins === maxDolphins &&
     obsConnectionStatus === OBSConnectionStatus.READY &&
-    streamingState === 'OBS_WEBSOCKET_OUTPUT_STARTED'
-  ) {
-    endIcon = <Check />;
-  }
+    streamingState === 'OBS_WEBSOCKET_OUTPUT_STARTED';
 
   return (
     <>
       <Button
-        endIcon={endIcon}
+        endIcon={isSetup ? <Check /> : undefined}
         onClick={() => {
           setOpen(true);
         }}
         variant="contained"
       >
-        {endIcon ? 'Setup' : 'Setup...'}
+        {isSetup ? 'Setup' : 'Setup...'}
       </Button>
       <Dialog
         open={open}

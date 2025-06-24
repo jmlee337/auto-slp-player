@@ -132,7 +132,7 @@ const electronHandler = {
   getMirrorDir: (): Promise<string> => ipcRenderer.invoke('getMirrorDir'),
   chooseMirrorDir: (): Promise<string> => ipcRenderer.invoke('chooseMirrorDir'),
   getIsMirroring: (): Promise<boolean> => ipcRenderer.invoke('getIsMirroring'),
-  startMirroring: (): Promise<boolean> => ipcRenderer.invoke('getIsMirroring'),
+  startMirroring: (): Promise<boolean> => ipcRenderer.invoke('startMirroring'),
   stopMirroring: (): Promise<boolean> => ipcRenderer.invoke('stopMirroring'),
 
   getVersion: (): Promise<string> => ipcRenderer.invoke('getVersion'),

@@ -555,12 +555,21 @@ export default async function setupIPCs(
       anyPhaseGroupHasSiblings ||= mirrorSet.phaseGroupHasSiblings;
     }
     if (entriesWithContexts.length > 0) {
-      representativeStartgg = entriesWithContexts.filter(
+      const entriesWithStartggContexts = entriesWithContexts.filter(
         ([, set]) => set?.context?.startgg,
-      )[0][1]!.context!.startgg!;
-      representativeChallonge = entriesWithContexts.filter(
+      );
+      if (entriesWithStartggContexts.length > 0) {
+        representativeStartgg =
+          entriesWithStartggContexts[0][1]!.context!.startgg!;
+      }
+      const entriesWithChallongeContexts = entriesWithContexts.filter(
         ([, set]) => set?.context?.challonge,
-      )[0][1]!.context!.challonge!;
+      );
+      if (entriesWithChallongeContexts.length > 0) {
+        representativeChallonge =
+          entriesWithChallongeContexts[0][1]!.context!.challonge!;
+      }
+
       if (representativeStartgg) {
         startggTournamentName = representativeStartgg.tournament.name;
         lastStartggTournamentName = startggTournamentName;
@@ -593,7 +602,7 @@ export default async function setupIPCs(
       entriesWithContexts.forEach(([port, playingSet]) => {
         const context = playingSet!.context!;
         const gameIndex = gameIndices.get(port);
-        if (!gameIndex) {
+        if (gameIndex === undefined) {
           throw new Error(`no gameIndex for port ${port}`);
         }
         const setIndex = Array.from(dolphins.keys())
@@ -646,41 +655,62 @@ export default async function setupIPCs(
           rightScore: slots[1].score,
         };
       });
-      if (mirrorPort && mirrorSet) {
-        const setIndex = Array.from(dolphins.keys())
-          .sort((a, b) => a - b)
-          .indexOf(mirrorPort);
-        if (setIndex === -1) {
-          throw new Error(`no dolphin for port ${mirrorPort}`);
-        }
-
-        let roundName =
-          mirrorSet.phaseGroupBracketType === 3
-            ? 'Round Robin'
-            : mirrorSet.fullRoundText;
-        if (phaseGroupIds.size > 1 && mirrorSet.phaseGroupHasSiblings) {
-          roundName = `Pool ${mirrorSet.phaseGroupName}, ${roundName}`;
-        }
-        if (phaseIds.size > 1 && mirrorSet.phaseHasSiblings) {
-          roundName = `${mirrorSet.phaseName}, ${roundName}`;
-        }
-        if (eventSlugs.size > 1 && mirrorSet.eventHasSiblings) {
-          roundName = `${mirrorSet.eventName}, ${roundName}`;
-        }
-        sets[setIndex] = {
-          roundName,
-          bestOf: -1,
-          isFinal: false,
-          leftPrefixes: mirrorSet.entrant1Prefixes,
-          leftNames: mirrorSet.entrant1Names,
-          leftPronouns: [],
-          leftScore: -1,
-          rightPrefixes: mirrorSet.entrant2Prefixes,
-          rightNames: mirrorSet.entrant2Names,
-          rightPronouns: [],
-          rightScore: -1,
-        };
+    }
+    if (mirrorPort && mirrorSet) {
+      if (!representativeStartgg) {
+        startggTournamentName = mirrorSet.tournamentName;
+        lastStartggTournamentName = startggTournamentName;
+        startggTournamentLocation = mirrorSet.tournamentLocation;
+        lastStartggTournamentLocation = startggTournamentLocation;
+        startggEventName =
+          eventSlugs.size === 1 && anyEventHasSiblings
+            ? mirrorSet.eventName
+            : '';
+        lastStartggEventName = startggEventName;
+        lastStartggEventSlug = mirrorSet.eventSlug;
+        startggPhaseName =
+          phaseIds.size === 1 && anyPhaseHasSiblings ? mirrorSet.phaseName : '';
+        lastStartggPhaseName = startggPhaseName;
+        startggPhaseGroupName =
+          phaseGroupIds.size === 1 && anyPhaseGroupHasSiblings
+            ? `Pool ${mirrorSet.phaseGroupName}`
+            : '';
+        lastStartggPhaseGroupName = startggPhaseGroupName;
       }
+
+      const setIndex = Array.from(dolphins.keys())
+        .sort((a, b) => a - b)
+        .indexOf(mirrorPort);
+      if (setIndex === -1) {
+        throw new Error(`no dolphin for port ${mirrorPort}`);
+      }
+
+      let roundName =
+        mirrorSet.phaseGroupBracketType === 3
+          ? 'Round Robin'
+          : mirrorSet.fullRoundText;
+      if (phaseGroupIds.size > 1 && mirrorSet.phaseGroupHasSiblings) {
+        roundName = `Pool ${mirrorSet.phaseGroupName}, ${roundName}`;
+      }
+      if (phaseIds.size > 1 && mirrorSet.phaseHasSiblings) {
+        roundName = `${mirrorSet.phaseName}, ${roundName}`;
+      }
+      if (eventSlugs.size > 1 && mirrorSet.eventHasSiblings) {
+        roundName = `${mirrorSet.eventName}, ${roundName}`;
+      }
+      sets[setIndex] = {
+        roundName,
+        bestOf: -1,
+        isFinal: false,
+        leftPrefixes: mirrorSet.entrant1Prefixes,
+        leftNames: mirrorSet.entrant1Names,
+        leftPronouns: [],
+        leftScore: -1,
+        rightPrefixes: mirrorSet.entrant2Prefixes,
+        rightNames: mirrorSet.entrant2Names,
+        rightPronouns: [],
+        rightScore: -1,
+      };
     }
     let startgg: OverlayStartgg | undefined;
     if (representativeStartgg) {
@@ -1021,6 +1051,23 @@ export default async function setupIPCs(
   ipcMain.handle('getWatchDir', () => watchDir);
 
   const idToApiPhaseGroup = new Map<number, ApiPhaseGroup>();
+  // for testing
+  /*
+  idToApiPhaseGroup.set(2391299, {
+    tournamentName: 'Midlane Melee',
+    tournamentLocation: 'Chicago, IL',
+    eventSlug: 'tournament/test-tournament-sorry/event/progression',
+    eventHasSiblings: true,
+    eventName: 'progression',
+    phaseId: 1598103,
+    phaseName: 'Bracket',
+    phaseHasSiblings: true,
+    phaseGroupId: 2391299,
+    phaseGroupName: '1',
+    phaseGroupBracketType: 2,
+    phaseGroupHasSiblings: false,
+  });
+  */
   let watcher: FSWatcher | undefined;
   ipcMain.removeHandler('chooseWatchDir');
   ipcMain.handle('chooseWatchDir', async (): Promise<string> => {
@@ -1487,6 +1534,8 @@ export default async function setupIPCs(
     mirrorPort = 0;
     obsConnection.transition(playingSets);
     sendQueues();
+    mirrorSet = null;
+    updateOverlayAndTwitchBot();
   });
 
   ipcMain.removeHandler('getPhaseGroups');
@@ -1588,6 +1637,10 @@ export default async function setupIPCs(
   );
   ipcMain.removeHandler('setMirrorSet');
   ipcMain.handle('setMirrorSet', (event: IpcMainInvokeEvent, setId: number) => {
+    if (!mirrorPort) {
+      return;
+    }
+
     const set = idToApiSet.get(setId);
     if (!set) {
       throw new Error(`no known set for id: ${setId}`);

@@ -1,5 +1,7 @@
 import { IpcRendererEvent, contextBridge, ipcRenderer } from 'electron';
 import {
+  ApiPhaseGroup,
+  ApiSet,
   OBSConnectionStatus,
   ObsGamecaptureResult,
   OBSSettings,
@@ -134,6 +136,12 @@ const electronHandler = {
   getIsMirroring: (): Promise<boolean> => ipcRenderer.invoke('getIsMirroring'),
   startMirroring: (): Promise<boolean> => ipcRenderer.invoke('startMirroring'),
   stopMirroring: (): Promise<boolean> => ipcRenderer.invoke('stopMirroring'),
+  getPhaseGroups: (): Promise<ApiPhaseGroup[]> =>
+    ipcRenderer.invoke('getPhaseGroups'),
+  getPendingSets: (phaseGroupId: number): Promise<ApiSet[]> =>
+    ipcRenderer.invoke('getPendingSets', phaseGroupId),
+  setMirrorSet: (setId: number): Promise<void> =>
+    ipcRenderer.invoke('setMirrorSet', setId),
 
   getVersion: (): Promise<string> => ipcRenderer.invoke('getVersion'),
   getLatestVersion: (): Promise<string> =>

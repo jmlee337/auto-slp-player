@@ -262,6 +262,7 @@ export function toApiPhaseGroup(set: AvailableSet): ApiPhaseGroup | null {
   if (set.context?.startgg) {
     return {
       tournamentName: set.context.startgg.tournament.name,
+      tournamentLocation: set.context.startgg.tournament.location,
       eventSlug: set.context.startgg.event.slug,
       eventName: set.context.startgg.event.name,
       eventHasSiblings: set.context.startgg.event.hasSiblings,

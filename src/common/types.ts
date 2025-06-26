@@ -297,6 +297,7 @@ export enum ObsGamecaptureResult {
 
 export type ApiPhaseGroup = {
   tournamentName: string;
+  tournamentLocation: string;
   eventSlug: string;
   eventName: string;
   eventHasSiblings: boolean;

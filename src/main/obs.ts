@@ -822,6 +822,10 @@ export default class OBSConnection {
     if (ports.length > this.maxDolphins) {
       throw new Error('more playing than max dolphins?');
     }
+    const liveEntries = Array.from(playingSets.entries()).filter(
+      ([, set]) => set === null,
+    );
+    const soundPort = liveEntries.length > 0 ? liveEntries[0][0] : ports[0];
 
     let sceneName = `quad ${ports.length}`;
     if (ports.length === 2) {
@@ -849,7 +853,7 @@ export default class OBSConnection {
             requestType: 'SetInputMute',
             requestData: {
               inputName,
-              inputMuted: port !== ports[0],
+              inputMuted: port !== soundPort,
             },
           });
         }

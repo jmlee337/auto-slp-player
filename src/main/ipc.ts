@@ -1470,7 +1470,7 @@ export default async function setupIPCs(
         ? mirrorDir.split(path.win32.sep).join(path.posix.sep)
         : mirrorDir;
     const glob = `${normalizedDir}/*.slp`;
-    watcher = watch(glob);
+    watcher = watch(glob, { ignoreInitial: true });
     watcher.on('add', async (newReplayPath) => {
       const mirrorDolphin = dolphins.get(mirrorPort);
       if (!mirrorDolphin) {

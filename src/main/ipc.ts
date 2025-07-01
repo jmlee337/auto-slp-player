@@ -188,12 +188,14 @@ export default async function setupIPCs(
 ): Promise<void> {
   const store = new Store<{
     mirrorDir: string;
+    sggApiKey: string;
     splitByWave: boolean;
     stealth: boolean;
     twitchBotEnabled: boolean;
     twitchClient: TwitchClient;
     twitchAccessToken: AccessToken;
   }>();
+  let sggApiKey = store.get('sggApiKey', '');
   let dolphinPath = '';
   if (store.has('dolphinPath')) {
     dolphinPath = store.get('dolphinPath') as string;
@@ -1253,6 +1255,19 @@ export default async function setupIPCs(
     },
   );
 
+  // entrant1Names, entrant2Names, phaseName, fullRoundText, timecode, base VOD URL, setId
+  const readTimestampsCsv = async () => {
+    return new Promise<string[][]>((resolve, reject) => {
+      const rowsInner: string[][] = [];
+      parseFile(path.join(watchDir, 'timestamps.csv'))
+        .on('data', (row) => {
+          rowsInner.push(row);
+        })
+        .on('end', () => resolve(rowsInner))
+        .on('error', (err) => reject(err));
+    });
+  };
+
   ipcMain.removeHandler('getTimestamps');
   ipcMain.handle('getTimestamps', async () => {
     if (!watchDir) {
@@ -1260,15 +1275,7 @@ export default async function setupIPCs(
     }
 
     try {
-      const rows = await new Promise<string[]>((resolve, reject) => {
-        const rowsInner: string[] = [];
-        parseFile(path.join(watchDir, 'timestamps.csv'))
-          .on('data', (row) => {
-            rowsInner.push(row);
-          })
-          .on('end', () => resolve(rowsInner))
-          .on('error', (err) => reject(err));
-      });
+      const rows = await readTimestampsCsv();
       return rows
         .map((row) => {
           const namesLeft = row[0];
@@ -1285,6 +1292,86 @@ export default async function setupIPCs(
       return '';
     }
   });
+
+  ipcMain.removeHandler('getSggApiKey');
+  ipcMain.handle('getSggApiKey', () => sggApiKey);
+  ipcMain.removeHandler('setSggApiKey');
+  ipcMain.handle(
+    'setSggApiKey',
+    (event: IpcMainInvokeEvent, newSggApiKey: string) => {
+      if (newSggApiKey) {
+        store.set('sggApiKey', newSggApiKey);
+        sggApiKey = newSggApiKey;
+      }
+    },
+  );
+
+  ipcMain.removeHandler('setSggVodUrls');
+  ipcMain.handle(
+    'setSggVodUrls',
+    async (event: IpcMainInvokeEvent, baseYoutubeUrl: string) => {
+      if (!sggApiKey) {
+        throw new Error('Please set start.gg API key.');
+      }
+      const rows = await readTimestampsCsv();
+      if (rows.length === 0) {
+        throw new Error('No timestamps.');
+      }
+
+      do {
+        const thisTimeRows = rows.slice(0, 500);
+        const setIdToVodUrl = new Map<string, string>();
+        thisTimeRows.forEach((row) => {
+          const setId = row[6];
+          const timecodeParts = row[4].split(':');
+          const timecode = `?t=${timecodeParts[0]}h${timecodeParts[1]}m${timecodeParts[2]}s`;
+          const vodUrl = baseYoutubeUrl + timecode;
+          setIdToVodUrl.set(setId, vodUrl);
+        });
+        const inner = Array.from(setIdToVodUrl.entries()).map(
+          ([setId, vodUrl]) => {
+            return `
+              setId${setId}: updateVodUrl(setId: ${setId}, vodUrl: "${vodUrl}") {
+                id
+              }
+            `;
+          },
+        );
+        const query = `mutation UpdateVodUrlsMutation {${inner}\n}`;
+        let response: Response | undefined;
+        try {
+          response = await fetch('https://api.start.gg/gql/alpha', {
+            method: 'POST',
+            headers: {
+              Authorization: `Bearer ${sggApiKey}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              query,
+            }),
+          });
+        } catch {
+          throw new Error('***You may not be connected to the internet***');
+        }
+        if (!response.ok) {
+          let keyErr = '';
+          if (response.status === 400) {
+            keyErr = ' ***start.gg API key invalid!***';
+          } else if (response.status === 401) {
+            keyErr = ' ***start.gg API key expired!***';
+          }
+          throw new Error(
+            `${response.status} - ${response.statusText}.${keyErr}`,
+          );
+        }
+        const json = await response.json();
+        if (json.errors) {
+          throw new Error(json.errors[0].message);
+        }
+        rows.splice(0, 500);
+      } while (rows.length > 0);
+    },
+  );
 
   ipcMain.removeHandler('getAddDelay');
   ipcMain.handle('getAddDelay', () => addDelay);

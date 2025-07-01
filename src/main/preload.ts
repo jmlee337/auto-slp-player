@@ -47,6 +47,11 @@ const electronHandler = {
   setGenerateTimestamps: (newGenerateTimestamps: boolean) =>
     ipcRenderer.invoke('setGenerateTimestamps', newGenerateTimestamps),
   getTimestamps: (): Promise<string> => ipcRenderer.invoke('getTimestamps'),
+  getSggApiKey: (): Promise<string> => ipcRenderer.invoke('getSggApiKey'),
+  setSggApiKey: (sggApiKey: string): Promise<void> =>
+    ipcRenderer.invoke('setSggApiKey', sggApiKey),
+  setSggVodUrls: (baseYoutubeUrl: string): Promise<void> =>
+    ipcRenderer.invoke('setSggVodUrls', baseYoutubeUrl),
   getAddDelay: (): Promise<boolean> => ipcRenderer.invoke('getAddDelay'),
   setAddDelay: (addDelay: boolean): Promise<void> =>
     ipcRenderer.invoke('setAddDelay', addDelay),

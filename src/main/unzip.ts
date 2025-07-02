@@ -9,6 +9,7 @@ import { toMainContext } from './set';
 export async function scan(
   originalPath: string,
   originalPathToPlayedMs: Map<string, number>,
+  mirroredSetIds: Set<number>,
   twitchChannel: string,
 ): Promise<AvailableSet> {
   const twitchChannelLower = twitchChannel.toLowerCase();
@@ -36,8 +37,10 @@ export async function scan(
               stream &&
               (stream.domain !== 'twitch' ||
                 stream.path.toLowerCase() !== twitchChannelLower);
+            const sggSetId = context?.startgg?.set.id;
+            const wasMirroredLive = sggSetId && mirroredSetIds.has(sggSetId);
             if (
-              (!context || wasStreamedOnAnotherChannel) &&
+              (!context || wasStreamedOnAnotherChannel || wasMirroredLive) &&
               !originalPathToPlayedMs.has(originalPath)
             ) {
               originalPathToPlayedMs.set(

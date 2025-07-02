@@ -1070,6 +1070,7 @@ export default async function setupIPCs(
     phaseGroupHasSiblings: false,
   });
   */
+  const mirroredSetIds = new Set<number>();
   let watcher: FSWatcher | undefined;
   ipcMain.removeHandler('chooseWatchDir');
   ipcMain.handle('chooseWatchDir', async (): Promise<string> => {
@@ -1099,6 +1100,7 @@ export default async function setupIPCs(
         const newSet = await scan(
           newZipPath,
           originalPathToPlayedMs,
+          mirroredSetIds,
           twitchUserName,
         );
         const apiPhaseGroup = toApiPhaseGroup(newSet);
@@ -1701,6 +1703,8 @@ export default async function setupIPCs(
         const entrant2Names = idToEntrantNames.get(set.entrant2Id);
         const entrant2Prefixes = idToEntrantPrefixes.get(set.entrant2Id);
         if (
+          Number.isInteger(set.id) &&
+          set.id > 0 &&
           entrant1Names &&
           entrant1Prefixes &&
           entrant2Names &&
@@ -1734,6 +1738,7 @@ export default async function setupIPCs(
     }
 
     mirrorSet = set;
+    mirroredSetIds.add(setId);
     if (generateTimestamps && watchDir) {
       writeTimestamps(
         set.entrant1Names,

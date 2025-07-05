@@ -63,7 +63,7 @@ export default class Twitch {
 
     this.bot = null;
     this.server = null;
-    this.brackets = { spoilers: true, urls: [] };
+    this.brackets = { spoilers: false, urls: [] };
   }
 
   async initialize() {
@@ -158,8 +158,10 @@ export default class Twitch {
           );
         }),
         createBotCommand('bracket', (params, { say }) => {
-          const prefix = this.brackets.spoilers ? 'SPOILERS: ' : '';
-          say(`${prefix}${this.brackets.urls.join(', ')}`);
+          if (this.brackets.urls.length > 0) {
+            const prefix = this.brackets.spoilers ? 'SPOILERS: ' : '';
+            say(`${prefix}${this.brackets.urls.join(', ')}`);
+          }
         }),
         createBotCommand('pronouns', (params, { say }) => {
           say(

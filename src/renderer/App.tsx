@@ -41,6 +41,7 @@ function Hello() {
   const [dolphinPath, setDolphinPath] = useState('');
   const [isoPath, setIsoPath] = useState('');
   const [maxDolphins, setMaxDolphins] = useState(1);
+  const [numDolphins, setNumDolphins] = useState(0);
   const [generateTimestamps, setGenerateTimestamps] = useState(false);
   const [addDelay, setAddDelay] = useState(false);
   const [splitOption, setSplitOption] = useState(SplitOption.NONE);
@@ -66,6 +67,7 @@ function Hello() {
       const dolphinPathPromise = window.electron.getDolphinPath();
       const isoPathPromise = window.electron.getIsoPath();
       const maxDolphinsPromise = window.electron.getMaxDolphins();
+      const numDolphinsPromise = window.electron.getNumDolphins();
       const generateTimestampsPromise = window.electron.getGenerateTimestamps();
       const addDelayPromise = window.electron.getAddDelay();
       const splitOptionPromise = window.electron.getSplitOption();
@@ -85,6 +87,7 @@ function Hello() {
       setDolphinPath(await dolphinPathPromise);
       setIsoPath(await isoPathPromise);
       setMaxDolphins(await maxDolphinsPromise);
+      setNumDolphins(await numDolphinsPromise);
       setGenerateTimestamps(await generateTimestampsPromise);
       setAddDelay(await addDelayPromise);
       setSplitOption(await splitOptionPromise);
@@ -120,6 +123,9 @@ function Hello() {
   }, []);
 
   useEffect(() => {
+    window.electron.onDolphins((event, newNumDolphins: number) => {
+      setNumDolphins(newNumDolphins);
+    });
     window.electron.onQueues((event, newQueues, newCanPlay) => {
       setVisibleQueueId((oldVisibleQueueId) => {
         if (newQueues.length === 0) {
@@ -234,10 +240,11 @@ function Hello() {
               watchFolderMsg={watchFolderMsg}
               watchFolderDisabled={!dolphinPath || !isoPath}
               maxDolphins={maxDolphins}
+              numDolphins={numDolphins}
               dolphinVersion={dolphinVersion}
               setupObs={setupObs}
             />
-            <Mirror canPlay={canPlay} />
+            <Mirror canPlay={canPlay} numDolphins={numDolphins} />
             <Timestamps />
           </Stack>
         </Stack>

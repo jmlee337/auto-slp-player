@@ -159,6 +159,12 @@ const electronHandler = {
     ipcRenderer.removeAllListeners('dolphins');
     ipcRenderer.on('dolphins', callback);
   },
+  onMirroring: (
+    callback: (event: IpcRendererEvent, isMirroring: boolean) => void,
+  ) => {
+    ipcRenderer.removeAllListeners('mirroring');
+    ipcRenderer.on('mirroring', callback);
+  },
   onObsConnectionStatus: (
     callback: (
       event: IpcRendererEvent,

@@ -504,6 +504,7 @@ export default async function setupIPCs(
   const gameIndices: Map<number, number> = new Map();
   let mirrorPort = 0;
   let mirrorSet: ApiSet | null = null;
+  let mirrorWatcher: FSWatcher | undefined;
   let lastStartggTournamentName = '';
   let lastStartggTournamentLocation = '';
   let lastStartggEventName = '';
@@ -900,6 +901,12 @@ export default async function setupIPCs(
       addDelay,
     );
     newDolphin.on(DolphinEvent.CLOSE, () => {
+      if (port === mirrorPort) {
+        mirrorPort = 0;
+        mirrorSet = null;
+        mirrorWatcher?.close();
+        mainWindow.webContents.send('mirroring', false);
+      }
       const playingSet = playingSets.get(port);
       if (playingSet) {
         playingSet.playing = false;
@@ -1553,7 +1560,6 @@ export default async function setupIPCs(
   });
 
   let mirrorDir = store.get('mirrorDir', getDefaultMirrorDir());
-  let mirrorWatcher: FSWatcher | undefined;
   const startMirrorWatcher = () => {
     if (!mirrorPort) {
       throw new Error('mirror port not set');

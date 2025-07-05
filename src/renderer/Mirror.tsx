@@ -26,7 +26,13 @@ import {
 import { useEffect, useState } from 'react';
 import { ApiPhaseGroup, ApiSet } from '../common/types';
 
-export default function Mirror({ canPlay }: { canPlay: boolean }) {
+export default function Mirror({
+  canPlay,
+  numDolphins,
+}: {
+  canPlay: boolean;
+  numDolphins: number;
+}) {
   const [open, setOpen] = useState(false);
   const [isMirroring, setIsMirroring] = useState(false);
   const [mirrorDir, setMirrorDir] = useState('');
@@ -46,6 +52,12 @@ export default function Mirror({ canPlay }: { canPlay: boolean }) {
     inner();
   }, []);
 
+  useEffect(() => {
+    window.electron.onMirroring((event, newIsMirroring) => {
+      setIsMirroring(newIsMirroring);
+    });
+  }, []);
+
   const getPendingSets = async (newPhaseGroupIdStr: string) => {
     setGettingPendingSets(true);
     try {
@@ -59,9 +71,12 @@ export default function Mirror({ canPlay }: { canPlay: boolean }) {
     }
   };
 
+  const cannotStartMirroring = !canPlay || numDolphins === 0;
+
   return (
     <>
       <Button
+        disabled={cannotStartMirroring && !isMirroring}
         endIcon={isMirroring ? <Check /> : undefined}
         onClick={async () => {
           setPhaseGroups(await window.electron.getPhaseGroups());
@@ -199,7 +214,7 @@ export default function Mirror({ canPlay }: { canPlay: boolean }) {
             </Button>
           ) : (
             <Button
-              disabled={!canPlay}
+              disabled={cannotStartMirroring}
               endIcon={mirrorChanging ? <CircularProgress /> : <Visibility />}
               onClick={async () => {
                 try {

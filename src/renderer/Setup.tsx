@@ -24,18 +24,19 @@ export default function Setup({
   watchFolderMsg,
   watchFolderDisabled,
   maxDolphins,
+  numDolphins,
   dolphinVersion,
   setupObs,
 }: {
   watchFolderMsg: string;
   watchFolderDisabled: boolean;
   maxDolphins: number;
+  numDolphins: number;
   dolphinVersion: string;
   setupObs: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const [watchDir, setWatchDir] = useState('');
-  const [numDolphins, setNumDolphins] = useState(0);
   const [dolphinsOpening, setDolphinsOpening] = useState(false);
   const [obsConnectionStatus, setObsConnectionStatus] = useState(
     OBSConnectionStatus.OBS_NOT_CONNECTED,
@@ -48,12 +49,10 @@ export default function Setup({
   useEffect(() => {
     const inner = async () => {
       const watchDirPromise = window.electron.getWatchDir();
-      const numDolphinsPromise = window.electron.getNumDolphins();
       const obsConnectionStatusPromise =
         window.electron.getObsConnectionStatus();
       const streamingStatePromise = window.electron.getStreamingState();
       setWatchDir(await watchDirPromise);
-      setNumDolphins(await numDolphinsPromise);
       setObsConnectionStatus(await obsConnectionStatusPromise);
       setStreamingState(await streamingStatePromise);
     };
@@ -61,11 +60,6 @@ export default function Setup({
   }, []);
 
   useEffect(() => {
-    window.electron.onDolphins(
-      (event: IpcRendererEvent, newNumDolphins: number) => {
-        setNumDolphins(newNumDolphins);
-      },
-    );
     window.electron.onObsConnectionStatus(
       (
         event: IpcRendererEvent,

@@ -80,6 +80,9 @@ export class Dolphin extends EventEmitter {
     this.dolphinConnection = new DolphinConnection();
     this.dolphinConnection.on(ConnectionEvent.MESSAGE, (messageEvent) => {
       if (this.mirroring) {
+        if (messageEvent.type === DolphinMessageType.END_GAME) {
+          this.emit(DolphinEvent.ENDED);
+        }
         return;
       }
 

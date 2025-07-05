@@ -937,8 +937,13 @@ export default async function setupIPCs(
     });
     newDolphin.on(DolphinEvent.ENDED, async (failureReason: string) => {
       const playingSet = playingSets.get(port);
-      if (!playingSet) {
+      if (playingSet === undefined) {
         throw new Error(`playingSet not found for ${port} on ENDED`);
+      }
+      if (playingSet === null) {
+        // always stop to release ended file when mirroring
+        await newDolphin.stop();
+        return;
       }
 
       playingSet.playing = false;

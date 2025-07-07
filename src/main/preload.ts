@@ -141,6 +141,15 @@ const electronHandler = {
   getIsMirroring: (): Promise<boolean> => ipcRenderer.invoke('getIsMirroring'),
   startMirroring: (): Promise<boolean> => ipcRenderer.invoke('startMirroring'),
   stopMirroring: (): Promise<boolean> => ipcRenderer.invoke('stopMirroring'),
+  getMirrorShowScore: (): Promise<boolean> =>
+    ipcRenderer.invoke('getMirrorShowScore'),
+  setMirrorShowScore: (mirrorShowScore: boolean): Promise<void> =>
+    ipcRenderer.invoke('setMirrorShowScore', mirrorShowScore),
+  getMirrorScore: (): Promise<[number, number]> =>
+    ipcRenderer.invoke('getMirrorScore'),
+  setMirrorScore: (mirrorScore: [number, number]): Promise<void> =>
+    ipcRenderer.invoke('setMirrorScore', mirrorScore),
+
   getPhaseGroups: (): Promise<ApiPhaseGroup[]> =>
     ipcRenderer.invoke('getPhaseGroups'),
   getPendingSets: (phaseGroupId: number): Promise<ApiSet[]> =>

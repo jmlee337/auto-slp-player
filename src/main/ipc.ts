@@ -188,6 +188,7 @@ export default async function setupIPCs(
 ): Promise<void> {
   const store = new Store<{
     mirrorDir: string;
+    mirrorShowScore: boolean;
     sggApiKey: string;
     splitByWave: boolean;
     stealth: boolean;
@@ -504,6 +505,8 @@ export default async function setupIPCs(
   const gameIndices: Map<number, number> = new Map();
   let mirrorPort = 0;
   let mirrorSet: ApiSet | null = null;
+  let mirrorShowScore = store.get('mirrorShowScore', false);
+  let mirrorScore: [number, number] = [0, 0];
   let mirrorWatcher: FSWatcher | undefined;
   let lastStartggTournamentName = '';
   let lastStartggTournamentLocation = '';
@@ -708,11 +711,11 @@ export default async function setupIPCs(
         leftPrefixes: mirrorSet.entrant1Prefixes,
         leftNames: mirrorSet.entrant1Names,
         leftPronouns: [],
-        leftScore: -1,
+        leftScore: mirrorShowScore ? mirrorScore[0] : -1,
         rightPrefixes: mirrorSet.entrant2Prefixes,
         rightNames: mirrorSet.entrant2Names,
         rightPronouns: [],
-        rightScore: -1,
+        rightScore: mirrorShowScore ? mirrorScore[1] : -1,
       };
     }
     let startgg: OverlayStartgg | undefined;
@@ -1066,7 +1069,6 @@ export default async function setupIPCs(
 
   const idToApiPhaseGroup = new Map<number, ApiPhaseGroup>();
   // for testing
-  /*
   idToApiPhaseGroup.set(2391299, {
     tournamentName: 'Midlane Melee',
     tournamentLocation: 'Chicago, IL',
@@ -1081,7 +1083,6 @@ export default async function setupIPCs(
     phaseGroupBracketType: 2,
     phaseGroupHasSiblings: false,
   });
-  */
   const mirroredSetIds = new Set<number>();
   let watcher: FSWatcher | undefined;
   ipcMain.removeHandler('chooseWatchDir');
@@ -1637,6 +1638,24 @@ export default async function setupIPCs(
     mirrorSet = null;
     updateOverlayAndTwitchBot();
   });
+  ipcMain.removeHandler('getMirrorShowScore');
+  ipcMain.handle('getMirrorShowScore', () => mirrorShowScore);
+  ipcMain.removeHandler('setMirrorShowScore');
+  ipcMain.handle('setMirrorShowScore', (event, newMirrorShowScore: boolean) => {
+    store.set('mirrorShowScore', newMirrorShowScore);
+    mirrorShowScore = newMirrorShowScore;
+    updateOverlayAndTwitchBot();
+  });
+  ipcMain.removeHandler('getMirrorScore');
+  ipcMain.handle('getMirrorScore', () => mirrorScore);
+  ipcMain.removeHandler('setMirrorScore');
+  ipcMain.handle(
+    'setMirrorScore',
+    (event, newMirrorScore: [number, number]) => {
+      mirrorScore = newMirrorScore;
+      updateOverlayAndTwitchBot();
+    },
+  );
 
   ipcMain.removeHandler('getPhaseGroups');
   ipcMain.handle('getPhaseGroups', () =>

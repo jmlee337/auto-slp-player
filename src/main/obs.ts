@@ -807,6 +807,11 @@ export default class OBSConnection {
           'Multitrack Video (likely Twitch Enhanced Broadcasting) is enabled and will interfere with timestamp generation.',
         );
       }
+      const { outputActive } = await this.obsWebSocket.call('GetStreamStatus');
+      this.streamingState = outputActive
+        ? 'OBS_WEBSOCKET_OUTPUT_STARTED'
+        : 'OBS_WEBSOCKET_OUTPUT_STOPPED';
+      this.mainWindow.webContents.send('streaming', this.streamingState);
     }
   }
 
@@ -905,7 +910,8 @@ export default class OBSConnection {
   async getTimecode() {
     if (
       !this.obsWebSocket ||
-      this.connectionStatus === OBSConnectionStatus.OBS_NOT_CONNECTED
+      this.connectionStatus === OBSConnectionStatus.OBS_NOT_CONNECTED ||
+      this.streamingState !== 'OBS_WEBSOCKET_OUTPUT_STARTED'
     ) {
       return '';
     }

@@ -93,6 +93,7 @@ export default function Setup({
     obsButtonIcon = <Check />;
   }
 
+  // OBS_WEBSOCKET_OUTPUT_STOPPED
   let streamingMsg = 'Start Stream';
   if (streamingState === 'OBS_WEBSOCKET_OUTPUT_STARTING') {
     streamingMsg = 'Starting...';

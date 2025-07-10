@@ -23,7 +23,8 @@ import path from 'path';
 import { Ports } from '@slippi/slippi-js';
 import { spawn } from 'child_process';
 import { AccessToken } from '@twurple/auth';
-import { parseFile, writeToString } from 'fast-csv';
+import { parseStream, writeToString } from 'fast-csv';
+import { createReadStream } from 'fs';
 import { deleteZipDir, scan, unzip } from './unzip';
 import {
   ApiPhaseGroup,
@@ -1271,10 +1272,16 @@ export default async function setupIPCs(
   );
 
   // entrant1Names, entrant2Names, phaseName, fullRoundText, timecode, base VOD URL, setId
-  const readTimestampsCsv = async () => {
+  const readTimestampsCsv = () => {
     return new Promise<string[][]>((resolve, reject) => {
+      const stream = createReadStream(path.join(watchDir, 'timestamps.csv')).on(
+        'error',
+        () => {
+          resolve([]);
+        },
+      );
       const rowsInner: string[][] = [];
-      parseFile(path.join(watchDir, 'timestamps.csv'))
+      parseStream(stream!)
         .on('data', (row) => {
           rowsInner.push(row);
         })
@@ -1303,7 +1310,7 @@ export default async function setupIPCs(
         })
         .filter((line) => line.length > 0)
         .join('\n');
-    } catch {
+    } catch (e: any) {
       return '';
     }
   });

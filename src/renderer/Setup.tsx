@@ -26,14 +26,14 @@ export default function Setup({
   maxDolphins,
   numDolphins,
   dolphinVersion,
-  setupObs,
+  shouldSetupAndAutoSwitchObs,
 }: {
   watchFolderMsg: string;
   watchFolderDisabled: boolean;
   maxDolphins: number;
   numDolphins: number;
   dolphinVersion: string;
-  setupObs: boolean;
+  shouldSetupAndAutoSwitchObs: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const [watchDir, setWatchDir] = useState('');
@@ -149,7 +149,7 @@ export default function Setup({
               !dolphinVersion ||
               (numDolphins < maxDolphins &&
                 obsConnectionStatus === OBSConnectionStatus.OBS_NOT_CONNECTED &&
-                setupObs) ||
+                shouldSetupAndAutoSwitchObs) ||
               obsConnecting ||
               obsConnectionStatus === OBSConnectionStatus.READY
             }

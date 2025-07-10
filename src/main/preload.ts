@@ -124,9 +124,15 @@ const electronHandler = {
     ipcRenderer.invoke('checkObsGamecapture'),
   getDolphinVersion: (): Promise<{ version: string; error: string }> =>
     ipcRenderer.invoke('getDolphinVersion'),
-  getSetupObs: (): Promise<boolean> => ipcRenderer.invoke('getSetupObs'),
-  setSetupObs: (setupObs: boolean): Promise<void> =>
-    ipcRenderer.invoke('setSetupObs', setupObs),
+  getShouldSetupAndAutoSwitchObs: (): Promise<boolean> =>
+    ipcRenderer.invoke('getShouldSetupAndAutoSwitchObs'),
+  setShouldSetupAndAutoSwitchObs: (
+    shouldSetupAndAutoSwitchObs: boolean,
+  ): Promise<void> =>
+    ipcRenderer.invoke(
+      'ShouldSetupAndAutoSwitchObs',
+      shouldSetupAndAutoSwitchObs,
+    ),
   getObsSettings: (): Promise<OBSSettings> =>
     ipcRenderer.invoke('getObsSettings'),
   setObsSettings: (settings: OBSSettings) =>

@@ -58,7 +58,7 @@ export default class OBSConnection {
 
   private overlay34Path: string;
 
-  private setup: boolean;
+  private shouldSetupAndAutoSwitch: boolean;
 
   constructor(
     mainWindow: BrowserWindow,
@@ -80,13 +80,13 @@ export default class OBSConnection {
     this.portToInputName = new Map();
     this.sceneNameToInputNameToSceneItemId = new Map();
     this.streamingState = '';
-    this.setup = false;
+    this.shouldSetupAndAutoSwitch = false;
   }
 
-  setSetup(setup: boolean) {
-    this.setup = setup;
-    if (this.setup) {
-      this.setupObs();
+  setShouldSetupAndAutoSwitch(newShouldSetupAndAutoSwitch: boolean) {
+    this.shouldSetupAndAutoSwitch = newShouldSetupAndAutoSwitch;
+    if (this.shouldSetupAndAutoSwitch) {
+      this.setupObsScenesAndSources();
     }
   }
 
@@ -129,11 +129,11 @@ export default class OBSConnection {
     );
     if (this.connectionStatus !== OBSConnectionStatus.OBS_NOT_CONNECTED) {
       this.setConnectionStatus(OBSConnectionStatus.OBS_NOT_SETUP);
-      this.setupObs();
+      this.setupObsScenesAndSources();
     }
   }
 
-  private async setupObs(): Promise<boolean> {
+  private async setupObsScenesAndSources(): Promise<boolean> {
     if (
       this.obsWebSocket === null ||
       this.connectionStatus === OBSConnectionStatus.OBS_NOT_CONNECTED ||
@@ -146,7 +146,7 @@ export default class OBSConnection {
       return false;
     }
 
-    if (!this.setup) {
+    if (!this.shouldSetupAndAutoSwitch) {
       this.setConnectionStatus(OBSConnectionStatus.READY);
       return true;
     }
@@ -789,9 +789,9 @@ export default class OBSConnection {
         settings.password.length > 0 ? settings.password : undefined,
       );
       this.connectionStatus = OBSConnectionStatus.OBS_NOT_SETUP;
-      canCheckTEB = await this.setupObs();
+      canCheckTEB = await this.setupObsScenesAndSources();
     } else if (this.connectionStatus === OBSConnectionStatus.OBS_NOT_SETUP) {
-      canCheckTEB = await this.setupObs();
+      canCheckTEB = await this.setupObsScenesAndSources();
     }
     if (canCheckTEB) {
       const { parameterValue } = await this.obsWebSocket.call(
@@ -814,7 +814,7 @@ export default class OBSConnection {
     if (
       !this.obsWebSocket ||
       this.connectionStatus === OBSConnectionStatus.OBS_NOT_CONNECTED ||
-      !this.setupObs
+      !this.shouldSetupAndAutoSwitch
     ) {
       return;
     }

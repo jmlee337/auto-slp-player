@@ -51,7 +51,8 @@ function Hello() {
   );
   const [dolphinVersion, setDolphinVersion] = useState('');
   const [dolphinVersionError, setDolphinVersionError] = useState('');
-  const [setupObs, setSetupObs] = useState(false);
+  const [shouldSetupAndAutoSwitchObs, setShouldSetupAndAutoSwitchObs] =
+    useState(false);
   const [obsProtocol, setObsProtocol] = useState('');
   const [obsAddress, setObsAddress] = useState('');
   const [obsPort, setObsPort] = useState('');
@@ -74,7 +75,8 @@ function Hello() {
       const splitByWavePromise = window.electron.getSplitByWave();
       const obsGamecaptureResultPromise = window.electron.checkObsGamecapture();
       const dolphinVersionPromise = window.electron.getDolphinVersion();
-      const setupObsPromise = window.electron.getSetupObs();
+      const shouldSetupAndAutoSwitchObsPromise =
+        window.electron.getShouldSetupAndAutoSwitchObs();
       const obsSettingsPromise = window.electron.getObsSettings();
       const twitchUserNamePromise = window.electron.getTwitchUserName();
       const canPlayPromise = window.electron.getCanPlay();
@@ -95,7 +97,7 @@ function Hello() {
       setObsGamecaptureResult(await obsGamecaptureResultPromise);
       setDolphinVersion((await dolphinVersionPromise).version);
       setDolphinVersionError((await dolphinVersionPromise).error);
-      setSetupObs(await setupObsPromise);
+      setShouldSetupAndAutoSwitchObs(await shouldSetupAndAutoSwitchObsPromise);
       setObsProtocol((await obsSettingsPromise).protocol);
       setObsAddress((await obsSettingsPromise).address);
       setObsPort((await obsSettingsPromise).port);
@@ -222,8 +224,8 @@ function Hello() {
               setDolphinVersion={setDolphinVersion}
               dolphinVersionError={dolphinVersionError}
               setDolphinVersionError={setDolphinVersionError}
-              setupObs={setupObs}
-              setSetupObs={setSetupObs}
+              shouldSetupAndAutoSwitchObs={shouldSetupAndAutoSwitchObs}
+              setShouldSetupAndAutoSwitchObs={setShouldSetupAndAutoSwitchObs}
               obsProtocol={obsProtocol}
               setObsProtocol={setObsProtocol}
               obsAddress={obsAddress}
@@ -242,7 +244,7 @@ function Hello() {
               maxDolphins={maxDolphins}
               numDolphins={numDolphins}
               dolphinVersion={dolphinVersion}
-              setupObs={setupObs}
+              shouldSetupAndAutoSwitchObs={shouldSetupAndAutoSwitchObs}
             />
             <Mirror canPlay={canPlay} numDolphins={numDolphins} />
             <Timestamps />

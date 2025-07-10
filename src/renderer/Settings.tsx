@@ -52,8 +52,8 @@ export default function Settings({
   setDolphinVersion,
   dolphinVersionError,
   setDolphinVersionError,
-  setupObs,
-  setSetupObs,
+  shouldSetupAndAutoSwitchObs,
+  setShouldSetupAndAutoSwitchObs,
   obsProtocol,
   setObsProtocol,
   obsAddress,
@@ -86,8 +86,8 @@ export default function Settings({
   setDolphinVersion: (dolphinVersion: string) => void;
   dolphinVersionError: string;
   setDolphinVersionError: (dolphinVersionError: string) => void;
-  setupObs: boolean;
-  setSetupObs: (setupObs: boolean) => void;
+  shouldSetupAndAutoSwitchObs: boolean;
+  setShouldSetupAndAutoSwitchObs: (setupObs: boolean) => void;
   obsProtocol: string;
   setObsProtocol: (protocol: string) => void;
   obsAddress: string;
@@ -379,11 +379,16 @@ export default function Settings({
               <FormControlLabel
                 control={
                   <Checkbox
-                    checked={setupObs}
+                    checked={shouldSetupAndAutoSwitchObs}
                     onChange={async (event) => {
-                      const newSetupObs = event.target.checked;
-                      await window.electron.setSetupObs(newSetupObs);
-                      setSetupObs(newSetupObs);
+                      const newShouldSetupAndAutoSwitchObs =
+                        event.target.checked;
+                      await window.electron.setShouldSetupAndAutoSwitchObs(
+                        newShouldSetupAndAutoSwitchObs,
+                      );
+                      setShouldSetupAndAutoSwitchObs(
+                        newShouldSetupAndAutoSwitchObs,
+                      );
                     }}
                   />
                 }

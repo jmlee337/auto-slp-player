@@ -972,14 +972,16 @@ export default async function setupIPCs(
       const maybePlaySets = async (queues: Queue[]): Promise<number> => {
         let setsPlayed = 0;
         for (const queue of queues) {
-          let { nextSet } = queue.peek();
-          while (nextSet && willNotSpoilPlayingSets(nextSet)) {
-            await playDolphin(queue, nextSet);
-            setsPlayed += 1;
-            if (playingSets.size + tryingPorts.size >= maxDolphins) {
-              return setsPlayed;
+          if (!queue.paused) {
+            let { nextSet } = queue.peek();
+            while (nextSet && willNotSpoilPlayingSets(nextSet)) {
+              await playDolphin(queue, nextSet);
+              setsPlayed += 1;
+              if (playingSets.size + tryingPorts.size >= maxDolphins) {
+                return setsPlayed;
+              }
+              nextSet = queue.peek().nextSet;
             }
-            nextSet = queue.peek().nextSet;
           }
         }
         return setsPlayed;
@@ -1506,6 +1508,18 @@ export default async function setupIPCs(
     [queueIds[i], queueIds[i + 1]] = [queueIds[i + 1], queueIds[i]];
     sendQueues();
   });
+  ipcMain.removeHandler('setQueuePaused');
+  ipcMain.handle(
+    'setQueuePaused',
+    (event, queueId: string, paused: boolean) => {
+      const queue = idToQueue.get(queueId);
+      if (!queue) {
+        throw new Error('no such queue id');
+      }
+      queue.paused = paused;
+      sendQueues();
+    },
+  );
 
   ipcMain.removeHandler('checkObsGamecapture');
   ipcMain.handle('checkObsGamecapture', async () => {

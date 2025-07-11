@@ -217,6 +217,7 @@ export type RendererQueue = {
   name: string;
   sets: RendererSet[];
   nextSetOriginalPath: string;
+  paused: boolean;
 };
 
 export type TwitchSettings = {

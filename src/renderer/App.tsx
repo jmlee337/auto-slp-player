@@ -4,6 +4,7 @@ import './App.css';
 import {
   Alert,
   AppBar,
+  CircularProgress,
   Dialog,
   DialogContent,
   DialogContentText,
@@ -15,7 +16,7 @@ import {
   Tooltip,
   Typography,
 } from '@mui/material';
-import { Add, Remove } from '@mui/icons-material';
+import { Add, Pause, PlayArrow, Remove } from '@mui/icons-material';
 import {
   ObsGamecaptureResult,
   RendererQueue,
@@ -60,6 +61,7 @@ function Hello() {
   const [twitchUserName, setTwitchUserName] = useState('');
   const [canPlay, setCanPlay] = useState(false);
   const [queues, setQueues] = useState<RendererQueue[]>([]);
+  const [visibleQueue, setVisibleQueue] = useState<RendererQueue | null>(null);
   const [visibleQueueId, setVisibleQueueId] = useState('');
   const [gotSettings, setGotSettings] = useState(false);
   useEffect(() => {
@@ -108,6 +110,7 @@ function Hello() {
 
       const initialQueues = await queuesPromise;
       setQueues(initialQueues);
+      setVisibleQueue(initialQueues.length > 0 ? initialQueues[0] : null);
       setVisibleQueueId(initialQueues.length > 0 ? initialQueues[0].id : '');
 
       // req network
@@ -129,11 +132,28 @@ function Hello() {
       setNumDolphins(newNumDolphins);
     });
     window.electron.onQueues((event, newQueues, newCanPlay) => {
+      setVisibleQueue((oldVisibleQueue) => {
+        if (newQueues.length === 0) {
+          return oldVisibleQueue;
+        }
+        if (oldVisibleQueue) {
+          const newOldVisibleQueue = newQueues.find(
+            (queue) => queue.id === oldVisibleQueue.id,
+          );
+          if (newOldVisibleQueue) {
+            return newOldVisibleQueue;
+          }
+        }
+        return newQueues[0];
+      });
       setVisibleQueueId((oldVisibleQueueId) => {
         if (newQueues.length === 0) {
           return oldVisibleQueueId;
         }
-        if (newQueues.some((queue) => queue.id === oldVisibleQueueId)) {
+        if (
+          oldVisibleQueueId &&
+          newQueues.some((queue) => queue.id === oldVisibleQueueId)
+        ) {
           return oldVisibleQueueId;
         }
         return newQueues[0].id;
@@ -154,6 +174,8 @@ function Hello() {
   } else if (!isoPath) {
     watchFolderMsg = 'Must set ISO path';
   }
+
+  const [settingQueuePaused, setSettingQueuePaused] = useState(false);
   return (
     <>
       <AppBar
@@ -166,37 +188,67 @@ function Hello() {
         }}
       >
         <Stack direction="row" marginTop="8px" justifyContent="space-between">
-          {queues.length > 1 && (
-            <Stack
-              alignItems="center"
-              direction="row"
-              justifyContent="flex-start"
+          <Stack direction="row" justifyContent="flex-start" spacing="8px">
+            <Tooltip
+              title={visibleQueue && visibleQueue.paused ? 'Play' : 'Pause'}
             >
-              <Typography marginRight="8px" variant="button">
-                Priority
-              </Typography>
-              <Tooltip title="Increment" placement="top">
-                <IconButton
-                  disabled={visibleQueueId === queues[0].id}
-                  onClick={() => {
-                    window.electron.incrementQueuePriority(visibleQueueId);
-                  }}
-                >
-                  <Add />
-                </IconButton>
-              </Tooltip>
-              <Tooltip title="Decrement" placement="top">
-                <IconButton
-                  disabled={visibleQueueId === queues[queues.length - 1].id}
-                  onClick={() => {
-                    window.electron.decrementQueuePriority(visibleQueueId);
-                  }}
-                >
-                  <Remove />
-                </IconButton>
-              </Tooltip>
-            </Stack>
-          )}
+              <IconButton
+                disabled={
+                  visibleQueue === null ||
+                  queues.length < 2 ||
+                  settingQueuePaused
+                }
+                onClick={async () => {
+                  setSettingQueuePaused(true);
+                  try {
+                    await window.electron.setQueuePaused(
+                      visibleQueueId,
+                      !visibleQueue!.paused,
+                    );
+                  } catch {
+                    // just catch
+                  } finally {
+                    setSettingQueuePaused(false);
+                  }
+                }}
+              >
+                {visibleQueue === null && <Pause />}
+                {visibleQueue &&
+                  (visibleQueue.paused ? <PlayArrow /> : <Pause />)}
+              </IconButton>
+            </Tooltip>
+            {queues.length > 1 && (
+              <Stack
+                alignItems="center"
+                direction="row"
+                justifyContent="flex-start"
+              >
+                <Typography marginRight="8px" variant="button">
+                  Priority
+                </Typography>
+                <Tooltip title="Increment" placement="top">
+                  <IconButton
+                    disabled={visibleQueueId === queues[0].id}
+                    onClick={() => {
+                      window.electron.incrementQueuePriority(visibleQueueId);
+                    }}
+                  >
+                    <Add />
+                  </IconButton>
+                </Tooltip>
+                <Tooltip title="Decrement" placement="top">
+                  <IconButton
+                    disabled={visibleQueueId === queues[queues.length - 1].id}
+                    onClick={() => {
+                      window.electron.decrementQueuePriority(visibleQueueId);
+                    }}
+                  >
+                    <Remove />
+                  </IconButton>
+                </Tooltip>
+              </Stack>
+            )}
+          </Stack>
           <Stack
             direction="row"
             flexGrow="1"
@@ -255,7 +307,13 @@ function Hello() {
             value={visibleQueueId}
             onChange={(event: SyntheticEvent, value: any) => {
               if (typeof value === 'string') {
-                setVisibleQueueId(value);
+                const newVisibleQueue = queues.find(
+                  (queue) => queue.id === value,
+                );
+                if (newVisibleQueue) {
+                  setVisibleQueue(newVisibleQueue);
+                  setVisibleQueueId(value);
+                }
               }
             }}
             aria-label="Queues"
@@ -265,6 +323,10 @@ function Hello() {
               <Tab
                 key={queue.id}
                 label={queue.name}
+                icon={
+                  queue.paused ? <Pause /> : <CircularProgress size="24px" />
+                }
+                iconPosition="end"
                 value={queue.id}
                 id={`queue-tab-${queue.id}`}
                 aria-controls={`queue-tabpanel-${queue.id}`}

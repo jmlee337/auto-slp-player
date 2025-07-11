@@ -120,6 +120,8 @@ const electronHandler = {
     ipcRenderer.invoke('incrementQueuePriority', queueId),
   decrementQueuePriority: (queueId: string): Promise<void> =>
     ipcRenderer.invoke('decrementQueuePriority', queueId),
+  setQueuePaused: (queueId: string, paused: boolean): Promise<void> =>
+    ipcRenderer.invoke('setQueuePaused', queueId, paused),
   checkObsGamecapture: (): Promise<ObsGamecaptureResult> =>
     ipcRenderer.invoke('checkObsGamecapture'),
   getDolphinVersion: (): Promise<{ version: string; error: string }> =>

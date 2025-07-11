@@ -12,12 +12,15 @@ export default class Queue {
 
   private nextSetIsManual: boolean;
 
+  public paused: boolean;
+
   constructor(id: string, name: string, sets: AvailableSet[] = []) {
     this.id = id;
     this.name = name;
     this.sets = sets;
     this.nextSet = null;
     this.nextSetIsManual = false;
+    this.paused = false;
   }
 
   public sortSets() {
@@ -283,6 +286,7 @@ export default class Queue {
       name: this.name,
       sets: this.sets.map(toRendererSet),
       nextSetOriginalPath: this.nextSet?.originalPath ?? '',
+      paused: this.paused,
     };
   }
 

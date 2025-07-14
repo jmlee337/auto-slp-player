@@ -4,7 +4,6 @@ import './App.css';
 import {
   Alert,
   AppBar,
-  CircularProgress,
   Dialog,
   DialogContent,
   DialogContentText,
@@ -323,9 +322,7 @@ function Hello() {
               <Tab
                 key={queue.id}
                 label={queue.name}
-                icon={
-                  queue.paused ? <Pause /> : <CircularProgress size="24px" />
-                }
+                icon={queue.paused ? <Pause /> : undefined}
                 iconPosition="end"
                 value={queue.id}
                 id={`queue-tab-${queue.id}`}

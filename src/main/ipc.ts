@@ -188,6 +188,7 @@ export default async function setupIPCs(
   resourcesPath: string,
 ): Promise<void> {
   const store = new Store<{
+    checkOvertime: boolean;
     mirrorDir: string;
     mirrorShowScore: boolean;
     sggApiKey: string;
@@ -244,7 +245,8 @@ export default async function setupIPCs(
   let splitOption: SplitOption = store.has('splitOption')
     ? (store.get('splitOption') as SplitOption)
     : SplitOption.EVENT;
-  let splitByWave: boolean = store.get('splitByWave', false);
+  let splitByWave: boolean = store.get('splitByWave', true);
+  let checkOvertime: boolean = store.get('checkOvertime', true);
 
   let obsSettings: OBSSettings = store.has('obsSettings')
     ? (store.get('obsSettings') as OBSSettings)
@@ -898,6 +900,38 @@ export default async function setupIPCs(
     }
     sendQueues();
   };
+  const isQueueOvertime = (queue: Queue, queues: Queue[]): boolean => {
+    if (
+      splitByWave &&
+      checkOvertime &&
+      queues.length > 1 &&
+      queue.getShouldCheckOvertime()
+    ) {
+      if (queue.allottedDurationMs === 0) {
+        const ownLiveStartedMs = queue.getLiveStartedMs();
+        const newAllottedDurationMs = queues
+          .map((mapQueue) => mapQueue.getLiveStartedMs())
+          .reduce((minimumDurationMs, liveStartedMs) => {
+            const diff = liveStartedMs - ownLiveStartedMs;
+            if (diff > 2700000) {
+              // at least 45 minutes apart
+              return Math.min(minimumDurationMs, diff);
+            }
+            return minimumDurationMs;
+          }, Number.POSITIVE_INFINITY);
+        if (Number.isFinite(newAllottedDurationMs)) {
+          queue.allottedDurationMs = newAllottedDurationMs;
+        }
+      }
+      if (
+        queue.allottedDurationMs > 0 &&
+        Date.now() - queue.getPlaybackStartedMs() > queue.allottedDurationMs
+      ) {
+        return true;
+      }
+    }
+    return false;
+  };
   startDolphin = async (port: number) => {
     if (dolphins.get(port)) {
       return Promise.resolve();
@@ -971,11 +1005,18 @@ export default async function setupIPCs(
 
       const maybePlaySets = async (queues: Queue[]): Promise<number> => {
         let setsPlayed = 0;
+        const newTailingQueues: Queue[] = [];
         for (const queue of queues) {
           if (!queue.paused) {
             let { nextSet } = queue.peek();
             while (nextSet && willNotSpoilPlayingSets(nextSet)) {
               await playDolphin(queue, nextSet);
+              if (
+                newTailingQueues.indexOf(queue) === -1 &&
+                isQueueOvertime(queue, queues)
+              ) {
+                newTailingQueues.push(queue);
+              }
               setsPlayed += 1;
               if (playingSets.size + tryingPorts.size >= maxDolphins) {
                 return setsPlayed;
@@ -983,6 +1024,14 @@ export default async function setupIPCs(
               nextSet = queue.peek().nextSet;
             }
           }
+        }
+        if (newTailingQueues.length > 0) {
+          for (const queue of newTailingQueues) {
+            queueIds.push(
+              queueIds.splice(queueIds.indexOf(queue.getId()), 1)[0],
+            );
+          }
+          sendQueues();
         }
         return setsPlayed;
       };
@@ -1049,6 +1098,7 @@ export default async function setupIPCs(
   const getQueueFromSet = (set: AvailableSet) => {
     let queueId = '';
     let queueName = 'Unknown';
+    let hasWave = false;
     if (splitOption !== SplitOption.NONE && set.context) {
       if (set.context.startgg) {
         if (splitOption === SplitOption.EVENT) {
@@ -1069,8 +1119,9 @@ export default async function setupIPCs(
       const { waveId } = set.context.startgg.phaseGroup;
       queueId = `${queueId}w:${waveId}`;
       queueName = `${queueName}, waveId: ${waveId}`;
+      hasWave = true;
     }
-    return { queueId, queueName };
+    return { queueId, queueName, hasWave };
   };
 
   ipcMain.removeHandler('getWatchDir');
@@ -1137,9 +1188,10 @@ export default async function setupIPCs(
           playingSets.set(playingEntry[0], newSet);
         }
 
-        const { queueId, queueName } = getQueueFromSet(newSet);
+        const { queueId, queueName, hasWave } = getQueueFromSet(newSet);
         const queueIsNew = !idToQueue.has(queueId);
-        const queue = idToQueue.get(queueId) ?? new Queue(queueId, queueName);
+        const queue =
+          idToQueue.get(queueId) ?? new Queue(queueId, queueName, hasWave);
         queue.enqueue(newSet);
         if (queueIsNew) {
           idToQueue.set(queueId, queue);
@@ -1158,6 +1210,7 @@ export default async function setupIPCs(
           willNotSpoilPlayingSets(newSet)
         ) {
           await playDolphin(queue, newSet);
+          // no need for overtime check here, since we're not behind
           obsConnection.transition(playingSets);
         } else {
           queue.maybePlayNext(newSet);
@@ -1263,6 +1316,10 @@ export default async function setupIPCs(
 
       if (playingSets.size + tryingPorts.size < maxDolphins) {
         await playDolphin(queue, setToPlay);
+        if (isQueueOvertime(queue, getQueues())) {
+          queueIds.push(queueIds.splice(queueIds.indexOf(queueId), 1)[0]);
+          sendQueues();
+        }
         obsConnection.transition(playingSets);
       }
     },
@@ -1405,7 +1462,6 @@ export default async function setupIPCs(
 
   ipcMain.removeHandler('getAddDelay');
   ipcMain.handle('getAddDelay', () => addDelay);
-
   ipcMain.removeHandler('setAddDelay');
   ipcMain.handle('setAddDelay', (event, newAddDelay: boolean) => {
     store.set('addDelay', newAddDelay);
@@ -1424,18 +1480,21 @@ export default async function setupIPCs(
     queueIds.length = 0;
     const idToNewQueue = new Map<
       string,
-      { name: string; sets: AvailableSet[] }
+      { name: string; hasWave: boolean; sets: AvailableSet[] }
     >();
     allSets.forEach((set) => {
-      const { queueId, queueName } = getQueueFromSet(set);
+      const { queueId, queueName, hasWave } = getQueueFromSet(set);
       if (idToNewQueue.has(queueId)) {
         idToNewQueue.get(queueId)!.sets.push(set);
       } else {
-        idToNewQueue.set(queueId, { name: queueName, sets: [set] });
+        idToNewQueue.set(queueId, { name: queueName, hasWave, sets: [set] });
       }
     });
     Array.from(idToNewQueue.entries()).forEach(([queueId, newQueue]) => {
-      idToQueue.set(queueId, new Queue(queueId, newQueue.name, newQueue.sets));
+      idToQueue.set(
+        queueId,
+        new Queue(queueId, newQueue.name, newQueue.hasWave, newQueue.sets),
+      );
       queueIds.push(queueId);
     });
     getQueues().forEach((queue) => {
@@ -1447,7 +1506,6 @@ export default async function setupIPCs(
 
   ipcMain.removeHandler('getSplitOption');
   ipcMain.handle('getSplitOption', () => splitOption);
-
   ipcMain.removeHandler('setSplitOption');
   ipcMain.handle(
     'setSplitOption',
@@ -1462,7 +1520,6 @@ export default async function setupIPCs(
 
   ipcMain.removeHandler('getSplitByWave');
   ipcMain.handle('getSplitByWave', () => splitByWave);
-
   ipcMain.removeHandler('setSplitByWave');
   ipcMain.handle(
     'setSplitByWave',
@@ -1474,6 +1531,14 @@ export default async function setupIPCs(
       }
     },
   );
+
+  ipcMain.removeHandler('getCheckOvertime');
+  ipcMain.handle('getCheckOvertime', () => checkOvertime);
+  ipcMain.removeHandler('setCheckOvertime');
+  ipcMain.handle('setCheckOvertime', (event, newCheckOvertime: boolean) => {
+    store.set('checkOvertime', newCheckOvertime);
+    checkOvertime = newCheckOvertime;
+  });
 
   ipcMain.removeHandler('getQueues');
   ipcMain.handle('getQueues', () =>

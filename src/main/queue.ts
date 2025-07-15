@@ -6,6 +6,8 @@ export default class Queue {
 
   private name: string;
 
+  private hasWave: boolean;
+
   private sets: AvailableSet[];
 
   private nextSet: AvailableSet | null;
@@ -14,13 +16,69 @@ export default class Queue {
 
   public paused: boolean;
 
-  constructor(id: string, name: string, sets: AvailableSet[] = []) {
+  private shouldCheckOvertime: boolean;
+
+  public allottedDurationMs: number;
+
+  private playbackStartedMs: number;
+
+  private liveStartedMs: number;
+
+  constructor(
+    id: string,
+    name: string,
+    hasWave: boolean,
+    sets: AvailableSet[] = [],
+  ) {
     this.id = id;
     this.name = name;
+    this.hasWave = hasWave;
     this.sets = sets;
     this.nextSet = null;
     this.nextSetIsManual = false;
     this.paused = false;
+    this.shouldCheckOvertime = hasWave;
+    this.allottedDurationMs = 0;
+    this.playbackStartedMs = Number.POSITIVE_INFINITY;
+    this.liveStartedMs = Number.POSITIVE_INFINITY;
+
+    this.sets.forEach((set) => {
+      if (this.shouldCheckOvertime) {
+        if (set?.context?.startgg) {
+          if (
+            !(
+              set.context.startgg.phaseGroup.bracketType === 3 ||
+              set.context.startgg.phaseGroup.bracketType === 4
+            )
+          ) {
+            this.shouldCheckOvertime = false;
+          }
+        } else if (set?.context?.challonge) {
+          if (
+            !(
+              set.context.challonge.tournament.tournamentType === 'swiss' ||
+              set.context.challonge.tournament.tournamentType === 'round robin'
+            )
+          ) {
+            this.shouldCheckOvertime = false;
+          }
+        } else {
+          this.shouldCheckOvertime = false;
+        }
+      }
+
+      if (set.playedMs > 0) {
+        this.playbackStartedMs = Math.min(this.playbackStartedMs, set.playedMs);
+      }
+
+      if (set.context) {
+        this.liveStartedMs = Math.min(this.liveStartedMs, set.context.startMs);
+      }
+    });
+  }
+
+  public getId() {
+    return this.id;
   }
 
   public sortSets() {
@@ -238,7 +296,34 @@ export default class Queue {
 
   public enqueue(set: AvailableSet) {
     this.sets.push(set);
+
     this.sortSets();
+    if (this.shouldCheckOvertime) {
+      if (set?.context?.startgg) {
+        if (
+          !(
+            set.context.startgg.phaseGroup.bracketType === 3 ||
+            set.context.startgg.phaseGroup.bracketType === 4
+          )
+        ) {
+          this.shouldCheckOvertime = false;
+        }
+      } else if (set?.context?.challonge) {
+        if (
+          !(
+            set.context.challonge.tournament.tournamentType === 'swiss' ||
+            set.context.challonge.tournament.tournamentType === 'round robin'
+          )
+        ) {
+          this.shouldCheckOvertime = false;
+        }
+      } else {
+        this.shouldCheckOvertime = false;
+      }
+    }
+    if (set.context) {
+      this.liveStartedMs = Math.min(this.liveStartedMs, set.context.startMs);
+    }
   }
 
   public peek(): { nextSet: AvailableSet | null; nextSetIsManual: boolean } {
@@ -255,6 +340,9 @@ export default class Queue {
     set.playing = true;
     this.sortSets();
     this.setCalculatedNextSet(set);
+    if (!Number.isFinite(this.playbackStartedMs)) {
+      this.playbackStartedMs = set.playedMs;
+    }
   }
 
   public find(originalPath: string): AvailableSet {
@@ -292,5 +380,23 @@ export default class Queue {
 
   public getSets(): AvailableSet[] {
     return this.sets;
+  }
+
+  public getShouldCheckOvertime(): boolean {
+    return this.sets.length > 0 ? this.shouldCheckOvertime : false;
+  }
+
+  public getPlaybackStartedMs(): number {
+    if (Number.isFinite(this.playbackStartedMs)) {
+      return this.playbackStartedMs;
+    }
+    return 0;
+  }
+
+  public getLiveStartedMs(): number {
+    if (Number.isFinite(this.liveStartedMs)) {
+      return this.liveStartedMs;
+    }
+    return 0;
   }
 }

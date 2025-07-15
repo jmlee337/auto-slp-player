@@ -19,7 +19,7 @@ import {
   Tooltip,
   Typography,
 } from '@mui/material';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   CheckCircle,
   CloudDownload,
@@ -38,33 +38,15 @@ export default function Settings({
   setIsoPath,
   maxDolphins,
   setMaxDolphins,
-  generateTimestamps,
-  setGenerateTimestamps,
-  addDelay,
-  setAddDelay,
-  splitOption,
-  setSplitOption,
-  splitByWave,
-  setSplitByWave,
   twitchUserName,
-  obsGamecaptureResult,
   dolphinVersion,
   setDolphinVersion,
   dolphinVersionError,
   setDolphinVersionError,
   shouldSetupAndAutoSwitchObs,
   setShouldSetupAndAutoSwitchObs,
-  obsProtocol,
-  setObsProtocol,
-  obsAddress,
-  setObsAddress,
-  obsPort,
-  setObsPort,
-  obsPassword,
-  setObsPassword,
-  appVersion,
-  latestAppVersion,
   gotSettings,
+  showAppErrorDialog,
 }: {
   dolphinPath: string;
   setDolphinPath: (dolphinPath: string) => void;
@@ -72,34 +54,73 @@ export default function Settings({
   setIsoPath: (isoPath: string) => void;
   maxDolphins: number;
   setMaxDolphins: (maxDolphins: number) => void;
-  generateTimestamps: boolean;
-  setGenerateTimestamps: (generateTimestamps: boolean) => void;
-  addDelay: boolean;
-  setAddDelay: (addDelay: boolean) => void;
-  splitOption: SplitOption;
-  setSplitOption: (splitOption: SplitOption) => void;
-  splitByWave: boolean;
-  setSplitByWave: (splitByWave: boolean) => void;
   twitchUserName: string;
-  obsGamecaptureResult: ObsGamecaptureResult;
   dolphinVersion: string;
   setDolphinVersion: (dolphinVersion: string) => void;
   dolphinVersionError: string;
   setDolphinVersionError: (dolphinVersionError: string) => void;
   shouldSetupAndAutoSwitchObs: boolean;
   setShouldSetupAndAutoSwitchObs: (setupObs: boolean) => void;
-  obsProtocol: string;
-  setObsProtocol: (protocol: string) => void;
-  obsAddress: string;
-  setObsAddress: (address: string) => void;
-  obsPort: string;
-  setObsPort: (port: string) => void;
-  obsPassword: string;
-  setObsPassword: (password: string) => void;
-  appVersion: string;
-  latestAppVersion: string;
   gotSettings: boolean;
+  showAppErrorDialog: (message: string) => void;
 }) {
+  const [appVersion, setAppVersion] = useState('');
+  const [generateTimestamps, setGenerateTimestamps] = useState(false);
+  const [addDelay, setAddDelay] = useState(false);
+  const [splitOption, setSplitOption] = useState(SplitOption.NONE);
+  const [splitByWave, setSplitByWave] = useState(false);
+  const [checkOvertime, setCheckOvertime] = useState(false);
+  const [obsGamecaptureResult, setObsGamecaptureResult] = useState(
+    ObsGamecaptureResult.NOT_APPLICABLE,
+  );
+  const [obsProtocol, setObsProtocol] = useState('');
+  const [obsAddress, setObsAddress] = useState('');
+  const [obsPort, setObsPort] = useState('');
+  const [obsPassword, setObsPassword] = useState('');
+  const [latestAppVersion, setLatestAppVersion] = useState('');
+  const [gotSettingsLocal, setGotSettingsLocal] = useState(false);
+
+  useEffect(() => {
+    (async () => {
+      const appVersionPromise = window.electron.getVersion();
+      const generateTimestampsPromise = window.electron.getGenerateTimestamps();
+      const addDelayPromise = window.electron.getAddDelay();
+      const splitOptionPromise = window.electron.getSplitOption();
+      const splitByWavePromise = window.electron.getSplitByWave();
+      const checkOvertimePromise = window.electron.getCheckOvertime();
+      const obsGamecaptureResultPromise = window.electron.checkObsGamecapture();
+
+      const obsSettingsPromise = window.electron.getObsSettings();
+
+      // req network
+      const latestAppVersionPromise = window.electron.getLatestVersion();
+
+      setAppVersion(await appVersionPromise);
+      setGenerateTimestamps(await generateTimestampsPromise);
+      setAddDelay(await addDelayPromise);
+      setSplitOption(await splitOptionPromise);
+      setSplitByWave(await splitByWavePromise);
+      setCheckOvertime(await checkOvertimePromise);
+      setObsGamecaptureResult(await obsGamecaptureResultPromise);
+
+      setObsProtocol((await obsSettingsPromise).protocol);
+      setObsAddress((await obsSettingsPromise).address);
+      setObsPort((await obsSettingsPromise).port);
+      setObsPassword((await obsSettingsPromise).password);
+
+      // req network
+      try {
+        setLatestAppVersion(await latestAppVersionPromise);
+      } catch {
+        showAppErrorDialog(
+          'Unable to check for updates. Are you connected to the internet?',
+        );
+      }
+
+      setGotSettingsLocal(true);
+    })();
+  }, [showAppErrorDialog]);
+
   const [open, setOpen] = useState(false);
   const [hasAutoOpened, setHasAutoOpened] = useState(false);
 
@@ -136,6 +157,7 @@ export default function Settings({
   }, [appVersion, latestAppVersion]);
   if (
     gotSettings &&
+    gotSettingsLocal &&
     !hasAutoOpened &&
     (obsGamecaptureResult === ObsGamecaptureResult.FAIL ||
       !dolphinPath ||
@@ -373,6 +395,32 @@ export default function Settings({
               }
               label={SplitOption.NONE ? 'Split by wave' : 'Also split by wave'}
             />
+            <FormControlLabel
+              disabled={!splitByWave}
+              control={
+                <Checkbox
+                  checked={checkOvertime}
+                  onChange={async (event) => {
+                    const newCheckOvertime = event.target.checked;
+                    await window.electron.setCheckOvertime(newCheckOvertime);
+                    setCheckOvertime(newCheckOvertime);
+                  }}
+                />
+              }
+              label={
+                <>
+                  RR overtime protection (
+                  <Link
+                    href={`https://github.com/jmlee337/auto-slp-player/blob/${appVersion}/src/docs/overtime.md`}
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    see info
+                  </Link>
+                  )
+                </>
+              }
+            />
           </Stack>
           <Stack marginTop="8px">
             <Box>
@@ -394,13 +442,13 @@ export default function Settings({
                 }
                 label={
                   <>
-                    Auto OBS Setup/Scene Switching (see info{' '}
+                    Auto OBS Setup/Scene Switching (
                     <Link
                       href={`https://github.com/jmlee337/auto-slp-player/blob/${appVersion}/src/docs/obs.md`}
                       target="_blank"
                       rel="noreferrer"
                     >
-                      here
+                      see info
                     </Link>
                     )
                   </>

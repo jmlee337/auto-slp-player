@@ -1,5 +1,5 @@
 import { MemoryRouter as Router, Routes, Route } from 'react-router-dom';
-import { SyntheticEvent, useEffect, useState } from 'react';
+import { SyntheticEvent, useCallback, useEffect, useState } from 'react';
 import './App.css';
 import {
   Alert,
@@ -16,11 +16,7 @@ import {
   Typography,
 } from '@mui/material';
 import { Add, Pause, PlayArrow, Remove } from '@mui/icons-material';
-import {
-  ObsGamecaptureResult,
-  RendererQueue,
-  SplitOption,
-} from '../common/types';
+import { RendererQueue } from '../common/types';
 import Settings from './Settings';
 import Queue from './Queue';
 import QueueTabPanel from './QueueTabPanel';
@@ -31,32 +27,19 @@ import Mirror from './Mirror';
 function Hello() {
   const [appError, setAppError] = useState('');
   const [appErrorDialogOpen, setAppErrorDialogOpen] = useState(false);
-  const showAppErrorDialog = (message: string) => {
+  const showAppErrorDialog = useCallback((message: string) => {
     setAppError(message);
     setAppErrorDialogOpen(true);
-  };
+  }, []);
 
-  const [appVersion, setAppVersion] = useState('');
-  const [latestAppVersion, setLatestAppVersion] = useState('');
   const [dolphinPath, setDolphinPath] = useState('');
   const [isoPath, setIsoPath] = useState('');
   const [maxDolphins, setMaxDolphins] = useState(1);
   const [numDolphins, setNumDolphins] = useState(0);
-  const [generateTimestamps, setGenerateTimestamps] = useState(false);
-  const [addDelay, setAddDelay] = useState(false);
-  const [splitOption, setSplitOption] = useState(SplitOption.NONE);
-  const [splitByWave, setSplitByWave] = useState(false);
-  const [obsGamecaptureResult, setObsGamecaptureResult] = useState(
-    ObsGamecaptureResult.NOT_APPLICABLE,
-  );
   const [dolphinVersion, setDolphinVersion] = useState('');
   const [dolphinVersionError, setDolphinVersionError] = useState('');
   const [shouldSetupAndAutoSwitchObs, setShouldSetupAndAutoSwitchObs] =
     useState(false);
-  const [obsProtocol, setObsProtocol] = useState('');
-  const [obsAddress, setObsAddress] = useState('');
-  const [obsPort, setObsPort] = useState('');
-  const [obsPassword, setObsPassword] = useState('');
   const [twitchUserName, setTwitchUserName] = useState('');
   const [canPlay, setCanPlay] = useState(false);
   const [queues, setQueues] = useState<RendererQueue[]>([]);
@@ -65,44 +48,24 @@ function Hello() {
   const [gotSettings, setGotSettings] = useState(false);
   useEffect(() => {
     const inner = async () => {
-      const appVersionPromise = window.electron.getVersion();
       const dolphinPathPromise = window.electron.getDolphinPath();
       const isoPathPromise = window.electron.getIsoPath();
       const maxDolphinsPromise = window.electron.getMaxDolphins();
       const numDolphinsPromise = window.electron.getNumDolphins();
-      const generateTimestampsPromise = window.electron.getGenerateTimestamps();
-      const addDelayPromise = window.electron.getAddDelay();
-      const splitOptionPromise = window.electron.getSplitOption();
-      const splitByWavePromise = window.electron.getSplitByWave();
-      const obsGamecaptureResultPromise = window.electron.checkObsGamecapture();
       const dolphinVersionPromise = window.electron.getDolphinVersion();
       const shouldSetupAndAutoSwitchObsPromise =
         window.electron.getShouldSetupAndAutoSwitchObs();
-      const obsSettingsPromise = window.electron.getObsSettings();
       const twitchUserNamePromise = window.electron.getTwitchUserName();
       const canPlayPromise = window.electron.getCanPlay();
       const queuesPromise = window.electron.getQueues();
 
-      // req network
-      const latestAppVersionPromise = window.electron.getLatestVersion();
-
-      setAppVersion(await appVersionPromise);
       setDolphinPath(await dolphinPathPromise);
       setIsoPath(await isoPathPromise);
       setMaxDolphins(await maxDolphinsPromise);
       setNumDolphins(await numDolphinsPromise);
-      setGenerateTimestamps(await generateTimestampsPromise);
-      setAddDelay(await addDelayPromise);
-      setSplitOption(await splitOptionPromise);
-      setSplitByWave(await splitByWavePromise);
-      setObsGamecaptureResult(await obsGamecaptureResultPromise);
       setDolphinVersion((await dolphinVersionPromise).version);
       setDolphinVersionError((await dolphinVersionPromise).error);
       setShouldSetupAndAutoSwitchObs(await shouldSetupAndAutoSwitchObsPromise);
-      setObsProtocol((await obsSettingsPromise).protocol);
-      setObsAddress((await obsSettingsPromise).address);
-      setObsPort((await obsSettingsPromise).port);
-      setObsPassword((await obsSettingsPromise).password);
       const initialTwitchUserName = await twitchUserNamePromise;
       setTwitchUserName((prev) => prev || initialTwitchUserName);
       setCanPlay(await canPlayPromise);
@@ -111,15 +74,6 @@ function Hello() {
       setQueues(initialQueues);
       setVisibleQueue(initialQueues.length > 0 ? initialQueues[0] : null);
       setVisibleQueueId(initialQueues.length > 0 ? initialQueues[0].id : '');
-
-      // req network
-      try {
-        setLatestAppVersion(await latestAppVersionPromise);
-      } catch {
-        showAppErrorDialog(
-          'Unable to check for updates. Are you connected to the internet?',
-        );
-      }
 
       setGotSettings(true);
     };
@@ -259,35 +213,17 @@ function Hello() {
               setDolphinPath={setDolphinPath}
               isoPath={isoPath}
               setIsoPath={setIsoPath}
-              generateTimestamps={generateTimestamps}
-              setGenerateTimestamps={setGenerateTimestamps}
-              addDelay={addDelay}
-              setAddDelay={setAddDelay}
-              splitOption={splitOption}
-              setSplitOption={setSplitOption}
-              splitByWave={splitByWave}
-              setSplitByWave={setSplitByWave}
               maxDolphins={maxDolphins}
               setMaxDolphins={setMaxDolphins}
               twitchUserName={twitchUserName}
-              obsGamecaptureResult={obsGamecaptureResult}
               dolphinVersion={dolphinVersion}
               setDolphinVersion={setDolphinVersion}
               dolphinVersionError={dolphinVersionError}
               setDolphinVersionError={setDolphinVersionError}
               shouldSetupAndAutoSwitchObs={shouldSetupAndAutoSwitchObs}
               setShouldSetupAndAutoSwitchObs={setShouldSetupAndAutoSwitchObs}
-              obsProtocol={obsProtocol}
-              setObsProtocol={setObsProtocol}
-              obsAddress={obsAddress}
-              setObsAddress={setObsAddress}
-              obsPort={obsPort}
-              setObsPort={setObsPort}
-              obsPassword={obsPassword}
-              setObsPassword={setObsPassword}
-              appVersion={appVersion}
-              latestAppVersion={latestAppVersion}
               gotSettings={gotSettings}
+              showAppErrorDialog={showAppErrorDialog}
             />
             <Setup
               watchFolderMsg={watchFolderMsg}

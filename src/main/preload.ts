@@ -62,6 +62,10 @@ const electronHandler = {
   getSplitByWave: (): Promise<boolean> => ipcRenderer.invoke('getSplitByWave'),
   setSplitByWave: (splitByWave: boolean): Promise<void> =>
     ipcRenderer.invoke('setSplitByWave', splitByWave),
+  getCheckOvertime: (): Promise<boolean> =>
+    ipcRenderer.invoke('getCheckOvertime'),
+  setCheckOvertime: (checkOvertime: boolean): Promise<void> =>
+    ipcRenderer.invoke('setCheckOvertime', checkOvertime),
 
   // twitch
   getTwitchUserName: (): Promise<string> =>

@@ -7,6 +7,7 @@ import {
 } from '../common/types';
 import { Dolphin } from './dolphin';
 
+const BG_IMAGE_INPUT_NAME = 'BG Image';
 const BG_COLOR_INPUT_NAME = 'BG Color';
 const CHAT_INPUT_NAME = 'Chat';
 
@@ -194,6 +195,35 @@ export default class OBSConnection {
     for (const sceneName of missingSceneNames) {
       await this.obsWebSocket.call('CreateScene', { sceneName });
 
+      let bgImageSceneItemId = 0;
+      if (
+        (
+          await this.obsWebSocket.call('GetInputList', {
+            inputKind: 'image_source',
+          })
+        ).inputs.find((input) => input.inputName === BG_IMAGE_INPUT_NAME)
+      ) {
+        bgImageSceneItemId = (
+          await this.obsWebSocket.call('CreateSceneItem', {
+            sceneName,
+            sourceName: BG_IMAGE_INPUT_NAME,
+          })
+        ).sceneItemId;
+      } else {
+        bgImageSceneItemId = (
+          await this.obsWebSocket.call('CreateInput', {
+            sceneName,
+            inputName: BG_IMAGE_INPUT_NAME,
+            inputKind: 'image_source',
+          })
+        ).sceneItemId;
+      }
+      await this.obsWebSocket.call('SetSceneItemLocked', {
+        sceneName,
+        sceneItemId: bgImageSceneItemId,
+        sceneItemLocked: true,
+      });
+
       let bgColorSceneItemId = 0;
       if (
         (
@@ -215,7 +245,7 @@ export default class OBSConnection {
             inputName: BG_COLOR_INPUT_NAME,
             inputKind: 'color_source_v3',
             inputSettings: {
-              color: 0xff000000, // ARGB
+              color: 0x00000000, // ARGB
             },
           })
         ).sceneItemId;

@@ -25,6 +25,7 @@ import { spawn } from 'child_process';
 import { AccessToken } from '@twurple/auth';
 import { parseStream, writeToString } from 'fast-csv';
 import { createReadStream } from 'fs';
+import { format, parse } from 'date-fns';
 import { deleteZipDir, scan, unzip } from './unzip';
 import {
   ApiPhaseGroup,
@@ -820,6 +821,7 @@ export default async function setupIPCs(
     }
     return actualPort;
   };
+  let expectedTimecodeOffset = 0;
   const writeTimestamps = async (
     entrant1Names: string[],
     entrant2Names: string[],
@@ -829,6 +831,22 @@ export default async function setupIPCs(
   ) => {
     const timecode = await obsConnection.getTimecode();
     if (timecode) {
+      let adjustedTimecode = timecode;
+      const timecodeDate = parse(timecode, 'HH:mm:ss', new Date(0));
+      const timecodeTotalS = Math.floor(timecodeDate.getTime() / 1000);
+      if (Number.isInteger(timecodeTotalS)) {
+        const nowS = Math.floor(Date.now() / 1000);
+        const timecodeOffset = nowS - timecodeTotalS;
+        if (expectedTimecodeOffset === 0) {
+          expectedTimecodeOffset = timecodeOffset;
+        } else if (timecodeOffset - expectedTimecodeOffset > 2) {
+          const adjustedTimecodeTotalS = nowS - expectedTimecodeOffset;
+          adjustedTimecode = format(
+            new Date(adjustedTimecodeTotalS * 1000),
+            'HH:mm:ss',
+          );
+        }
+      }
       const lineParts = [
         entrant1Names.join(' + '),
         entrant2Names.join(' + '),
@@ -837,6 +855,7 @@ export default async function setupIPCs(
         timecode,
         '', // base VOD URL
         setId,
+        adjustedTimecode,
       ];
       const file = await open(path.join(watchDir, 'timestamps.csv'), 'a');
       const csvLine = await writeToString([lineParts]);
@@ -1086,8 +1105,10 @@ export default async function setupIPCs(
   ipcMain.handle('getObsConnectionStatus', () =>
     obsConnection.getConnectionStatus(),
   );
-  ipcMain.removeHandler('getStreamingState');
-  ipcMain.handle('getStreamingState', () => obsConnection.getStreamingState());
+  ipcMain.removeHandler('getStreamOutputActive');
+  ipcMain.handle('getStreamOutputActive', () =>
+    obsConnection.getStreamOutputActive(),
+  );
   ipcMain.removeHandler('connectObs');
   ipcMain.handle('connectObs', async () => {
     await obsConnection.connect(obsSettings);

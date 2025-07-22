@@ -51,7 +51,7 @@ export default class OBSConnection {
 
   private sceneNameToInputNameToSceneItemId: Map<string, Map<string, number>>;
 
-  private streamingState: string;
+  private streamOutputActive: boolean;
 
   private overlay01Path: string;
 
@@ -80,7 +80,7 @@ export default class OBSConnection {
     this.portToPid = new Map();
     this.portToInputName = new Map();
     this.sceneNameToInputNameToSceneItemId = new Map();
-    this.streamingState = '';
+    this.streamOutputActive = false;
     this.shouldSetupAndAutoSwitch = false;
   }
 
@@ -807,9 +807,12 @@ export default class OBSConnection {
       this.obsWebSocket.on('ConnectionClosed', () => {
         this.setConnectionStatus(OBSConnectionStatus.OBS_NOT_CONNECTED);
       });
-      this.obsWebSocket.on('StreamStateChanged', ({ outputState }) => {
-        this.streamingState = outputState;
-        this.mainWindow.webContents.send('streaming', outputState);
+      this.obsWebSocket.on('StreamStateChanged', ({ outputActive }) => {
+        this.streamOutputActive = outputActive;
+        this.mainWindow.webContents.send(
+          'streamOutputActive',
+          this.streamOutputActive,
+        );
       });
     }
     let canCheckTEB = false;
@@ -838,10 +841,11 @@ export default class OBSConnection {
         );
       }
       const { outputActive } = await this.obsWebSocket.call('GetStreamStatus');
-      this.streamingState = outputActive
-        ? 'OBS_WEBSOCKET_OUTPUT_STARTED'
-        : 'OBS_WEBSOCKET_OUTPUT_STOPPED';
-      this.mainWindow.webContents.send('streaming', this.streamingState);
+      this.streamOutputActive = outputActive;
+      this.mainWindow.webContents.send(
+        'streamOutputActive',
+        this.streamOutputActive,
+      );
     }
   }
 
@@ -921,8 +925,8 @@ export default class OBSConnection {
     await this.obsWebSocket.callBatch(requests);
   }
 
-  getStreamingState() {
-    return this.streamingState;
+  getStreamOutputActive() {
+    return this.streamOutputActive;
   }
 
   async startStream() {
@@ -940,8 +944,7 @@ export default class OBSConnection {
   async getTimecode() {
     if (
       !this.obsWebSocket ||
-      this.connectionStatus === OBSConnectionStatus.OBS_NOT_CONNECTED ||
-      this.streamingState !== 'OBS_WEBSOCKET_OUTPUT_STARTED'
+      this.connectionStatus === OBSConnectionStatus.OBS_NOT_CONNECTED
     ) {
       return '';
     }

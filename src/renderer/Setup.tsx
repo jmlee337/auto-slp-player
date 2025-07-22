@@ -44,17 +44,17 @@ export default function Setup({
   const [obsConnecting, setObsConnecting] = useState(false);
   const [obsError, setObsError] = useState('');
   const [obsErrorDialogOpen, setObsErrorDialogOpen] = useState(false);
-  const [streamingState, setStreamingState] = useState('');
+  const [streamOutputActive, setStreamOutputActive] = useState(false);
 
   useEffect(() => {
     const inner = async () => {
       const watchDirPromise = window.electron.getWatchDir();
       const obsConnectionStatusPromise =
         window.electron.getObsConnectionStatus();
-      const streamingStatePromise = window.electron.getStreamingState();
+      const streamOutputActivePromise = window.electron.getStreamOutputActive();
       setWatchDir(await watchDirPromise);
       setObsConnectionStatus(await obsConnectionStatusPromise);
-      setStreamingState(await streamingStatePromise);
+      setStreamOutputActive(await streamOutputActivePromise);
     };
     inner();
   }, []);
@@ -79,8 +79,8 @@ export default function Setup({
         }
       },
     );
-    window.electron.onStreaming((event: IpcRendererEvent, state: string) => {
-      setStreamingState(state);
+    window.electron.onStreamOutputActive((event, outputActive: boolean) => {
+      setStreamOutputActive(outputActive);
     });
   }, []);
 
@@ -93,19 +93,11 @@ export default function Setup({
     obsButtonIcon = <Check />;
   }
 
-  // OBS_WEBSOCKET_OUTPUT_STOPPED
-  let streamingMsg = 'Start Stream';
-  if (streamingState === 'OBS_WEBSOCKET_OUTPUT_STARTING') {
-    streamingMsg = 'Starting...';
-  } else if (streamingState === 'OBS_WEBSOCKET_OUTPUT_STARTED') {
-    streamingMsg = 'Streaming';
-  }
-
   const isSetup =
     watchDir &&
     numDolphins === maxDolphins &&
     obsConnectionStatus === OBSConnectionStatus.READY &&
-    streamingState === 'OBS_WEBSOCKET_OUTPUT_STARTED';
+    streamOutputActive;
 
   return (
     <>
@@ -198,13 +190,11 @@ export default function Setup({
           </Stack>
           <Button
             disabled={
-              streamingState === 'OBS_WEBSOCKET_OUTPUT_STARTING' ||
-              streamingState === 'OBS_WEBSOCKET_OUTPUT_STARTED' ||
+              streamOutputActive ||
               obsConnectionStatus !== OBSConnectionStatus.READY
             }
             endIcon={
-              streamingState === 'OBS_WEBSOCKET_OUTPUT_STARTING' ||
-              streamingState === 'OBS_WEBSOCKET_OUTPUT_STARTED' ? (
+              streamOutputActive ? (
                 <CircularProgress size="24px" />
               ) : (
                 <PlayCircle />
@@ -215,7 +205,7 @@ export default function Setup({
             }}
             variant="contained"
           >
-            {streamingMsg}
+            {streamOutputActive ? 'Streaming' : 'Start Stream'}
           </Button>
         </DialogContent>
       </Dialog>

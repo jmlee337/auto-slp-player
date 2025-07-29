@@ -1,4 +1,3 @@
-import { format } from 'date-fns';
 import {
   ApiPhaseGroup,
   AvailableSet,
@@ -107,7 +106,7 @@ export function toMainContext(context: Context): MainContext | undefined {
 
   const mainContext: MainContext = {
     bestOf: bestOf!,
-    durationMs: durationMs!,
+    durationMs: durationMs! + scores.length * 2500,
     scores: mainScores,
     finalScore: mainFinalScore,
     players: mainPlayers,
@@ -227,7 +226,7 @@ export function toRendererSet(set: AvailableSet): RendererSet {
   const rendererSet: RendererSet = {
     originalPath: set.originalPath,
     invalidReason: set.invalidReason,
-    played: set.playedMs !== 0,
+    playedMs: set.playedMs,
     playing: set.playing,
   };
   if (set.context) {
@@ -236,7 +235,7 @@ export function toRendererSet(set: AvailableSet): RendererSet {
       players: set.context.players,
       namesLeft: set.context.scores[0].slots[0].displayNames.join(' + '),
       namesRight: set.context.scores[0].slots[1].displayNames.join(' + '),
-      duration: format(new Date(set.context.durationMs), 'm:ss'),
+      durationMs: set.context.durationMs,
     };
     if (set.context.startgg) {
       rendererSet.context.startgg = {

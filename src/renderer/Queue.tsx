@@ -19,7 +19,9 @@ import {
   Tv,
 } from '@mui/icons-material';
 import { useState } from 'react';
+import { format } from 'date-fns';
 import { RendererQueue, RendererSet, Stream } from '../common/types';
+import Countdown from './Countdown';
 
 function TwitchStreamIcon({ stream }: { stream: Stream }) {
   let icon = <Tv />;
@@ -86,14 +88,18 @@ function QueueSet({
       key={set.originalPath}
       style={{
         gap: '8px',
-        opacity: set.played ? '0.54' : '100%',
+        opacity: set.playedMs !== 0 ? '0.54' : '100%',
       }}
     >
       <Checkbox
-        checked={!set.played}
+        checked={set.playedMs === 0}
         disableRipple
         onClick={() => {
-          window.electron.markPlayed(queueId, set.originalPath, !set.played);
+          window.electron.markPlayed(
+            queueId,
+            set.originalPath,
+            set.playedMs === 0,
+          );
         }}
       />
       {set.invalidReason && (
@@ -134,7 +140,14 @@ function QueueSet({
             </ListItemText>
           )}
           <ListItemText sx={{ flexGrow: 0, flexShrink: 0 }}>
-            {set.context.duration}
+            {set.playing ? (
+              <Countdown
+                playedMs={set.playedMs}
+                durationMs={set.context.durationMs}
+              />
+            ) : (
+              format(new Date(set.context.durationMs), 'm:ss')
+            )}
           </ListItemText>
         </Stack>
       ) : (
@@ -173,7 +186,7 @@ function QueueSet({
         <IconButton
           disabled={!canPlay || set.playing}
           style={
-            set.played && (!canPlay || set.playing)
+            set.playedMs !== 0 && (!canPlay || set.playing)
               ? { color: 'rgba(0, 0, 0, 0.5)' }
               : {}
           }

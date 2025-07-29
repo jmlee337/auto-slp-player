@@ -186,7 +186,7 @@ export type AvailableSet = {
 
 export type RendererContext = {
   bestOf: number;
-  duration: string;
+  durationMs: number;
   namesLeft: string;
   namesRight: string;
   players?: MainContextPlayers;
@@ -208,7 +208,7 @@ export type RendererSet = {
   context?: RendererContext;
   invalidReason: string;
   originalPath: string;
-  played: boolean;
+  playedMs: number;
   playing: boolean;
 };
 

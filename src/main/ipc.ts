@@ -1432,9 +1432,11 @@ export default async function setupIPCs(
         thisTimeRows.forEach((row) => {
           const setId = row[6];
           const timecodeParts = row[4].split(':');
-          const timecode = `?t=${timecodeParts[0]}h${timecodeParts[1]}m${timecodeParts[2]}s`;
-          const vodUrl = baseYoutubeUrl + timecode;
-          setIdToVodUrl.set(setId, vodUrl);
+          if (setId && timecodeParts.length === 3) {
+            const timecode = `?t=${timecodeParts[0]}h${timecodeParts[1]}m${timecodeParts[2]}s`;
+            const vodUrl = baseYoutubeUrl + timecode;
+            setIdToVodUrl.set(setId, vodUrl);
+          }
         });
         const inner = Array.from(setIdToVodUrl.entries()).map(
           ([setId, vodUrl]) => {

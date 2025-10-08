@@ -56,122 +56,6 @@ import Twitch from './twitch';
 const SEMVER_REGEX =
   /(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(?:-((?:0|[1-9][0-9]*|[0-9]*[a-zA-Z-][0-9a-zA-Z-]*)(?:\.(?:0|[1-9][0-9]*|[0-9]*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\+([0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?/;
 
-function willNotSpoil(
-  setA: AvailableSet,
-  setB: AvailableSet,
-  splitOption: SplitOption,
-) {
-  const aStartgg = setA.context?.startgg;
-  const bStartgg = setB.context?.startgg;
-  const aChallonge = setA.context?.challonge;
-  const bChallonge = setB.context?.challonge;
-  if (
-    (!aStartgg && !bStartgg && !aChallonge && !bChallonge) ||
-    Boolean(aStartgg) !== Boolean(bStartgg) ||
-    Boolean(aChallonge) !== Boolean(bChallonge)
-  ) {
-    return true;
-  }
-  if (aStartgg && bStartgg) {
-    // sets in diff events can never spoil each other
-    // sets in diff phases are non spoiling if splitting by phase
-    if (
-      aStartgg.event.slug !== bStartgg.event.slug ||
-      (aStartgg.phase.id !== bStartgg.phase.id &&
-        splitOption === SplitOption.PHASE)
-    ) {
-      return true;
-    }
-
-    // if splitting by phase then same phase
-    // if any other split then we need to verify same phase
-    if (
-      splitOption === SplitOption.PHASE ||
-      aStartgg.phase.id === bStartgg.phase.id
-    ) {
-      if (aStartgg.phaseGroup.id !== bStartgg.phaseGroup.id) {
-        return true;
-      }
-      if (
-        aStartgg.phaseGroup.bracketType === 3 &&
-        bStartgg.phaseGroup.bracketType === 3
-      ) {
-        return true;
-      }
-      if (aStartgg.set.round === bStartgg.set.round) {
-        return true;
-      }
-      if (aStartgg.set.ordinal !== null && bStartgg.set.ordinal !== null) {
-        if (
-          aStartgg.set.round < 0 &&
-          bStartgg.set.round > 0 &&
-          bStartgg.set.fullRoundText !== 'Grand Final' &&
-          bStartgg.set.fullRoundText !== 'Grand Final Reset' &&
-          aStartgg.set.ordinal < bStartgg.set.ordinal
-        ) {
-          return true;
-        }
-        if (
-          bStartgg.set.round < 0 &&
-          aStartgg.set.round > 0 &&
-          aStartgg.set.fullRoundText !== 'Grand Final' &&
-          aStartgg.set.fullRoundText !== 'Grand Final Reset' &&
-          bStartgg.set.ordinal < aStartgg.set.ordinal
-        ) {
-          return true;
-        }
-      }
-    }
-  }
-  if (aChallonge && bChallonge) {
-    // sets in diff brackets are non spoiling if splitting
-    if (
-      aChallonge.tournament.slug !== bChallonge.tournament.slug &&
-      splitOption !== SplitOption.NONE
-    ) {
-      return true;
-    }
-
-    // if splitting then same bracket
-    // if not splitting then we need to verify same bracket
-    if (
-      splitOption !== SplitOption.NONE ||
-      aChallonge.tournament.slug === bChallonge.tournament.slug
-    ) {
-      if (
-        aChallonge.tournament.tournamentType === 'round robin' &&
-        bChallonge.tournament.tournamentType === 'round robin'
-      ) {
-        return true;
-      }
-      if (aChallonge.set.round === bChallonge.set.round) {
-        return true;
-      }
-      if (aChallonge.set.ordinal !== null && bChallonge.set.ordinal !== null) {
-        if (
-          aChallonge.set.round < 0 &&
-          bChallonge.set.round > 0 &&
-          bChallonge.set.fullRoundText !== 'Grand Final' &&
-          bChallonge.set.fullRoundText !== 'Grand Final Reset' &&
-          aChallonge.set.ordinal < bChallonge.set.ordinal
-        ) {
-          return true;
-        }
-        if (
-          bChallonge.set.round < 0 &&
-          aChallonge.set.round > 0 &&
-          aChallonge.set.fullRoundText !== 'Grand Final' &&
-          aChallonge.set.fullRoundText !== 'Grand Final Reset' &&
-          bChallonge.set.ordinal < aChallonge.set.ordinal
-        ) {
-          return true;
-        }
-      }
-    }
-  }
-  return false;
-}
-
 function getDefaultMirrorDir() {
   let root = app.getPath('home');
   if (process.platform === 'win32') {
@@ -479,13 +363,50 @@ export default async function setupIPCs(
   const originalPathToPlayedMs = new Map<string, number>();
   const playingSets: Map<number, AvailableSet | null> = new Map();
   const tryingPorts = new Set<number>();
-  const willNotSpoilPlayingSets = (prospectiveSet: AvailableSet) => {
-    return Array.from(playingSets.values()).every((playingSet) => {
-      if (!playingSet) {
-        return true;
+  const willNotSpoilOtherSets = (
+    prospectiveSet: AvailableSet,
+    otherSets: AvailableSet[],
+  ) => {
+    if (!prospectiveSet.context) {
+      return true;
+    }
+
+    const playerNames = new Set<string>();
+    const slotDisplayNames = new Set<string>();
+    otherSets.forEach((playingSet) => {
+      if (prospectiveSet.context?.players && playingSet.context?.players) {
+        playingSet.context.players.entrant1.forEach((player) => {
+          playerNames.add(player.name);
+        });
+        playingSet.context.players.entrant2.forEach((player) => {
+          playerNames.add(player.name);
+        });
       }
-      return willNotSpoil(playingSet, prospectiveSet, splitOption);
+      if (playingSet?.context?.scores) {
+        playingSet.context.scores[0].slots.forEach((slot) => {
+          slot.displayNames.forEach((displayName) => {
+            slotDisplayNames.add(displayName);
+          });
+        });
+      }
     });
+
+    if (prospectiveSet.context.players) {
+      return (
+        prospectiveSet.context.players.entrant1.every(
+          (player) => !playerNames.has(player.name),
+        ) &&
+        prospectiveSet.context.players.entrant2.every(
+          (player) => !playerNames.has(player.name),
+        )
+      );
+    }
+
+    return prospectiveSet.context.scores[0].slots.every((slot) =>
+      slot.displayNames.every(
+        (displayName) => !slotDisplayNames.has(displayName),
+      ),
+    );
   };
 
   const idToQueue = new Map<string, Queue>();
@@ -1028,7 +949,10 @@ export default async function setupIPCs(
         for (const queue of queues) {
           if (!queue.paused) {
             let { nextSet } = queue.peek();
-            while (nextSet && willNotSpoilPlayingSets(nextSet)) {
+            while (
+              nextSet &&
+              willNotSpoilOtherSets(nextSet, queue.getPlayingSets())
+            ) {
               await playDolphin(queue, nextSet);
               if (
                 newTailingQueues.indexOf(queue) === -1 &&
@@ -1228,7 +1152,7 @@ export default async function setupIPCs(
           newSet.playedMs === 0 &&
           playingSets.size + tryingPorts.size < maxDolphins &&
           queue.setQualifiesToPlayNext(newSet) &&
-          willNotSpoilPlayingSets(newSet)
+          willNotSpoilOtherSets(newSet, queue.getPlayingSets())
         ) {
           await playDolphin(queue, newSet);
           // no need for overtime check here, since we're not behind

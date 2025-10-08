@@ -83,100 +83,17 @@ export default class Queue {
 
   public sortSets() {
     this.sets.sort((a, b) => {
-      if (a.context?.startgg && b.context?.startgg) {
-        const aStartgg = a.context.startgg;
-        const bStartgg = b.context.startgg;
-        const eventNameCompare = aStartgg.event.name.localeCompare(
-          bStartgg.event.name,
-        );
-        if (eventNameCompare) {
-          return eventNameCompare;
-        }
-        const phaseIdCompare = aStartgg.phase.id - bStartgg.phase.id;
-        if (phaseIdCompare) {
-          return phaseIdCompare;
-        }
-        if (
-          aStartgg.phaseGroup.bracketType === 3 &&
-          bStartgg.phaseGroup.bracketType === 3
-        ) {
-          // RR pools may not actually be played in round order,
-          // and there's also no inter-round dependencies
-          return (
-            a.context.startMs +
-            a.context.durationMs -
-            (b.context.startMs - b.context.durationMs)
-          );
-        }
-        const aRound = aStartgg.set.round;
-        const bRound = bStartgg.set.round;
-        if (aRound !== bRound) {
-          if (aStartgg.set.ordinal !== null && bStartgg.set.ordinal !== null) {
-            return aStartgg.set.ordinal - bStartgg.set.ordinal;
-          }
-          // only non-DE so this comparison is safe
-          return aRound - bRound;
-        }
-        if (a.playedMs && b.playedMs) {
-          return a.playedMs - b.playedMs;
-        }
-        if (a.playedMs && !b.playedMs) {
-          return -1;
-        }
-        if (!a.playedMs && b.playedMs) {
-          return 1;
-        }
-        return b.context.durationMs - a.context.durationMs;
+      if (a.playedMs && !b.playedMs) {
+        return -1;
       }
-      if (a.context?.challonge && b.context?.challonge) {
-        const aChallonge = a.context.challonge;
-        const bChallonge = b.context.challonge;
-        const tournamentNameCompare = aChallonge.tournament.name.localeCompare(
-          bChallonge.tournament.name,
-        );
-        if (tournamentNameCompare) {
-          return tournamentNameCompare;
-        }
-        if (
-          aChallonge.tournament.tournamentType === 'round robin' &&
-          bChallonge.tournament.tournamentType === 'round robin'
-        ) {
-          // RR pools may not actually be played in round order,
-          // and there's also no inter-round dependencies
-          return (
-            a.context.startMs +
-            a.context.durationMs -
-            (b.context.startMs - b.context.durationMs)
-          );
-        }
-        const aRound = aChallonge.set.round;
-        const bRound = bChallonge.set.round;
-        if (aRound !== bRound) {
-          const aOrdinal = aChallonge.set.ordinal;
-          const bOrdinal = bChallonge.set.ordinal;
-          if (aOrdinal !== null && bOrdinal !== null) {
-            return aOrdinal - bOrdinal;
-          }
-          // only if swiss so this comparison is safe
-          return aRound - bRound;
-        }
-        if (a.playedMs && b.playedMs) {
-          return a.playedMs - b.playedMs;
-        }
-        if (a.playedMs && !b.playedMs) {
-          return -1;
-        }
-        if (!a.playedMs && b.playedMs) {
-          return 1;
-        }
-        return b.context.durationMs - a.context.durationMs;
+      if (!a.playedMs && b.playedMs) {
+        return 1;
       }
       if (a.context && b.context) {
-        return (
-          a.context.startMs +
-          a.context.durationMs -
-          (b.context.startMs - b.context.durationMs)
-        );
+        if (a.context.startMs === b.context.startMs) {
+          return b.context.durationMs - a.context.durationMs;
+        }
+        return a.context.startMs - b.context.startMs;
       }
       if (!a.context && b.context) {
         return -1;
@@ -398,5 +315,9 @@ export default class Queue {
       return this.liveStartedMs;
     }
     return 0;
+  }
+
+  public getPlayingSets(): AvailableSet[] {
+    return this.sets.filter((set) => set.playing);
   }
 }

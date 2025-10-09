@@ -156,13 +156,26 @@
             replace('right-full-names', '', setEl);
             replace('right-score', '', setEl);
           } else {
-            let bo = 'Live';
-            if (set.isFinal) {
-              bo = 'Final';
-            } else if (set.bestOf > 0) {
-              bo = `BO${set.bestOf}`;
+            if (set.type === 0) {
+              // STANDARD
+              replace(
+                'round-bo',
+                set.isFinal
+                  ? `${set.roundName} (Final)`
+                  : `${set.roundName} (BO${set.bestOf})`,
+                setEl,
+              );
+            } else if (set.type === 1) {
+              // CONTEXTLESS
+              replace('round-bo', '(Unknown)', setEl);
+            } else if (set.type === 2) {
+              // LIVE
+              replace(
+                'round-bo',
+                set.roundName ? `${set.roundName} (Live)` : '(Live)',
+                setEl,
+              );
             }
-            replace('round-bo', `${set.roundName} (${bo})`, setEl);
             const leftFullNames = [];
             for (let i = 0; i < set.leftPrefixes.length; i += 1) {
               let fullName = '';

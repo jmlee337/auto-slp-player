@@ -228,6 +228,12 @@ export type TwitchSettings = {
   refreshToken: string;
 };
 
+export enum OverlaySetType {
+  STANDARD = 0,
+  CONTEXTLESS = 1,
+  LIVE = 2,
+}
+
 export type OverlaySet = {
   roundName: string;
   bestOf: number;
@@ -240,6 +246,7 @@ export type OverlaySet = {
   rightNames: string[];
   rightPronouns: string[];
   rightScore: number;
+  type: OverlaySetType;
 };
 
 export type OverlayStartgg = {

@@ -160,56 +160,61 @@
           for (let i = 0; i < 2; i++) {
             const set = sets[i];
             const setEl = setEls[i];
-            if (!set) {
-              replace('round-bo', ``, setEl);
-              replace('left-full-names', '', setEl);
-              replace('left-score', '', setEl);
-              replace('right-full-names', '', setEl);
-              replace('right-score', '', setEl);
-            } else {
-              let bo = 'Live';
-              if (set.isFinal) {
-                bo = 'Final';
-              } else if (set.bestOf > 0) {
-                bo = `BO${set.bestOf}`;
-              }
-              replace('round-bo', `${set.roundName} (${bo})`, setEl);
-              const leftFullNames = [];
-              for (let i = 0; i < set.leftPrefixes.length; i += 1) {
-                let fullName = '';
-                if (set.leftPrefixes[i]) {
-                  fullName += `${set.leftPrefixes[i]} | `;
-                }
-                fullName += set.leftNames[i];
-                if (set.leftPronouns[i]) {
-                  fullName += ` (${set.leftPronouns[i]})`;
-                }
-                leftFullNames.push(fullName);
-              }
-              const leftScore =
-                leftFullNames.length > 0 ? set.leftScore.toString() : '';
-              replace('left-full-names', leftFullNames.join(', '), setEl);
-              replace('left-score', leftScore, setEl);
-              display('left-score', set.leftScore >= 0, setEl);
-
-              const rightFullNames = [];
-              for (let i = 0; i < set.rightPrefixes.length; i += 1) {
-                let fullName = '';
-                if (set.rightPrefixes[i]) {
-                  fullName += `${set.rightPrefixes[i]} | `;
-                }
-                fullName += set.rightNames[i];
-                if (set.rightPronouns[i]) {
-                  fullName += ` (${set.rightPronouns[i]})`;
-                }
-                rightFullNames.push(fullName);
-              }
-              const rightScore =
-                rightFullNames.length > 0 ? set.rightScore.toString() : '';
-              replace('right-full-names', rightFullNames.join(', '), setEl);
-              replace('right-score', rightScore, setEl);
-              display('right-score', set.rightScore >= 0, setEl);
+            if (set.type === 0) {
+              // STANDARD
+              replace(
+                'round-bo',
+                set.isFinal
+                  ? `${set.roundName} (Final)`
+                  : `${set.roundName} (BO${set.bestOf})`,
+                setEl,
+              );
+            } else if (set.type === 1) {
+              // CONTEXTLESS
+              replace('round-bo', '(Unknown)', setEl);
+            } else if (set.type === 2) {
+              // LIVE
+              replace(
+                'round-bo',
+                set.roundName ? `${set.roundName} (Live)` : '(Live)',
+                setEl,
+              );
             }
+            const leftFullNames = [];
+            for (let i = 0; i < set.leftPrefixes.length; i += 1) {
+              let fullName = '';
+              if (set.leftPrefixes[i]) {
+                fullName += `${set.leftPrefixes[i]} | `;
+              }
+              fullName += set.leftNames[i];
+              if (set.leftPronouns[i]) {
+                fullName += ` (${set.leftPronouns[i]})`;
+              }
+              leftFullNames.push(fullName);
+            }
+            const leftScore =
+              leftFullNames.length > 0 ? set.leftScore.toString() : '';
+            replace('left-full-names', leftFullNames.join(', '), setEl);
+            replace('left-score', leftScore, setEl);
+            display('left-score', set.leftScore >= 0, setEl);
+
+            const rightFullNames = [];
+            for (let i = 0; i < set.rightPrefixes.length; i += 1) {
+              let fullName = '';
+              if (set.rightPrefixes[i]) {
+                fullName += `${set.rightPrefixes[i]} | `;
+              }
+              fullName += set.rightNames[i];
+              if (set.rightPronouns[i]) {
+                fullName += ` (${set.rightPronouns[i]})`;
+              }
+              rightFullNames.push(fullName);
+            }
+            const rightScore =
+              rightFullNames.length > 0 ? set.rightScore.toString() : '';
+            replace('right-full-names', rightFullNames.join(', '), setEl);
+            replace('right-score', rightScore, setEl);
+            display('right-score', set.rightScore >= 0, setEl);
           }
 
           context = newContext;

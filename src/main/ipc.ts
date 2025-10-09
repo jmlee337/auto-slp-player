@@ -38,6 +38,7 @@ import {
   OverlayChallonge,
   OverlayContext,
   OverlaySet,
+  OverlaySetType,
   OverlayStartgg,
   SetType,
   SplitOption,
@@ -464,14 +465,12 @@ export default async function setupIPCs(
     const phaseGroupIds = new Set<number>();
     let anyPhaseGroupHasSiblings = false;
     const challongeSlugs = new Set<string>();
-    const entriesWithContexts = Array.from(playingSets.entries()).filter(
-      ([, playingSet]) => playingSet?.context,
-    );
+    const playingSetsEntries = Array.from(playingSets.entries());
     let representativeStartgg: MainContextStartgg | undefined;
     let representativeChallonge: MainContextChallonge | undefined;
-    entriesWithContexts.forEach(([, playingSet]) => {
-      const startgg = playingSet!.context?.startgg;
-      const challonge = playingSet!.context?.challonge;
+    playingSetsEntries.forEach(([, playingSet]) => {
+      const startgg = playingSet?.context?.startgg;
+      const challonge = playingSet?.context?.challonge;
       if (startgg) {
         eventSlugs.add(startgg.event.slug);
         anyEventHasSiblings ||= startgg.event.hasSiblings;
@@ -491,15 +490,15 @@ export default async function setupIPCs(
       phaseGroupIds.add(mirrorSet.phaseGroupId);
       anyPhaseGroupHasSiblings ||= mirrorSet.phaseGroupHasSiblings;
     }
-    if (entriesWithContexts.length > 0) {
-      const entriesWithStartggContexts = entriesWithContexts.filter(
+    if (playingSetsEntries.length > 0) {
+      const entriesWithStartggContexts = playingSetsEntries.filter(
         ([, set]) => set?.context?.startgg,
       );
       if (entriesWithStartggContexts.length > 0) {
         representativeStartgg =
           entriesWithStartggContexts[0][1]!.context!.startgg!;
       }
-      const entriesWithChallongeContexts = entriesWithContexts.filter(
+      const entriesWithChallongeContexts = playingSetsEntries.filter(
         ([, set]) => set?.context?.challonge,
       );
       if (entriesWithChallongeContexts.length > 0) {
@@ -536,12 +535,7 @@ export default async function setupIPCs(
         lastChallongeTournamentName = challongeTournamentName;
         lastChallongeTournamentSlug = representativeChallonge.tournament.slug;
       }
-      entriesWithContexts.forEach(([port, playingSet]) => {
-        const context = playingSet!.context!;
-        const gameIndex = gameIndices.get(port);
-        if (gameIndex === undefined) {
-          throw new Error(`no gameIndex for port ${port}`);
-        }
+      playingSetsEntries.forEach(([port, playingSet]) => {
         const setIndex = Array.from(dolphins.keys())
           .sort((a, b) => a - b)
           .indexOf(port);
@@ -549,72 +543,75 @@ export default async function setupIPCs(
           throw new Error(`no dolphin for port ${port}`);
         }
 
-        let roundName = '';
-        if (context.startgg) {
-          roundName =
-            context.startgg.phaseGroup.bracketType === 3
-              ? 'Round Robin'
-              : context.startgg.set.fullRoundText;
-          if (
-            phaseGroupIds.size > 1 &&
-            context.startgg.phaseGroup.hasSiblings
-          ) {
-            roundName = `Pool ${context.startgg.phaseGroup.name}, ${roundName}`;
+        const context = playingSet?.context;
+        if (!context) {
+          sets[setIndex] = {
+            roundName: '',
+            bestOf: -1,
+            isFinal: false,
+            leftPrefixes: [],
+            leftNames: [],
+            leftPronouns: [],
+            leftScore: -1,
+            rightPrefixes: [],
+            rightNames: [],
+            rightPronouns: [],
+            rightScore: -1,
+            type: OverlaySetType.CONTEXTLESS,
+          };
+        } else {
+          const gameIndex = gameIndices.get(port);
+          if (gameIndex === undefined) {
+            throw new Error(`no gameIndex for port ${port}`);
           }
-          if (phaseIds.size > 1 && context.startgg.phase.hasSiblings) {
-            roundName = `${context.startgg.phase.name}, ${roundName}`;
+
+          let roundName = '';
+          if (context.startgg) {
+            roundName =
+              context.startgg.phaseGroup.bracketType === 3
+                ? 'Round Robin'
+                : context.startgg.set.fullRoundText;
+            if (
+              phaseGroupIds.size > 1 &&
+              context.startgg.phaseGroup.hasSiblings
+            ) {
+              roundName = `Pool ${context.startgg.phaseGroup.name}, ${roundName}`;
+            }
+            if (phaseIds.size > 1 && context.startgg.phase.hasSiblings) {
+              roundName = `${context.startgg.phase.name}, ${roundName}`;
+            }
+            if (eventSlugs.size > 1 && context.startgg.event.hasSiblings) {
+              roundName = `${context.startgg.event.name}, ${roundName}`;
+            }
+          } else if (context.challonge) {
+            roundName =
+              context.challonge.tournament.tournamentType === 'round robin'
+                ? 'Round Robin'
+                : context.challonge.set.fullRoundText;
+            if (challongeSlugs.size > 1) {
+              roundName = `${context.challonge.tournament.name}, ${roundName}`;
+            }
           }
-          if (eventSlugs.size > 1 && context.startgg.event.hasSiblings) {
-            roundName = `${context.startgg.event.name}, ${roundName}`;
-          }
-        } else if (context.challonge) {
-          roundName =
-            context.challonge.tournament.tournamentType === 'round robin'
-              ? 'Round Robin'
-              : context.challonge.set.fullRoundText;
-          if (challongeSlugs.size > 1) {
-            roundName = `${context.challonge.tournament.name}, ${roundName}`;
-          }
+          const { slots } =
+            gameIndex >= 0 ? context.scores[gameIndex] : context.finalScore!;
+          sets[setIndex] = {
+            roundName,
+            bestOf: context.bestOf,
+            isFinal: gameIndex < 0,
+            leftPrefixes: slots[0].prefixes,
+            leftNames: slots[0].displayNames,
+            leftPronouns: slots[0].pronouns,
+            leftScore: slots[0].score,
+            rightPrefixes: slots[1].prefixes,
+            rightNames: slots[1].displayNames,
+            rightPronouns: slots[1].pronouns,
+            rightScore: slots[1].score,
+            type: OverlaySetType.STANDARD,
+          };
         }
-        const { slots } =
-          gameIndex >= 0 ? context.scores[gameIndex] : context.finalScore!;
-        sets[setIndex] = {
-          roundName,
-          bestOf: context.bestOf,
-          isFinal: gameIndex < 0,
-          leftPrefixes: slots[0].prefixes,
-          leftNames: slots[0].displayNames,
-          leftPronouns: slots[0].pronouns,
-          leftScore: slots[0].score,
-          rightPrefixes: slots[1].prefixes,
-          rightNames: slots[1].displayNames,
-          rightPronouns: slots[1].pronouns,
-          rightScore: slots[1].score,
-        };
       });
     }
-    if (mirrorPort && mirrorSet) {
-      if (!representativeStartgg) {
-        startggTournamentName = mirrorSet.tournamentName;
-        lastStartggTournamentName = startggTournamentName;
-        startggTournamentLocation = mirrorSet.tournamentLocation;
-        lastStartggTournamentLocation = startggTournamentLocation;
-        startggEventName =
-          eventSlugs.size === 1 && anyEventHasSiblings
-            ? mirrorSet.eventName
-            : '';
-        lastStartggEventName = startggEventName;
-        lastStartggEventSlug = mirrorSet.eventSlug;
-        startggPhaseName =
-          phaseIds.size === 1 && anyPhaseHasSiblings ? mirrorSet.phaseName : '';
-        lastStartggPhaseName = startggPhaseName;
-        startggPhaseGroupName =
-          phaseGroupIds.size === 1 && anyPhaseGroupHasSiblings
-            ? `Pool ${mirrorSet.phaseGroupName}`
-            : '';
-        lastStartggPhaseGroupName = startggPhaseGroupName;
-      }
-
+    if (mirrorPort) {
       const setIndex = Array.from(dolphins.keys())
         .sort((a, b) => a - b)
         .indexOf(mirrorPort);
@@ -622,32 +619,73 @@ export default async function setupIPCs(
         throw new Error(`no dolphin for port ${mirrorPort}`);
       }
 
-      let roundName =
-        mirrorSet.phaseGroupBracketType === 3
-          ? 'Round Robin'
-          : mirrorSet.fullRoundText;
-      if (phaseGroupIds.size > 1 && mirrorSet.phaseGroupHasSiblings) {
-        roundName = `Pool ${mirrorSet.phaseGroupName}, ${roundName}`;
+      if (!mirrorSet) {
+        sets[setIndex] = {
+          roundName: '',
+          bestOf: -1,
+          isFinal: false,
+          leftPrefixes: [],
+          leftNames: [],
+          leftPronouns: [],
+          leftScore: -1,
+          rightPrefixes: [],
+          rightNames: [],
+          rightPronouns: [],
+          rightScore: -1,
+          type: OverlaySetType.LIVE,
+        };
+      } else {
+        if (!representativeStartgg) {
+          startggTournamentName = mirrorSet.tournamentName;
+          lastStartggTournamentName = startggTournamentName;
+          startggTournamentLocation = mirrorSet.tournamentLocation;
+          lastStartggTournamentLocation = startggTournamentLocation;
+          startggEventName =
+            eventSlugs.size === 1 && anyEventHasSiblings
+              ? mirrorSet.eventName
+              : '';
+          lastStartggEventName = startggEventName;
+          lastStartggEventSlug = mirrorSet.eventSlug;
+          startggPhaseName =
+            phaseIds.size === 1 && anyPhaseHasSiblings
+              ? mirrorSet.phaseName
+              : '';
+          lastStartggPhaseName = startggPhaseName;
+          startggPhaseGroupName =
+            phaseGroupIds.size === 1 && anyPhaseGroupHasSiblings
+              ? `Pool ${mirrorSet.phaseGroupName}`
+              : '';
+          lastStartggPhaseGroupName = startggPhaseGroupName;
+        }
+
+        let roundName =
+          mirrorSet.phaseGroupBracketType === 3
+            ? 'Round Robin'
+            : mirrorSet.fullRoundText;
+        if (phaseGroupIds.size > 1 && mirrorSet.phaseGroupHasSiblings) {
+          roundName = `Pool ${mirrorSet.phaseGroupName}, ${roundName}`;
+        }
+        if (phaseIds.size > 1 && mirrorSet.phaseHasSiblings) {
+          roundName = `${mirrorSet.phaseName}, ${roundName}`;
+        }
+        if (eventSlugs.size > 1 && mirrorSet.eventHasSiblings) {
+          roundName = `${mirrorSet.eventName}, ${roundName}`;
+        }
+        sets[setIndex] = {
+          roundName,
+          bestOf: -1,
+          isFinal: false,
+          leftPrefixes: mirrorSet.entrant1Prefixes,
+          leftNames: mirrorSet.entrant1Names,
+          leftPronouns: [],
+          leftScore: mirrorShowScore ? mirrorScore[0] : -1,
+          rightPrefixes: mirrorSet.entrant2Prefixes,
+          rightNames: mirrorSet.entrant2Names,
+          rightPronouns: [],
+          rightScore: mirrorShowScore ? mirrorScore[1] : -1,
+          type: OverlaySetType.LIVE,
+        };
       }
-      if (phaseIds.size > 1 && mirrorSet.phaseHasSiblings) {
-        roundName = `${mirrorSet.phaseName}, ${roundName}`;
-      }
-      if (eventSlugs.size > 1 && mirrorSet.eventHasSiblings) {
-        roundName = `${mirrorSet.eventName}, ${roundName}`;
-      }
-      sets[setIndex] = {
-        roundName,
-        bestOf: -1,
-        isFinal: false,
-        leftPrefixes: mirrorSet.entrant1Prefixes,
-        leftNames: mirrorSet.entrant1Names,
-        leftPronouns: [],
-        leftScore: mirrorShowScore ? mirrorScore[0] : -1,
-        rightPrefixes: mirrorSet.entrant2Prefixes,
-        rightNames: mirrorSet.entrant2Names,
-        rightPronouns: [],
-        rightScore: mirrorShowScore ? mirrorScore[1] : -1,
-      };
     }
     let startgg: OverlayStartgg | undefined;
     if (representativeStartgg) {
@@ -1664,6 +1702,7 @@ export default async function setupIPCs(
     startMirrorWatcher();
     obsConnection.transition(playingSets);
     sendQueues();
+    updateOverlayAndTwitchBot();
     return true;
   });
   ipcMain.removeHandler('stopMirroring');

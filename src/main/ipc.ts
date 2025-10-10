@@ -966,18 +966,17 @@ export default async function setupIPCs(
     });
     newDolphin.on(DolphinEvent.ENDED, async (failureReason: string) => {
       const playingSet = playingSets.get(port);
-      if (playingSet === undefined) {
-        throw new Error(`playingSet not found for ${port} on ENDED`);
-      }
       if (playingSet === null) {
         // always stop to release ended file when mirroring
         await newDolphin.stop();
         return;
       }
 
-      playingSet.playing = false;
-      if (failureReason) {
-        playingSet.invalidReason = failureReason;
+      if (playingSet) {
+        playingSet.playing = false;
+        if (failureReason) {
+          playingSet.invalidReason = failureReason;
+        }
       }
       playingSets.delete(port);
 
@@ -1022,7 +1021,7 @@ export default async function setupIPCs(
         // try to make sure Dolphin releases previous replays
         await newDolphin.stop();
       }
-      if (playingSet.type === SetType.ZIP) {
+      if (playingSet && playingSet.type === SetType.ZIP) {
         deleteZipDir(playingSet, tempDir);
       }
 

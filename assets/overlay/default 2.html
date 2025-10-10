@@ -18,55 +18,88 @@
         overflow: hidden;
       }
       .column {
+        align-items: start;
         box-sizing: border-box;
         display: flex;
         flex-direction: column;
-        padding: 8px;
+        padding: 0 8px;
         width: 657px;
+      }
+      .column-align-right {
+        align-items: end;
+        text-align: right;
       }
       .round-bo,
       .event-phase-name,
-      .location {
+      .location,
+      .left-prefix,
+      .right-prefix {
         font-size: 24px;
         line-height: 30px;
       }
       .left,
       .right {
         display: flex;
+        align-items: baseline;
         flex-direction: row;
-        width: 100%;
+        max-width: 100%;
+      }
+      .left-prefix,
+      .right-prefix {
+        margin-right: 8px;
+        overflow: hidden;
+        white-space: nowrap;
+      }
+      .left-name,
+      .right-name {
+        flex-shrink: 0;
+        max-width: 569px;
+        overflow: hidden;
+        white-space: nowrap;
+      }
+      .left-pronouns,
+      .right-pronouns {
+        margin-left: 8px;
+        overflow: hidden;
+        white-space: nowrap;
       }
       .left-full-names,
       .right-full-names {
-        flex-grow: 1;
         overflow: hidden;
-        text-overflow: ellipsis;
         white-space: nowrap;
       }
       .left-score,
       .right-score {
-        width: 44px;
+        flex-shrink: 0;
+        width: 40px;
       }
       .tournament-name,
       .left,
       .right {
-        font-size: 36px;
-        line-height: 44px;
+        font-size: 32px;
+        line-height: 40px;
       }
       .set {
+        box-sizing: border-box;
+        border-right: 2px solid;
+        border-bottom: 2px solid;
+        border-left: 2px solid;
         display: flex;
         flex-direction: column;
-        height: 118px;
         margin-bottom: 24px;
+        max-width: 641px;
+        padding: 6px;
+      }
+      .set-0 {
+        align-items: end;
+        text-align: right;
       }
       .set-1 {
         align-items: start;
       }
-      .align-right {
-        text-align: right;
-      }
       .round-bo {
         direction: rtl;
+        line-height: 1;
         max-width: 100%;
         overflow: hidden;
         text-overflow: ellipsis;
@@ -75,15 +108,21 @@
     </style>
   </head>
   <body>
-    <div class="column align-right">
-      <div class="set">
+    <div class="column column-align-right">
+      <div class="set set-0">
         <div class="round-bo">Losers Quarter-Final (BO3)</div>
         <div class="left">
-          <div class="left-full-names">Dojo | Sourdough</div>
+          <div class="left-prefix"></div>
+          <div class="left-name">DaN</div>
+          <div class="left-pronouns"></div>
+          <div class="left-full-names"></div>
           <div class="left-score">1</div>
         </div>
         <div class="right">
-          <div class="right-full-names">DaN</div>
+          <div class="right-prefix">Dojo</div>
+          <div class="right-name">Sourdough</div>
+          <div class="right-pronouns">(he/him)</div>
+          <div class="right-full-names"></div>
           <div class="right-score">0</div>
         </div>
       </div>
@@ -96,11 +135,17 @@
         <div class="round-bo">Losers Quarter-Final (BO3)</div>
         <div class="left">
           <div class="left-score">1</div>
-          <div class="left-full-names">Dojo | Sourdough</div>
+          <div class="left-prefix"></div>
+          <div class="left-name"></div>
+          <div class="left-pronouns"></div>
+          <div class="left-full-names">Sourdough / Vugzi</div>
         </div>
         <div class="right">
           <div class="right-score">0</div>
-          <div class="right-full-names">DaN</div>
+          <div class="right-prefix"></div>
+          <div class="right-name"></div>
+          <div class="right-pronouns"></div>
+          <div class="right-full-names">DaN / Magpies</div>
         </div>
       </div>
     </div>
@@ -180,40 +225,40 @@
                 setEl,
               );
             }
-            const leftFullNames = [];
-            for (let i = 0; i < set.leftPrefixes.length; i += 1) {
-              let fullName = '';
-              if (set.leftPrefixes[i]) {
-                fullName += `${set.leftPrefixes[i]} | `;
-              }
-              fullName += set.leftNames[i];
-              if (set.leftPronouns[i]) {
-                fullName += ` (${set.leftPronouns[i]})`;
-              }
-              leftFullNames.push(fullName);
+            if (set.leftNames.length !== 1) {
+              replace('left-full-names', set.leftNames.join(' / '), setEl);
+              display('left-full-names', true, setEl);
+              display('left-prefix', false, setEl);
+              display('left-name', false, setEl);
+              display('left-pronouns', false, setEl);
+            } else {
+              replace('left-prefix', set.leftPrefixes[0], setEl);
+              display('left-prefix', set.leftPrefixes[0], setEl);
+              replace('left-name', set.leftNames[0], setEl);
+              display('left-name', true, setEl);
+              replace('left-pronouns', `(${set.leftPronouns[0]})`, setEl);
+              display('left-pronouns', set.leftPronouns[0], setEl);
+              display('left-full-names', false, setEl);
             }
-            const leftScore =
-              leftFullNames.length > 0 ? set.leftScore.toString() : '';
-            replace('left-full-names', leftFullNames.join(', '), setEl);
-            replace('left-score', leftScore, setEl);
+            replace('left-score', set.leftScore.toString(), setEl);
             display('left-score', set.leftScore >= 0, setEl);
 
-            const rightFullNames = [];
-            for (let i = 0; i < set.rightPrefixes.length; i += 1) {
-              let fullName = '';
-              if (set.rightPrefixes[i]) {
-                fullName += `${set.rightPrefixes[i]} | `;
-              }
-              fullName += set.rightNames[i];
-              if (set.rightPronouns[i]) {
-                fullName += ` (${set.rightPronouns[i]})`;
-              }
-              rightFullNames.push(fullName);
+            if (set.rightNames.length !== 1) {
+              replace('right-full-names', set.rightNames.join(' / '), setEl);
+              display('right-full-names', true, setEl);
+              display('right-prefix', false, setEl);
+              display('right-name', false, setEl);
+              display('right-pronouns', false, setEl);
+            } else {
+              replace('right-prefix', set.rightPrefixes[0], setEl);
+              display('right-prefix', set.rightPrefixes[0], setEl);
+              replace('right-name', set.rightNames[0], setEl);
+              display('right-name', true, setEl);
+              replace('right-pronouns', `(${set.rightPronouns[0]})`, setEl);
+              display('right-pronouns', set.rightPronouns[0], setEl);
+              display('right-full-names', false, setEl);
             }
-            const rightScore =
-              rightFullNames.length > 0 ? set.rightScore.toString() : '';
-            replace('right-full-names', rightFullNames.join(', '), setEl);
-            replace('right-score', rightScore, setEl);
+            replace('right-score', set.rightScore.toString(), setEl);
             display('right-score', set.rightScore >= 0, setEl);
           }
 

@@ -616,7 +616,7 @@ export default class OBSConnection {
         inputName: CHAT_INPUT_NAME,
         inputKind: 'browser_source',
         inputSettings: {
-          height: 291,
+          height: 280,
           width: 606,
           url: '',
         },
@@ -788,7 +788,7 @@ export default class OBSConnection {
         sceneItemTransform: {
           positionX:
             sceneName === 'quad 0' || sceneName === 'quad 1' ? 1314 : 657,
-          positionY: 789,
+          positionY: 800,
         },
       });
       await this.obsWebSocket!.call('SetSceneItemLocked', {

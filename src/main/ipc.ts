@@ -375,6 +375,18 @@ export default async function setupIPCs(
     const playerNames = new Set<string>();
     const slotDisplayNames = new Set<string>();
     otherSets.forEach((playingSet) => {
+      if (
+        (prospectiveSet.context?.startgg?.phaseGroup.bracketType === 3 &&
+          prospectiveSet.context?.startgg?.phaseGroup.id ===
+            playingSet.context?.startgg?.phaseGroup.id) ||
+        (prospectiveSet.context?.challonge?.tournament.tournamentType ===
+          'round robin' &&
+          prospectiveSet.context?.challonge?.tournament.slug ===
+            playingSet.context?.challonge?.tournament.slug)
+      ) {
+        return;
+      }
+
       if (prospectiveSet.context?.players && playingSet.context?.players) {
         playingSet.context.players.entrant1.forEach((player) => {
           playerNames.add(player.name);

@@ -10,6 +10,7 @@ import { Dolphin } from './dolphin';
 const BG_IMAGE_INPUT_NAME = 'BG Image';
 const BG_COLOR_INPUT_NAME = 'BG Color';
 const CHAT_INPUT_NAME = 'Chat';
+const SLIDES_INPUT_NAME = 'Slides';
 
 async function timeout(ms: number) {
   await new Promise<void>((resolve) => {
@@ -623,6 +624,24 @@ export default class OBSConnection {
       });
       inputNameToInputUuid.set(CHAT_INPUT_NAME, inputUuid);
     }
+    if (
+      !(
+        await this.obsWebSocket.call('GetInputList', {
+          inputKind: 'slideshow_v2',
+        })
+      ).inputs.find((input) => input.inputName === SLIDES_INPUT_NAME)
+    ) {
+      const { inputUuid } = await this.obsWebSocket.call('CreateInput', {
+        sceneName: 'quad 0',
+        inputName: SLIDES_INPUT_NAME,
+        inputKind: 'slideshow_v2',
+        inputSettings: {
+          playback_behavior: 'pause_unpause',
+          slide_time: 10000,
+        },
+      });
+      inputNameToInputUuid.set(SLIDES_INPUT_NAME, inputUuid);
+    }
 
     const sceneNameToExpectedSourceNames = new Map([
       ['quad 0', []],
@@ -674,6 +693,12 @@ export default class OBSConnection {
         ]),
       );
       const missingSourceNames: string[] = [];
+      if (
+        sceneName === 'quad 0' &&
+        !sourceNameToSceneItemId.has(SLIDES_INPUT_NAME)
+      ) {
+        missingSourceNames.push(SLIDES_INPUT_NAME);
+      }
       if (!sourceNameToSceneItemId.has(CHAT_INPUT_NAME)) {
         missingSourceNames.push(CHAT_INPUT_NAME);
       }
@@ -682,6 +707,16 @@ export default class OBSConnection {
           missingSourceNames.push(expectedSourceName);
         }
       });
+      if (sceneName === 'quad 3') {
+        const numSlideshowSceneItems = sceneItems.filter(
+          (sceneItem) => sceneItem.sourceName === SLIDES_INPUT_NAME,
+        ).length;
+        if (numSlideshowSceneItems < 4) {
+          for (let i = 0; i < 4 - numSlideshowSceneItems; i++) {
+            missingSourceNames.push(SLIDES_INPUT_NAME);
+          }
+        }
+      }
       missingSourceNames.reverse();
       for (const sourceName of missingSourceNames) {
         const { sceneItemId } = await this.obsWebSocket!.call(
@@ -782,7 +817,7 @@ export default class OBSConnection {
         sceneItemId: chatSceneItemId,
         sceneItemLocked: false,
       });
-      await this.obsWebSocket!.call('SetSceneItemTransform', {
+      await this.obsWebSocket.call('SetSceneItemTransform', {
         sceneName,
         sceneItemId: chatSceneItemId,
         sceneItemTransform: {
@@ -791,11 +826,71 @@ export default class OBSConnection {
           positionY: 800,
         },
       });
-      await this.obsWebSocket!.call('SetSceneItemLocked', {
+      await this.obsWebSocket.call('SetSceneItemLocked', {
         sceneName,
         sceneItemId: chatSceneItemId,
         sceneItemLocked: true,
       });
+
+      if (sceneName === 'quad 0') {
+        const slidesSceneItemId =
+          sourceNameToSceneItemId.get(SLIDES_INPUT_NAME)!;
+        await this.obsWebSocket.call('SetSceneItemLocked', {
+          sceneName,
+          sceneItemId: slidesSceneItemId,
+          sceneItemLocked: false,
+        });
+        await this.obsWebSocket.call('SetSceneItemTransform', {
+          sceneName,
+          sceneItemId: slidesSceneItemId,
+          sceneItemTransform: {
+            positionX: 0,
+            positionY: 0,
+            scaleX: 1,
+            scaleY: 1,
+          },
+        });
+        await this.obsWebSocket.call('SetSceneItemLocked', {
+          sceneName,
+          sceneItemId: slidesSceneItemId,
+          sceneItemLocked: true,
+        });
+      }
+      if (sceneName === 'quad 3') {
+        const slidesSceneItemIds = (
+          await this.obsWebSocket.call('GetSceneItemList', {
+            sceneName,
+          })
+        ).sceneItems
+          .filter((sceneItem) => sceneItem.sourceName === SLIDES_INPUT_NAME)
+          .map((sceneItem) => sceneItem.sceneItemId);
+        for (let i = 0; i < 4; i++) {
+          const sceneItemId = slidesSceneItemIds[i] as number;
+          await this.obsWebSocket.call('SetSceneItemLocked', {
+            sceneName,
+            sceneItemId,
+            sceneItemLocked: false,
+          });
+          await this.obsWebSocket!.call('SetSceneItemTransform', {
+            sceneName,
+            sceneItemId,
+            sceneItemTransform: {
+              boundsType: 'OBS_BOUNDS_SCALE_INNER',
+              boundsWidth: 657,
+              boundsHeight: 540,
+              positionX: i % 2 === 0 ? 0 : 1263,
+              positionY: i < 2 ? 0 : 540,
+              scaleX: 1,
+              scaleY: 1,
+            },
+          });
+          await this.obsWebSocket.call('SetSceneItemLocked', {
+            sceneName,
+            sceneItemId,
+            sceneItemLocked: true,
+          });
+        }
+      }
     }
     this.setConnectionStatus(OBSConnectionStatus.READY);
     return true;

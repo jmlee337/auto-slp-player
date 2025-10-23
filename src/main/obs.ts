@@ -712,7 +712,7 @@ export default class OBSConnection {
           (sceneItem) => sceneItem.sourceName === SLIDES_INPUT_NAME,
         ).length;
         if (numSlideshowSceneItems < 4) {
-          for (let i = 0; i < 4 - numSlideshowSceneItems; i++) {
+          for (let i = 0; i < 4 - numSlideshowSceneItems; i += 1) {
             missingSourceNames.push(SLIDES_INPUT_NAME);
           }
         }
@@ -864,7 +864,7 @@ export default class OBSConnection {
         ).sceneItems
           .filter((sceneItem) => sceneItem.sourceName === SLIDES_INPUT_NAME)
           .map((sceneItem) => sceneItem.sceneItemId);
-        for (let i = 0; i < 4; i++) {
+        for (let i = 0; i < 4; i += 1) {
           const sceneItemId = slidesSceneItemIds[i] as number;
           await this.obsWebSocket.call('SetSceneItemLocked', {
             sceneName,

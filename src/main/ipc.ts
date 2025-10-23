@@ -1898,7 +1898,7 @@ export default async function setupIPCs(
     app.quit();
   });
 
-  app.on('before-quit', async (event) => {
+  app.on('will-quit', async (event) => {
     if (dolphins.size > 0) {
       event.preventDefault();
       for (const [port, dolphin] of dolphins) {

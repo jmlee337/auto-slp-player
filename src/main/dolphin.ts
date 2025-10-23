@@ -345,9 +345,13 @@ export class Dolphin extends EventEmitter {
     if (!this.process) {
       return true;
     }
-    if (process.platform !== 'linux') {
-      return this.process.kill();
+    if (process.platform === 'darwin') {
+      return this.process.kill('SIGKILL');
     }
-    return kill(-this.pid);
+    if (process.platform === 'linux') {
+      return kill(-this.pid, 'SIGKILL');
+    }
+    // windows
+    return this.process.kill();
   }
 }

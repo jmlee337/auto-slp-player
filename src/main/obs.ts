@@ -62,6 +62,8 @@ export default class OBSConnection {
 
   private shouldSetupAndAutoSwitch: boolean;
 
+  private soundPort: number;
+
   constructor(
     mainWindow: BrowserWindow,
     overlay01Path: string,
@@ -83,6 +85,7 @@ export default class OBSConnection {
     this.sceneNameToInputNameToSceneItemId = new Map();
     this.streamOutputActive = false;
     this.shouldSetupAndAutoSwitch = false;
+    this.soundPort = 0;
   }
 
   setShouldSetupAndAutoSwitch(newShouldSetupAndAutoSwitch: boolean) {
@@ -956,10 +959,13 @@ export default class OBSConnection {
     if (ports.length > this.maxDolphins) {
       throw new Error('more playing than max dolphins?');
     }
-    const liveEntries = Array.from(playingSets.entries()).filter(
-      ([, set]) => set === null,
-    );
-    const soundPort = liveEntries.length > 0 ? liveEntries[0][0] : ports[0];
+
+    if (!playingSets.has(this.soundPort)) {
+      const liveEntries = Array.from(playingSets.entries()).filter(
+        ([, set]) => set === null,
+      );
+      this.soundPort = liveEntries.length > 0 ? liveEntries[0][0] : ports[0];
+    }
 
     let sceneName = `quad ${ports.length}`;
     if (ports.length === 2) {
@@ -987,7 +993,7 @@ export default class OBSConnection {
             requestType: 'SetInputMute',
             requestData: {
               inputName,
-              inputMuted: port !== soundPort,
+              inputMuted: port !== this.soundPort,
             },
           });
         }

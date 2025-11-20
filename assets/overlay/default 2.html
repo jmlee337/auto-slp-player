@@ -201,66 +201,81 @@
             replace('event-phase-name', '');
           }
 
-          const sets = newContext.sets.filter((set) => set);
-          const setEls = document.getElementsByClassName('set');
           for (let i = 0; i < 2; i++) {
-            const set = sets[i];
-            const setEl = setEls[i];
-            if (set.type === 0) {
-              // STANDARD
-              replace(
-                'round-bo',
-                set.isFinal
-                  ? `${set.roundName} (Final)`
-                  : `${set.roundName} (BO${set.bestOf})`,
-                setEl,
-              );
-            } else if (set.type === 1) {
-              // CONTEXTLESS
-              replace('round-bo', '(Unknown)', setEl);
-            } else if (set.type === 2) {
-              // LIVE
-              replace(
-                'round-bo',
-                set.roundName ? `${set.roundName} (Live)` : '(Live)',
-                setEl,
-              );
-            }
-            if (set.leftNames.length !== 1) {
-              replace('left-full-names', set.leftNames.join(' / '), setEl);
-              display('left-full-names', true, setEl);
-              display('left-prefix', false, setEl);
-              display('left-name', false, setEl);
-              display('left-pronouns', false, setEl);
+            const setEl = getElementByClassName(`set-${i}`);
+            const set = newContext.sets[i];
+            if (!set) {
+              replace('round-bo', '', setEl);
+              replace('left-prefix', '', setEl);
+              replace('left-name', '', setEl);
+              replace('left-pronouns', '', setEl);
+              replace('left-full-names', '', setEl);
+              replace('left-score', '', setEl);
+              replace('right-prefix', '', setEl);
+              replace('right-name', '', setEl);
+              replace('right-pronouns', '', setEl);
+              replace('right-full-names', '', setEl);
+              replace('right-score', '', setEl);
+              setEl.style.visibility = 'hidden';
             } else {
-              replace('left-prefix', set.leftPrefixes[0], setEl);
-              display('left-prefix', set.leftPrefixes[0], setEl);
-              replace('left-name', set.leftNames[0], setEl);
-              display('left-name', true, setEl);
-              replace('left-pronouns', `(${set.leftPronouns[0]})`, setEl);
-              display('left-pronouns', set.leftPronouns[0], setEl);
-              display('left-full-names', false, setEl);
-            }
-            replace('left-score', set.leftScore.toString(), setEl);
-            display('left-score', set.leftScore >= 0, setEl);
+              if (set.type === 0) {
+                // STANDARD
+                replace(
+                  'round-bo',
+                  set.isFinal
+                    ? `${set.roundName} (Final)`
+                    : `${set.roundName} (BO${set.bestOf})`,
+                  setEl,
+                );
+              } else if (set.type === 1) {
+                // CONTEXTLESS
+                replace('round-bo', '(Unknown)', setEl);
+              } else if (set.type === 2) {
+                // LIVE
+                replace(
+                  'round-bo',
+                  set.roundName ? `${set.roundName} (Live)` : '(Live)',
+                  setEl,
+                );
+              }
+              if (set.leftNames.length !== 1) {
+                replace('left-full-names', set.leftNames.join(' / '), setEl);
+                display('left-full-names', true, setEl);
+                display('left-prefix', false, setEl);
+                display('left-name', false, setEl);
+                display('left-pronouns', false, setEl);
+              } else {
+                replace('left-prefix', set.leftPrefixes[0], setEl);
+                display('left-prefix', set.leftPrefixes[0], setEl);
+                replace('left-name', set.leftNames[0], setEl);
+                display('left-name', true, setEl);
+                replace('left-pronouns', `(${set.leftPronouns[0]})`, setEl);
+                display('left-pronouns', set.leftPronouns[0], setEl);
+                display('left-full-names', false, setEl);
+              }
+              replace('left-score', set.leftScore.toString(), setEl);
+              display('left-score', set.leftScore >= 0, setEl);
 
-            if (set.rightNames.length !== 1) {
-              replace('right-full-names', set.rightNames.join(' / '), setEl);
-              display('right-full-names', true, setEl);
-              display('right-prefix', false, setEl);
-              display('right-name', false, setEl);
-              display('right-pronouns', false, setEl);
-            } else {
-              replace('right-prefix', set.rightPrefixes[0], setEl);
-              display('right-prefix', set.rightPrefixes[0], setEl);
-              replace('right-name', set.rightNames[0], setEl);
-              display('right-name', true, setEl);
-              replace('right-pronouns', `(${set.rightPronouns[0]})`, setEl);
-              display('right-pronouns', set.rightPronouns[0], setEl);
-              display('right-full-names', false, setEl);
+              if (set.rightNames.length !== 1) {
+                replace('right-full-names', set.rightNames.join(' / '), setEl);
+                display('right-full-names', true, setEl);
+                display('right-prefix', false, setEl);
+                display('right-name', false, setEl);
+                display('right-pronouns', false, setEl);
+              } else {
+                replace('right-prefix', set.rightPrefixes[0], setEl);
+                display('right-prefix', set.rightPrefixes[0], setEl);
+                replace('right-name', set.rightNames[0], setEl);
+                display('right-name', true, setEl);
+                replace('right-pronouns', `(${set.rightPronouns[0]})`, setEl);
+                display('right-pronouns', set.rightPronouns[0], setEl);
+                display('right-full-names', false, setEl);
+              }
+              replace('right-score', set.rightScore.toString(), setEl);
+              display('right-score', set.rightScore >= 0, setEl);
+
+              setEl.style.visibility = 'visible';
             }
-            replace('right-score', set.rightScore.toString(), setEl);
-            display('right-score', set.rightScore >= 0, setEl);
           }
 
           context = newContext;

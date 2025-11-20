@@ -1123,6 +1123,7 @@ export default async function setupIPCs(
 
   const idToApiPhaseGroup = new Map<number, ApiPhaseGroup>();
   // for testing
+  /*
   idToApiPhaseGroup.set(2391299, {
     tournamentName: 'Midlane Melee',
     tournamentLocation: 'Chicago, IL',
@@ -1137,6 +1138,7 @@ export default async function setupIPCs(
     phaseGroupBracketType: 2,
     phaseGroupHasSiblings: false,
   });
+  */
   const mirroredSetIds = new Set<number>();
   let watcher: FSWatcher | undefined;
   ipcMain.removeHandler('chooseWatchDir');
@@ -1846,29 +1848,38 @@ export default async function setupIPCs(
     },
   );
   ipcMain.removeHandler('setMirrorSet');
-  ipcMain.handle('setMirrorSet', (event: IpcMainInvokeEvent, setId: number) => {
-    if (!mirrorPort) {
-      return;
-    }
+  ipcMain.handle(
+    'setMirrorSet',
+    (event: IpcMainInvokeEvent, setId: number | null) => {
+      if (!mirrorPort) {
+        return;
+      }
 
-    const set = idToApiSet.get(setId);
-    if (!set) {
-      throw new Error(`no known set for id: ${setId}`);
-    }
+      if (setId === null) {
+        mirrorSet = null;
+        updateOverlayAndTwitchBot();
+        return;
+      }
 
-    mirrorSet = set;
-    mirroredSetIds.add(setId);
-    if (generateTimestamps && watchDir) {
-      writeTimestamps(
-        set.entrant1Names,
-        set.entrant2Names,
-        set.phaseName,
-        set.fullRoundText,
-        set.id.toString(10),
-      );
-    }
-    updateOverlayAndTwitchBot();
-  });
+      const set = idToApiSet.get(setId);
+      if (!set) {
+        throw new Error(`no known set for id: ${setId}`);
+      }
+
+      mirrorSet = set;
+      mirroredSetIds.add(setId);
+      if (generateTimestamps && watchDir) {
+        writeTimestamps(
+          set.entrant1Names,
+          set.entrant2Names,
+          set.phaseName,
+          set.fullRoundText,
+          set.id.toString(10),
+        );
+      }
+      updateOverlayAndTwitchBot();
+    },
+  );
 
   ipcMain.removeHandler('getVersion');
   ipcMain.handle('getVersion', () => app.getVersion());

@@ -285,6 +285,22 @@ export default function Mirror({
           )}
         </DialogContent>
         <DialogActions>
+          {isMirroring && mirrorSet && (
+            <Button
+              color="warning"
+              onClick={async () => {
+                await Promise.all([
+                  window.electron.setMirrorSet(null),
+                  window.electron.setMirrorScore([0, 0]),
+                ]);
+                setMirrorSet(null);
+                setScore([0, 0]);
+              }}
+              variant="contained"
+            >
+              Clear Scoreboard
+            </Button>
+          )}
           {isMirroring ? (
             <Button
               color="error"

@@ -166,7 +166,7 @@ const electronHandler = {
     ipcRenderer.invoke('getPhaseGroups'),
   getPendingSets: (phaseGroupId: number): Promise<ApiSet[]> =>
     ipcRenderer.invoke('getPendingSets', phaseGroupId),
-  setMirrorSet: (setId: number): Promise<void> =>
+  setMirrorSet: (setId: number | null): Promise<void> =>
     ipcRenderer.invoke('setMirrorSet', setId),
 
   getVersion: (): Promise<string> => ipcRenderer.invoke('getVersion'),

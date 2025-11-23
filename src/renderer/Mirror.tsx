@@ -1,11 +1,13 @@
 import {
   Check,
+  Download,
   Folder,
   Refresh,
   Visibility,
   VisibilityOff,
 } from '@mui/icons-material';
 import {
+  Alert,
   Button,
   Checkbox,
   CircularProgress,
@@ -22,6 +24,7 @@ import {
   Select,
   SelectChangeEvent,
   Stack,
+  TextField,
   Tooltip,
   Typography,
 } from '@mui/material';
@@ -41,11 +44,16 @@ export default function Mirror({
   const [showScore, setShowScore] = useState(false);
   const [score, setScore] = useState<[number, number]>([0, 0]);
   const [mirrorChanging, setMirrorChanging] = useState(false);
+  const [slug, setSlug] = useState('');
+  const [loadingPhaseGroups, setLoadingPhaseGroups] = useState(false);
   const [phaseGroups, setPhaseGroups] = useState<ApiPhaseGroup[]>([]);
   const [phaseGroupIdStr, setPhaseGroupIdStr] = useState('');
   const [gettingPendingSets, setGettingPendingSets] = useState(false);
   const [apiSets, setApiSets] = useState<ApiSet[]>([]);
   const [mirrorSet, setMirrorSet] = useState<ApiSet | null>(null);
+
+  const [error, setError] = useState('');
+  const [errorOpen, setErrorOpen] = useState(false);
 
   useEffect(() => {
     const inner = async () => {
@@ -73,8 +81,10 @@ export default function Mirror({
       setApiSets(
         await window.electron.getPendingSets(parseInt(newPhaseGroupIdStr, 10)),
       );
-    } catch {
-      // just catch
+    } catch (e: any) {
+      const message = e instanceof Error ? e.message : e.toString();
+      setError(message);
+      setErrorOpen(true);
     } finally {
       setGettingPendingSets(false);
     }
@@ -110,14 +120,14 @@ export default function Mirror({
             gap: '8px',
           }}
         >
-          <Stack direction="row" width="100%">
+          <Stack direction="row" marginRight="-9px" spacing="2px" width="100%">
             <InputBase
               disabled
               size="small"
               value={mirrorDir}
               style={{ flexGrow: 1 }}
             />
-            <Tooltip arrow title="Set mirror folder...">
+            <Tooltip arrow placement="right" title="Set mirror folder...">
               <IconButton
                 onClick={async () => {
                   setMirrorDir(await window.electron.chooseMirrorDir());
@@ -127,14 +137,61 @@ export default function Mirror({
               </IconButton>
             </Tooltip>
           </Stack>
+          {isMirroring && (
+            <form
+              onSubmit={async (event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                try {
+                  setLoadingPhaseGroups(true);
+                  await window.electron.loadPhaseGroups(slug);
+                  setPhaseGroups(await window.electron.getPhaseGroups());
+                  setSlug('');
+                } catch (e: any) {
+                  const message = e instanceof Error ? e.message : e.toString();
+                  setError(message);
+                  setErrorOpen(true);
+                } finally {
+                  setLoadingPhaseGroups(false);
+                }
+              }}
+              style={{
+                display: 'flex',
+                flexDirection: 'row',
+                gap: '2px',
+                marginRight: '-9px',
+              }}
+            >
+              <TextField
+                label="Tournament Slug"
+                size="small"
+                value={slug}
+                onChange={(event) => {
+                  setSlug(event.target.value);
+                }}
+              />
+              <Tooltip arrow placement="right" title="Load Tournament...">
+                <span>
+                  <IconButton type="submit" disabled={loadingPhaseGroups}>
+                    {loadingPhaseGroups ? (
+                      <CircularProgress size="24px" />
+                    ) : (
+                      <Download />
+                    )}
+                  </IconButton>
+                </span>
+              </Tooltip>
+            </form>
+          )}
           {isMirroring && phaseGroups.length > 0 && (
-            <Stack direction="row" spacing="8px">
+            <Stack direction="row" marginRight="-9px" spacing="2px">
               <FormControl>
                 <InputLabel id="mirror-select-input-label">Pool</InputLabel>
                 <Select
                   label="Pool"
                   labelId="mirror-select-input-label"
-                  style={{ minWidth: '200px' }}
+                  style={{ minWidth: '222.5px' }}
+                  size="small"
                   value={phaseGroupIdStr}
                   onChange={async (event: SelectChangeEvent) => {
                     const newPhaseGroupIdStr = event.target.value;
@@ -152,19 +209,21 @@ export default function Mirror({
                   ))}
                 </Select>
               </FormControl>
-              <Tooltip title="Refresh">
-                <IconButton
-                  disabled={gettingPendingSets}
-                  onClick={() => {
-                    getPendingSets(phaseGroupIdStr);
-                  }}
-                >
-                  {gettingPendingSets ? (
-                    <CircularProgress size="24px" />
-                  ) : (
-                    <Refresh />
-                  )}
-                </IconButton>
+              <Tooltip arrow placement="right" title="Refresh">
+                <span>
+                  <IconButton
+                    disabled={gettingPendingSets}
+                    onClick={() => {
+                      getPendingSets(phaseGroupIdStr);
+                    }}
+                  >
+                    {gettingPendingSets ? (
+                      <CircularProgress size="24px" />
+                    ) : (
+                      <Refresh />
+                    )}
+                  </IconButton>
+                </span>
               </Tooltip>
             </Stack>
           )}
@@ -343,6 +402,16 @@ export default function Mirror({
             </Button>
           )}
         </DialogActions>
+      </Dialog>
+      <Dialog
+        open={errorOpen}
+        onClose={() => {
+          setErrorOpen(false);
+        }}
+      >
+        <DialogContent>
+          <Alert severity="error">{error}</Alert>
+        </DialogContent>
       </Dialog>
     </>
   );

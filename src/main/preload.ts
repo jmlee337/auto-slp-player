@@ -162,6 +162,8 @@ const electronHandler = {
   setMirrorScore: (mirrorScore: [number, number]): Promise<void> =>
     ipcRenderer.invoke('setMirrorScore', mirrorScore),
 
+  loadPhaseGroups: (slug: string): Promise<void> =>
+    ipcRenderer.invoke('loadPhaseGroups', slug),
   getPhaseGroups: (): Promise<ApiPhaseGroup[]> =>
     ipcRenderer.invoke('getPhaseGroups'),
   getPendingSets: (phaseGroupId: number): Promise<ApiSet[]> =>

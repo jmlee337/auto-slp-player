@@ -69,6 +69,20 @@ function getDefaultMirrorDir() {
   return path.join(root, 'Slippi', 'Spectate');
 }
 
+async function wrappedFetch(input: URL | RequestInfo) {
+  let response: Response | undefined;
+  try {
+    response = await fetch(input);
+  } catch {
+    throw new Error('***You may not be connected to the internet***');
+  }
+
+  if (!response.ok) {
+    throw new Error(`${response.status} - ${response.statusText}.`);
+  }
+  return response.json();
+}
+
 export default async function setupIPCs(
   mainWindow: BrowserWindow,
   resourcesPath: string,
@@ -1748,6 +1762,50 @@ export default async function setupIPCs(
     },
   );
 
+  ipcMain.removeHandler('loadPhaseGroups');
+  ipcMain.handle(
+    'loadPhaseGroups',
+    async (ev: IpcMainInvokeEvent, slug: string) => {
+      const tournamentJson = await wrappedFetch(
+        `https://api.start.gg/tournament/${slug}?expand[]=event`,
+      );
+      const events = tournamentJson.entities.event.filter(
+        (event: any) => event.videogameId === 1,
+      );
+      await Promise.all(
+        events.map(async (event: any) => {
+          const eventJson = await wrappedFetch(
+            `https://api.start.gg/${event.slug}?expand[]=phase`,
+          );
+          await Promise.all(
+            eventJson.entities.phase.map(async (phase: any) => {
+              const phaseJson = await wrappedFetch(
+                `https://api.start.gg/phase/${phase.id}?expand[]=groups`,
+              );
+              phaseJson.entities.groups.forEach((group: any) => {
+                idToApiPhaseGroup.set(group.id, {
+                  tournamentName: tournamentJson.entities.tournament.name,
+                  tournamentLocation:
+                    tournamentJson.entities.tournament.locationDisplayName,
+                  eventSlug: event.slug,
+                  eventName: event.name,
+                  eventHasSiblings: events.length > 1,
+                  phaseId: phase.id,
+                  phaseName: phase.name,
+                  phaseHasSiblings: eventJson.entities.phase.length > 1,
+                  phaseGroupId: group.id,
+                  phaseGroupName: group.displayIdentifier,
+                  phaseGroupHasSiblings: phaseJson.entities.groups.length > 1,
+                  phaseGroupBracketType: group.groupTypeId,
+                });
+              });
+            }),
+          );
+        }),
+      );
+    },
+  );
+
   ipcMain.removeHandler('getPhaseGroups');
   ipcMain.handle('getPhaseGroups', () =>
     Array.from(idToApiPhaseGroup.values()),
@@ -1763,19 +1821,9 @@ export default async function setupIPCs(
         throw new Error(`no known phaseGroup for id ${phaseGroupId}`);
       }
 
-      let response: Response | undefined;
-      try {
-        response = await fetch(
-          `https://api.start.gg/phase_group/${phaseGroupId}?expand[]=sets&expand[]=entrants`,
-        );
-      } catch {
-        throw new Error('***You may not be connected to the internet***');
-      }
-      if (!response.ok) {
-        throw new Error(`${response.status} - ${response.statusText}.`);
-      }
-
-      const json = await response.json();
+      const json = await wrappedFetch(
+        `https://api.start.gg/phase_group/${phaseGroupId}?expand[]=sets&expand[]=entrants`,
+      );
       const { entrants } = json.entities;
       const { sets } = json.entities;
       if (

@@ -145,30 +145,32 @@ function Hello() {
             <Tooltip
               title={visibleQueue && visibleQueue.paused ? 'Play' : 'Pause'}
             >
-              <IconButton
-                disabled={
-                  visibleQueue === null ||
-                  queues.length < 2 ||
-                  settingQueuePaused
-                }
-                onClick={async () => {
-                  setSettingQueuePaused(true);
-                  try {
-                    await window.electron.setQueuePaused(
-                      visibleQueueId,
-                      !visibleQueue!.paused,
-                    );
-                  } catch {
-                    // just catch
-                  } finally {
-                    setSettingQueuePaused(false);
+              <span>
+                <IconButton
+                  disabled={
+                    visibleQueue === null ||
+                    queues.length < 2 ||
+                    settingQueuePaused
                   }
-                }}
-              >
-                {visibleQueue === null && <Pause />}
-                {visibleQueue &&
-                  (visibleQueue.paused ? <PlayArrow /> : <Pause />)}
-              </IconButton>
+                  onClick={async () => {
+                    setSettingQueuePaused(true);
+                    try {
+                      await window.electron.setQueuePaused(
+                        visibleQueueId,
+                        !visibleQueue!.paused,
+                      );
+                    } catch {
+                      // just catch
+                    } finally {
+                      setSettingQueuePaused(false);
+                    }
+                  }}
+                >
+                  {visibleQueue === null && <Pause />}
+                  {visibleQueue &&
+                    (visibleQueue.paused ? <PlayArrow /> : <Pause />)}
+                </IconButton>
+              </span>
             </Tooltip>
             {queues.length > 1 && (
               <Stack

@@ -201,9 +201,10 @@
             replace('event-phase-name', '');
           }
 
+          const filteredSets = newContext.sets.filter((set) => Boolean(set));
           for (let i = 0; i < 2; i++) {
             const setEl = getElementByClassName(`set-${i}`);
-            const set = newContext.sets[i];
+            const set = filteredSets[i];
             if (!set) {
               replace('round-bo', '', setEl);
               replace('left-prefix', '', setEl);

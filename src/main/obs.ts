@@ -646,18 +646,24 @@ export default class OBSConnection {
       inputNameToInputUuid.set(SLIDES_INPUT_NAME, inputUuid);
     }
 
-    let sceneToPreload = 'quad 1';
-    if (this.maxDolphins > 1) {
-      sceneToPreload = 'quad 2 12';
+    if (missingSceneNames.length > 0) {
+      await this.obsWebSocket.call('SetCurrentProgramScene', {
+        sceneName: 'quad 1',
+      });
+    } else {
+      let sceneToPreload = 'quad 1';
+      if (this.maxDolphins > 1) {
+        sceneToPreload = 'quad 2 12';
+      }
+      if (this.maxDolphins === 3) {
+        sceneToPreload = 'quad 3';
+      } else if (this.maxDolphins === 4) {
+        sceneToPreload = 'quad 4';
+      }
+      await this.obsWebSocket.call('SetCurrentProgramScene', {
+        sceneName: sceneToPreload,
+      });
     }
-    if (this.maxDolphins === 3) {
-      sceneToPreload = 'quad 3';
-    } else if (this.maxDolphins === 4) {
-      sceneToPreload = 'quad 4';
-    }
-    await this.obsWebSocket.call('SetCurrentProgramScene', {
-      sceneName: sceneToPreload,
-    });
 
     const sceneNameToExpectedSourceNames = new Map([
       ['quad 0', []],

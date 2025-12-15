@@ -1832,12 +1832,12 @@ export default async function setupIPCs(
         !Array.isArray(sets) ||
         sets.length === 0
       ) {
-        // return nothing
+        return [];
       }
 
       const pendingSets = sets.filter((set: any) => set.state !== 3);
       if (pendingSets.length === 0) {
-        // return nothing
+        return [];
       }
 
       const idToEntrantNames = new Map<number, string[]>();

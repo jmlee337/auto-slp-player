@@ -1,5 +1,7 @@
 import {
   Check,
+  CheckBox,
+  CheckBoxOutlineBlank,
   Download,
   Folder,
   Refresh,
@@ -21,6 +23,7 @@ import {
   InputLabel,
   ListItemButton,
   MenuItem,
+  Rating,
   Select,
   SelectChangeEvent,
   Stack,
@@ -29,7 +32,18 @@ import {
   Typography,
 } from '@mui/material';
 import { useEffect, useState } from 'react';
+import styled from '@emotion/styled';
+import { blue } from '@mui/material/colors';
 import { ApiPhaseGroup, ApiSet } from '../common/types';
+
+const StyledRating = styled(Rating)({
+  '& .MuiRating-iconFilled': {
+    color: blue[700],
+  },
+  '& .MuiRating-iconHover': {
+    color: blue[700],
+  },
+});
 
 export default function Mirror({
   canPlay,
@@ -284,65 +298,63 @@ export default function Mirror({
             />
           )}
           {isMirroring && mirrorSet && (
-            <>
-              <Stack
-                direction="row"
-                spacing="8px"
-                alignItems="center"
-                justifyContent="end"
-                marginBottom="-8px"
-              >
-                <Typography variant="body2">
-                  {mirrorSet.entrant1Names.join(' + ')}
-                </Typography>
-                <Select
-                  disabled={!showScore}
-                  size="small"
-                  value={score[0].toString(10)}
-                  onChange={async (event: SelectChangeEvent) => {
-                    const newScore: [number, number] = [
-                      parseInt(event.target.value, 10),
-                      score[1],
-                    ];
-                    await window.electron.setMirrorScore(newScore);
-                    setScore(newScore);
-                  }}
-                >
-                  <MenuItem value="0">0</MenuItem>
-                  <MenuItem value="1">1</MenuItem>
-                  <MenuItem value="2">2</MenuItem>
-                  <MenuItem value="3">3</MenuItem>
-                </Select>
-              </Stack>
-              <Stack
-                direction="row"
-                spacing="8px"
-                alignItems="center"
-                justifyContent="end"
-              >
-                <Typography variant="body2">
-                  {mirrorSet.entrant2Names.join(' + ')}
-                </Typography>
-                <Select
-                  disabled={!showScore}
-                  size="small"
-                  value={score[1].toString(10)}
-                  onChange={async (event: SelectChangeEvent) => {
-                    const newScore: [number, number] = [
-                      score[0],
-                      parseInt(event.target.value, 10),
-                    ];
-                    await window.electron.setMirrorScore(newScore);
-                    setScore(newScore);
-                  }}
-                >
-                  <MenuItem value="0">0</MenuItem>
-                  <MenuItem value="1">1</MenuItem>
-                  <MenuItem value="2">2</MenuItem>
-                  <MenuItem value="3">3</MenuItem>
-                </Select>
-              </Stack>
-            </>
+            <Stack>
+              <FormControlLabel
+                label={mirrorSet.entrant1Names.join(' + ')}
+                labelPlacement="start"
+                slotProps={{
+                  typography: {
+                    style: { marginRight: '4px' },
+                    variant: 'caption',
+                  },
+                }}
+                style={{ marginRight: '-2px' }}
+                control={
+                  <StyledRating
+                    max={3}
+                    icon={<CheckBox fontSize="inherit" />}
+                    emptyIcon={<CheckBoxOutlineBlank fontSize="inherit" />}
+                    value={score[0]}
+                    onChange={async (event, newP1Score) => {
+                      const newScore: [number, number] = [
+                        newP1Score ?? 0,
+                        score[1],
+                      ];
+                      await window.electron.setMirrorScore(newScore);
+                      setScore(newScore);
+                    }}
+                  />
+                }
+              />
+              <FormControlLabel
+                label={mirrorSet.entrant2Names.join(' + ')}
+                labelPlacement="start"
+                slotProps={{
+                  typography: {
+                    style: { marginRight: '4px' },
+                    variant: 'caption',
+                  },
+                }}
+                style={{ marginRight: '-2px' }}
+                sx={{ typography: 'caption' }}
+                control={
+                  <StyledRating
+                    max={3}
+                    icon={<CheckBox fontSize="inherit" />}
+                    emptyIcon={<CheckBoxOutlineBlank fontSize="inherit" />}
+                    value={score[1]}
+                    onChange={async (event, newP2Score) => {
+                      const newScore: [number, number] = [
+                        score[0],
+                        newP2Score ?? 0,
+                      ];
+                      await window.electron.setMirrorScore(newScore);
+                      setScore(newScore);
+                    }}
+                  />
+                }
+              />
+            </Stack>
           )}
         </DialogContent>
         <DialogActions>

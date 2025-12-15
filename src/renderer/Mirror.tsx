@@ -186,7 +186,9 @@ export default function Mirror({
           {isMirroring && phaseGroups.length > 0 && (
             <Stack direction="row" marginRight="-9px" spacing="2px">
               <FormControl>
-                <InputLabel id="mirror-select-input-label">Pool</InputLabel>
+                <InputLabel size="small" id="mirror-select-input-label">
+                  Pool
+                </InputLabel>
                 <Select
                   label="Pool"
                   labelId="mirror-select-input-label"

@@ -336,7 +336,7 @@ export default function Settings({
           </Box>
           <Stack direction="row" spacing="8px">
             <FormControl variant="filled">
-              <InputLabel id="max-dolphins-select-label">
+              <InputLabel size="small" id="max-dolphins-select-label">
                 Max Dolphins
               </InputLabel>
               <Select
@@ -362,7 +362,7 @@ export default function Settings({
               </Select>
             </FormControl>
             <FormControl variant="filled">
-              <InputLabel id="split-option-select-label">
+              <InputLabel size="small" id="split-option-select-label">
                 Queue Split
               </InputLabel>
               <Select

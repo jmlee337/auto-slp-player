@@ -251,10 +251,11 @@ export default function Twitch({ userName }: { userName: string }) {
         spacing="8px"
       >
         <FormControlLabel
+          disabled={!userName}
+          label="Bot (!auto, !bracket, !pronouns)"
           control={
             <Checkbox
               checked={botEnabled}
-              disabled={!userName}
               onChange={async (event) => {
                 const newBotEnabled = event.target.checked;
                 await window.electron.setTwitchBotEnabled(newBotEnabled);
@@ -262,7 +263,6 @@ export default function Twitch({ userName }: { userName: string }) {
               }}
             />
           }
-          label="Bot (!auto, !bracket, !pronouns)"
         />
         {botStatus === TwitchStatus.STOPPED &&
           (botStatusMessage ? (
@@ -278,10 +278,11 @@ export default function Twitch({ userName }: { userName: string }) {
         {botStatus === TwitchStatus.STARTED && <Check color="success" />}
       </Stack>
       <FormControlLabel
+        disabled={!userName || !botEnabled}
+        label="Stealth (bot will not mention Slippi)"
         control={
           <Checkbox
             checked={stealth}
-            disabled={!userName || !botEnabled}
             onChange={async (event) => {
               const newStealth = event.target.checked;
               await window.electron.setStealth(newStealth);
@@ -289,7 +290,6 @@ export default function Twitch({ userName }: { userName: string }) {
             }}
           />
         }
-        label="Stealth (bot will not mention Slippi)"
       />
       <SetupDialog open={open} setOpen={setOpen} />
     </Stack>

@@ -938,6 +938,12 @@ export default class OBSConnection {
           this.streamOutputActive,
         );
       });
+      const { outputActive } = await this.obsWebSocket.call('GetStreamStatus');
+      this.streamOutputActive = outputActive;
+      this.mainWindow.webContents.send(
+        'streamOutputActive',
+        this.streamOutputActive,
+      );
     }
     let canCheckTEB = false;
     if (this.connectionStatus === OBSConnectionStatus.OBS_NOT_CONNECTED) {
@@ -964,12 +970,6 @@ export default class OBSConnection {
           'Multitrack Video (likely Twitch Enhanced Broadcasting) is enabled and will interfere with timestamp generation.',
         );
       }
-      const { outputActive } = await this.obsWebSocket.call('GetStreamStatus');
-      this.streamOutputActive = outputActive;
-      this.mainWindow.webContents.send(
-        'streamOutputActive',
-        this.streamOutputActive,
-      );
     }
   }
 

@@ -1957,31 +1957,32 @@ export default async function setupIPCs(
     app.quit();
   });
 
-  app.on('will-quit', async (event) => {
-    if (dolphins.size > 0) {
+  app.on('will-quit', (event) => {
+    if (dolphins.size > 0 || playingSets.size > 0) {
       event.preventDefault();
-      for (const [port, dolphin] of dolphins) {
-        dolphin.removeAllListeners();
-        dolphin.close();
-        dolphins.delete(port);
-      }
-    }
-    if (playingSets.size > 0) {
-      event.preventDefault();
-      for (const [port, playingSet] of playingSets) {
-        try {
-          if (playingSet) {
-            await deleteZipDir(playingSet, tempDir);
+      (async () => {
+        if (dolphins.size > 0) {
+          for (const [port, dolphin] of dolphins) {
+            dolphin.removeAllListeners();
+            dolphin.close();
+            dolphins.delete(port);
           }
-        } catch {
-          // just catch
-        } finally {
-          playingSets.delete(port);
         }
-      }
-    }
-    if (event.defaultPrevented) {
-      app.quit();
+        if (playingSets.size > 0) {
+          await Promise.allSettled(
+            Array.from(playingSets).map(async ([port, playingSet]) => {
+              try {
+                if (playingSet) {
+                  await deleteZipDir(playingSet, tempDir);
+                }
+              } finally {
+                playingSets.delete(port);
+              }
+            }),
+          );
+        }
+        app.quit();
+      })();
     }
   });
 

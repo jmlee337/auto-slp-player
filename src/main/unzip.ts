@@ -1,8 +1,10 @@
 import { createWriteStream } from 'fs';
 import { rm } from 'fs/promises';
 import path from 'path';
-import yauzl from 'yauzl';
+import yauzl from 'yauzl-promise';
 import { emptyDir } from 'fs-extra';
+import { text } from 'node:stream/consumers';
+import { pipeline } from 'stream/promises';
 import { AvailableSet, MainContext, SetType } from '../common/types';
 import { toMainContext } from './set';
 
@@ -13,89 +15,58 @@ export async function scan(
   twitchChannel: string,
 ): Promise<AvailableSet> {
   const twitchChannelLower = twitchChannel.toLowerCase();
-  return new Promise((resolve, reject) => {
-    yauzl.open(
-      originalPath,
-      { lazyEntries: true },
-      async (openErr, zipFile) => {
-        if (openErr) {
-          reject(new Error(`failed to open zip file ${openErr.message}`));
-          return;
+  const zip = await yauzl.open(originalPath);
+  let context: MainContext | undefined;
+  let numReplays = 0;
+  try {
+    for await (const entry of zip) {
+      if (entry.filename === 'context.json') {
+        try {
+          const readStream = await entry.openReadStream();
+          context = toMainContext(JSON.parse(await text(readStream)));
+        } catch (e: any) {
+          throw new Error(
+            `failed to read zipped context.json: ${
+              e instanceof Error ? e.message : e
+            }`,
+          );
         }
+      } else if (entry.filename.endsWith('.slp')) {
+        numReplays += 1;
+      } else {
+        throw new Error(`invalid zip contents: ${entry.filename}`);
+      }
+    }
+  } finally {
+    zip.close();
+  }
 
-        let context: MainContext | undefined;
-        let failureReason = '';
-        let numReplays = 0;
-        zipFile.on('close', async () => {
-          if (failureReason) {
-            reject(new Error(failureReason));
-          } else {
-            const stream =
-              context?.startgg?.set.stream || context?.challonge?.set.stream;
-            const wasStreamedOnAnotherChannel =
-              twitchChannelLower &&
-              stream &&
-              (stream.domain !== 'twitch' ||
-                stream.path.toLowerCase() !== twitchChannelLower);
-            const sggSetId = context?.startgg?.set.id;
-            const wasMirroredLive = sggSetId && mirroredSetIds.has(sggSetId);
-            if (
-              (!context || wasStreamedOnAnotherChannel || wasMirroredLive) &&
-              !originalPathToPlayedMs.has(originalPath)
-            ) {
-              originalPathToPlayedMs.set(
-                originalPath,
-                context?.startMs ?? Date.now(),
-              );
-            }
-            resolve({
-              context,
-              invalidReason: numReplays === 0 ? 'No replays' : '',
-              originalPath,
-              playedMs:
-                numReplays === 0
-                  ? Date.now()
-                  : originalPathToPlayedMs.get(originalPath) ?? 0,
-              playing: false,
-              replayPaths: [],
-              type: SetType.ZIP,
-            });
-          }
-        });
-        zipFile.on('entry', async (entry) => {
-          if (entry.fileName === 'context.json') {
-            zipFile.openReadStream(
-              entry,
-              async (openReadStreamErr, readStream) => {
-                if (openReadStreamErr) {
-                  failureReason = `failed to read zipped context.json: ${openReadStreamErr.message}`;
-                  zipFile.close();
-                  return;
-                }
-
-                let str = '';
-                readStream.on('end', () => {
-                  context = toMainContext(JSON.parse(str));
-                  zipFile.readEntry();
-                });
-                readStream.setEncoding('utf8');
-                readStream.on('data', (chunk) => {
-                  str = str.concat(chunk as string);
-                });
-              },
-            );
-          } else if (entry.fileName.endsWith('.slp')) {
-            numReplays += 1;
-            zipFile.readEntry();
-          } else {
-            failureReason = `invalid zip contents: ${entry.fileName}`;
-            zipFile.close();
-          }
-        });
-        zipFile.readEntry();
-      },
-    );
-  });
+  const stream = context?.startgg?.set.stream || context?.challonge?.set.stream;
+  const wasStreamedOnAnotherChannel =
+    twitchChannelLower &&
+    stream &&
+    (stream.domain !== 'twitch' ||
+      stream.path.toLowerCase() !== twitchChannelLower);
+  const sggSetId = context?.startgg?.set.id;
+  const wasMirroredLive = sggSetId && mirroredSetIds.has(sggSetId);
+  if (
+    (!context || wasStreamedOnAnotherChannel || wasMirroredLive) &&
+    !originalPathToPlayedMs.has(originalPath)
+  ) {
+    originalPathToPlayedMs.set(originalPath, context?.startMs ?? Date.now());
+  }
+  return {
+    context,
+    invalidReason: numReplays === 0 ? 'No replays' : '',
+    originalPath,
+    playedMs:
+      numReplays === 0
+        ? Date.now()
+        : originalPathToPlayedMs.get(originalPath) ?? 0,
+    playing: false,
+    replayPaths: [],
+    type: SetType.ZIP,
+  };
 }
 
 export async function unzip(set: AvailableSet, tempDir: string): Promise<void> {
@@ -107,59 +78,35 @@ export async function unzip(set: AvailableSet, tempDir: string): Promise<void> {
   const replayPaths = new Set<string>();
   const unzipDir = path.join(tempDir, path.basename(set.originalPath, '.zip'));
   await emptyDir(unzipDir);
-  await new Promise<void>((resolve, reject) => {
-    yauzl.open(
-      set.originalPath,
-      { lazyEntries: true },
-      async (openErr, zipFile) => {
-        if (openErr) {
-          reject(new Error(`failed to open zip file ${openErr.message}`));
-          return;
+  const zip = await yauzl.open(set.originalPath);
+  try {
+    for await (const entry of zip) {
+      if (entry.filename.endsWith('.slp')) {
+        try {
+          const readStream = await entry.openReadStream();
+          const unzipPath = path.join(unzipDir, entry.filename);
+          const writeStream = createWriteStream(unzipPath);
+          await pipeline(readStream, writeStream);
+          replayPaths.add(unzipPath);
+        } catch (e: any) {
+          throw new Error(
+            `failed to unzip file: ${entry.filename}, ${
+              e instanceof Error ? e.message : e
+            }`,
+          );
         }
-
-        let failureReason = '';
-        zipFile.on('close', async () => {
-          if (failureReason) {
-            reject(new Error(failureReason));
-          } else {
-            set.replayPaths.push(...Array.from(replayPaths));
-            set.replayPaths.sort();
-            resolve();
-          }
-        });
-        zipFile.on('entry', async (entry) => {
-          if (entry.fileName === 'context.json') {
-            zipFile.readEntry();
-          } else if (entry.fileName.endsWith('.slp')) {
-            zipFile.openReadStream(
-              entry,
-              async (openReadStreamErr, readStream) => {
-                if (openReadStreamErr) {
-                  failureReason = `failed to unzip file: ${entry.fileName}, ${openReadStreamErr.message}`;
-                  await rm(unzipDir, { recursive: true, force: true });
-                  zipFile.close();
-                  return;
-                }
-
-                const unzipPath = path.join(unzipDir, entry.fileName);
-                readStream.on('end', () => {
-                  replayPaths.add(unzipPath);
-                  zipFile.readEntry();
-                });
-                const writeStream = createWriteStream(unzipPath);
-                readStream.pipe(writeStream);
-              },
-            );
-          } else {
-            failureReason = `invalid zip contents: ${entry.fileName}`;
-            await rm(unzipDir, { recursive: true, force: true });
-            zipFile.close();
-          }
-        });
-        zipFile.readEntry();
-      },
-    );
-  });
+      } else if (entry.filename !== 'context.json') {
+        throw new Error(`invalid zip contents: ${entry.filename}`);
+      }
+    }
+  } catch (e: any) {
+    await rm(unzipDir, { recursive: true, force: true });
+    throw e;
+  } finally {
+    zip.close();
+  }
+  set.replayPaths.push(...Array.from(replayPaths));
+  set.replayPaths.sort();
 }
 
 async function deleteInner(unzipDir: string, timeoutMs: number) {

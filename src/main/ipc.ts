@@ -368,7 +368,7 @@ export default async function setupIPCs(
 
   const tempDir = path.join(app.getPath('temp'), 'auto-slp-player');
   try {
-    await access(tempDir).catch(() => mkdir(tempDir));
+    await mkdir(tempDir, { recursive: true });
   } catch (e: any) {
     if (e instanceof Error) {
       throw new Error(`Could not make temp dir: ${e.message}`);

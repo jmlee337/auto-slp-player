@@ -64,6 +64,10 @@ export default class OBSConnection {
 
   private soundPort: number;
 
+  private connectionStatusCallback: (
+    connectionStatus: OBSConnectionStatus,
+  ) => void;
+
   constructor(
     mainWindow: BrowserWindow,
     overlay01Path: string,
@@ -86,6 +90,17 @@ export default class OBSConnection {
     this.streamOutputActive = false;
     this.shouldSetupAndAutoSwitch = false;
     this.soundPort = 0;
+    this.connectionStatusCallback = () => {};
+  }
+
+  setConnectionStatusCallback(
+    callback: (connectionStatus: OBSConnectionStatus) => void,
+  ) {
+    this.connectionStatusCallback = callback;
+  }
+
+  getPorts() {
+    return Array.from(this.portToInputName.keys()).sort((a, b) => a - b);
   }
 
   setShouldSetupAndAutoSwitch(newShouldSetupAndAutoSwitch: boolean) {
@@ -104,10 +119,14 @@ export default class OBSConnection {
   }
 
   private setConnectionStatus(
-    connectionStatus: OBSConnectionStatus,
+    newConnectionStatus: OBSConnectionStatus,
     errMessage?: string,
   ) {
-    this.connectionStatus = connectionStatus;
+    const changed = this.connectionStatus !== newConnectionStatus;
+    this.connectionStatus = newConnectionStatus;
+    if (changed) {
+      this.connectionStatusCallback(this.connectionStatus);
+    }
     this.mainWindow.webContents.send(
       'obsConnectionStatus',
       this.connectionStatus,
@@ -516,6 +535,7 @@ export default class OBSConnection {
           return false;
         }
       }
+      this.portToInputName.clear();
       for (let i = 0; i < this.maxDolphins; i += 1) {
         const [port, pid] = portAndPids[i];
         await this.obsWebSocket.call('SetInputSettings', {

@@ -33,6 +33,7 @@ import {
   AvailableSet,
   MainContextChallonge,
   MainContextStartgg,
+  OBSConnectionStatus,
   ObsGamecaptureResult,
   OBSSettings,
   OverlayChallonge,
@@ -561,12 +562,11 @@ export default async function setupIPCs(
         lastChallongeTournamentName = challongeTournamentName;
         lastChallongeTournamentSlug = representativeChallonge.tournament.slug;
       }
+      const obsPorts = obsConnection.getPorts();
       playingSetsEntries.forEach(([port, playingSet]) => {
-        const setIndex = Array.from(dolphins.keys())
-          .sort((a, b) => a - b)
-          .indexOf(port);
+        const setIndex = obsPorts.indexOf(port);
         if (setIndex === -1) {
-          throw new Error(`no dolphin for port ${port}`);
+          return;
         }
 
         const context = playingSet?.context;
@@ -774,6 +774,11 @@ export default async function setupIPCs(
       urls,
     });
   };
+  obsConnection.setConnectionStatusCallback((newConnectionStatus) => {
+    if (newConnectionStatus === OBSConnectionStatus.READY) {
+      updateOverlayAndTwitchBot();
+    }
+  });
   const failedPorts = new Set<number>();
   const getNextPort = () => {
     let tryPort = Ports.DEFAULT;

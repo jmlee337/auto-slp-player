@@ -19,9 +19,7 @@ export default function QueueTabPanel({
       id={`queue-tabpanel-${queue.id}`}
       aria-labelledby={`queue-tab-${queue.id}`}
     >
-      {queue.id === visibleQueueId && (
-        <Queue queue={queue} canPlay={canPlay} twitchChannel={twitchChannel} />
-      )}
+      <Queue queue={queue} canPlay={canPlay} twitchChannel={twitchChannel} />
     </div>
   );
 }

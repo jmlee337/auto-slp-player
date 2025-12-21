@@ -65,7 +65,7 @@ export default function Settings({
   showAppErrorDialog: (message: string) => void;
 }) {
   const [appVersion, setAppVersion] = useState('');
-  const [generateTimestamps, setGenerateTimestamps] = useState(false);
+  const [musicOff, setMusicOff] = useState(false);
   const [stealth, setStealth] = useState(false);
   const [splitOption, setSplitOption] = useState(SplitOption.NONE);
   const [splitByWave, setSplitByWave] = useState(false);
@@ -83,7 +83,7 @@ export default function Settings({
   useEffect(() => {
     (async () => {
       const appVersionPromise = window.electron.getVersion();
-      const generateTimestampsPromise = window.electron.getGenerateTimestamps();
+      const musicOffPromise = window.electron.getMusicOff();
       const stealthPromise = window.electron.getStealth();
       const splitOptionPromise = window.electron.getSplitOption();
       const splitByWavePromise = window.electron.getSplitByWave();
@@ -96,7 +96,7 @@ export default function Settings({
       const latestAppVersionPromise = window.electron.getLatestVersion();
 
       setAppVersion(await appVersionPromise);
-      setGenerateTimestamps(await generateTimestampsPromise);
+      setMusicOff(await musicOffPromise);
       setStealth(await stealthPromise);
       setSplitOption(await splitOptionPromise);
       setSplitByWave(await splitByWavePromise);
@@ -301,19 +301,17 @@ export default function Settings({
           </Stack>
           <Box>
             <FormControlLabel
+              label="Music Off"
               control={
                 <Checkbox
-                  checked={generateTimestamps}
+                  checked={musicOff}
                   onChange={async (event) => {
-                    const newGenerateTimestamps = event.target.checked;
-                    await window.electron.setGenerateTimestamps(
-                      newGenerateTimestamps,
-                    );
-                    setGenerateTimestamps(newGenerateTimestamps);
+                    const newMusicOff = event.target.checked;
+                    await window.electron.setMusicOff(newMusicOff);
+                    setMusicOff(newMusicOff);
                   }}
                 />
               }
-              label="Generate Timestamps"
             />
           </Box>
           <Box>

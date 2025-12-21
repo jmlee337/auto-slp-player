@@ -42,10 +42,6 @@ const electronHandler = {
     ipcRenderer.invoke('playNext', queueId, originalPath),
   playNow: (queueId: string, originalPath: string): Promise<void> =>
     ipcRenderer.invoke('playNow', queueId, originalPath),
-  getGenerateTimestamps: (): Promise<boolean> =>
-    ipcRenderer.invoke('getGenerateTimestamps'),
-  setGenerateTimestamps: (newGenerateTimestamps: boolean) =>
-    ipcRenderer.invoke('setGenerateTimestamps', newGenerateTimestamps),
   getTimestamps: (): Promise<string> => ipcRenderer.invoke('getTimestamps'),
   getSggApiKey: (): Promise<string> => ipcRenderer.invoke('getSggApiKey'),
   setSggApiKey: (sggApiKey: string): Promise<void> =>
@@ -77,6 +73,9 @@ const electronHandler = {
     ipcRenderer.invoke('getTwitchClient'),
   setTwitchClient: (twitchClient: TwitchClient): Promise<void> =>
     ipcRenderer.invoke('setTwitchClient', twitchClient),
+  getMusicOff: (): Promise<boolean> => ipcRenderer.invoke('getMusicOff'),
+  setMusicOff: (musicOff: boolean): Promise<void> =>
+    ipcRenderer.invoke('setMusicOff', musicOff),
   getStealth: (): Promise<boolean> => ipcRenderer.invoke('getStealth'),
   setStealth: (stealth: boolean): Promise<void> =>
     ipcRenderer.invoke('setStealth', stealth),

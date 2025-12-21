@@ -254,7 +254,11 @@ function getGameSettingsPath(tempDir: string) {
   return path.join(tempDir, DOLPHIN_USER_SUBDIR, 'GameSettings', 'GALE01.ini');
 }
 
-async function writeGameSettings(stealth: boolean, tempDir: string) {
+async function writeGameSettings(
+  musicOff: boolean,
+  stealth: boolean,
+  tempDir: string,
+) {
   const gameSettingsDir = path.join(
     tempDir,
     DOLPHIN_USER_SUBDIR,
@@ -267,13 +271,15 @@ async function writeGameSettings(stealth: boolean, tempDir: string) {
       throw new Error(`Could not make config dir: ${e.message}`);
     }
   }
-  const gameSettingsPath = getGameSettingsPath(tempDir);
-  await writeFile(
-    gameSettingsPath,
-    stealth
-      ? '[Gecko_Disabled]\n$Optional: Show Player Names\n\n[Gecko_Enabled]\n$Optional: Hide Waiting For Game\n'
-      : '[Gecko_Enabled]\n$Optional: Hide Waiting For Game\n$Optional: Show Player Names\n',
-  );
+
+  let iniStr = '[Gecko_Enabled]\n$Optional: Hide Waiting For Game\n';
+  if (musicOff) {
+    iniStr += '$Optional: Game Music OFF\n';
+  }
+  if (stealth) {
+    iniStr += '\n[Gecko_Disabled]\n$Optional: Show Player Names\n';
+  }
+  await writeFile(getGameSettingsPath(tempDir), iniStr);
 }
 
 export default async function setupIPCs(
@@ -284,6 +290,7 @@ export default async function setupIPCs(
     checkOvertime: boolean;
     mirrorDir: string;
     mirrorShowScore: boolean;
+    musicOff: boolean;
     sggApiKey: string;
     splitByWave: boolean;
     stealth: boolean;
@@ -336,9 +343,7 @@ export default async function setupIPCs(
   let maxDolphins = store.has('maxDolphins')
     ? (store.get('maxDolphins') as number)
     : 1;
-  let generateTimestamps = store.has('generateTimestamps')
-    ? (store.get('generateTimestamps') as boolean)
-    : true;
+  let musicOff: boolean = store.get('musicOff', false);
   let stealth: boolean = store.get('stealth', false);
   let splitOption: SplitOption = store.has('splitOption')
     ? (store.get('splitOption') as SplitOption)
@@ -365,7 +370,7 @@ export default async function setupIPCs(
   try {
     await access(getGameSettingsPath(tempDir));
   } catch {
-    await writeGameSettings(stealth, tempDir);
+    await writeGameSettings(musicOff, stealth, tempDir);
   }
 
   let obsSettings: OBSSettings = store.has('obsSettings')
@@ -467,11 +472,20 @@ export default async function setupIPCs(
     twitch.setClient(twitchClient);
   });
 
+  ipcMain.removeAllListeners('getMusicOff');
+  ipcMain.handle('getMusicOff', () => musicOff);
+  ipcMain.removeAllListeners('setMusicOff');
+  ipcMain.handle('setMusicOff', async (event, newMusicOff: boolean) => {
+    await writeGameSettings(newMusicOff, stealth, tempDir);
+    store.set('musicOff', newMusicOff);
+    musicOff = newMusicOff;
+  });
+
   ipcMain.removeAllListeners('getStealth');
   ipcMain.handle('getStealth', () => stealth);
   ipcMain.removeAllListeners('setStealth');
   ipcMain.handle('setStealth', async (event, newStealth: boolean) => {
-    await writeGameSettings(newStealth, tempDir);
+    await writeGameSettings(musicOff, newStealth, tempDir);
     twitch.setStealth(newStealth);
     store.set('stealth', newStealth);
     stealth = newStealth;
@@ -1089,7 +1103,7 @@ export default async function setupIPCs(
     }
     await dolphins.get(actualPort)!.play(set.replayPaths);
 
-    if (generateTimestamps && watchDir && set.context) {
+    if (watchDir && set.context) {
       const hasPlayers = Boolean(set.context.players);
       const rendererSet = !hasPlayers ? toRendererSet(set) : null;
       const entrant1Names = hasPlayers
@@ -1532,17 +1546,6 @@ export default async function setupIPCs(
         }
         obsConnection.transition(playingSets);
       }
-    },
-  );
-
-  ipcMain.removeHandler('getGenerateTimestamps');
-  ipcMain.handle('getGenerateTimestamps', () => generateTimestamps);
-  ipcMain.removeHandler('setGenerateTimestamps');
-  ipcMain.handle(
-    'setGenerateTimestamps',
-    (event: IpcMainInvokeEvent, newGenerateTimestamps: boolean) => {
-      store.set('generateTimestamps', newGenerateTimestamps);
-      generateTimestamps = newGenerateTimestamps;
     },
   );
 
@@ -2100,7 +2103,7 @@ export default async function setupIPCs(
 
       mirrorSet = set;
       mirroredSetIds.add(setId);
-      if (generateTimestamps && watchDir) {
+      if (watchDir) {
         writeTimestamps(
           set.entrant1Names,
           set.entrant2Names,

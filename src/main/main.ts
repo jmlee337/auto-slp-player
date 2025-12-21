@@ -67,9 +67,11 @@ const createWindow = async () => {
         : path.join(__dirname, '../../.erb/dll/preload.js'),
     },
   });
+  await setupIPCs(mainWindow, RESOURCES_PATH);
 
-  mainWindow.loadURL(resolveHtmlPath('index.html'));
-
+  mainWindow.on('closed', () => {
+    mainWindow = null;
+  });
   mainWindow.on('ready-to-show', () => {
     if (!mainWindow) {
       throw new Error('"mainWindow" is not defined');
@@ -80,21 +82,15 @@ const createWindow = async () => {
       mainWindow.show();
     }
   });
-
-  mainWindow.on('closed', () => {
-    mainWindow = null;
-  });
-
-  const menuBuilder = new MenuBuilder(mainWindow);
-  menuBuilder.buildMenu();
-
   // Open urls in the user's browser
   mainWindow.webContents.setWindowOpenHandler((edata) => {
     shell.openExternal(edata.url);
     return { action: 'deny' };
   });
+  const menuBuilder = new MenuBuilder(mainWindow);
+  menuBuilder.buildMenu();
 
-  await setupIPCs(mainWindow, RESOURCES_PATH);
+  mainWindow.loadURL(resolveHtmlPath('index.html'));
 };
 
 /**

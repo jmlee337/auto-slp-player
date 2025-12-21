@@ -38,7 +38,7 @@ export default class OBSConnection {
 
   private dolphinPorts: number[];
 
-  private dolphinVersionPromise: Promise<string> | null;
+  private dolphinVersion: string;
 
   private mainWindow: BrowserWindow;
 
@@ -81,7 +81,7 @@ export default class OBSConnection {
 
     this.connectionStatus = OBSConnectionStatus.OBS_NOT_CONNECTED;
     this.dolphinPorts = [];
-    this.dolphinVersionPromise = null;
+    this.dolphinVersion = '';
     this.maxDolphins = 0;
     this.obsWebSocket = null;
     this.portToPid = new Map();
@@ -110,8 +110,8 @@ export default class OBSConnection {
     }
   }
 
-  setDolphinVersionPromise(dolphinVersionPromise: Promise<string>) {
-    this.dolphinVersionPromise = dolphinVersionPromise;
+  setDolphinVersion(dolphinVersion: string) {
+    this.dolphinVersion = dolphinVersion;
   }
 
   getConnectionStatus() {
@@ -134,9 +134,8 @@ export default class OBSConnection {
     );
   }
 
-  private async getPrefix() {
-    const dolphinVersion = await this.dolphinVersionPromise;
-    return `Faster Melee - Slippi (${dolphinVersion}) - Playback | `;
+  private getPrefix() {
+    return `Faster Melee - Slippi (${this.dolphinVersion}) - Playback | `;
   }
 
   setMaxDolphins(maxDophins: number) {
@@ -175,7 +174,7 @@ export default class OBSConnection {
       return true;
     }
 
-    if (!this.dolphinVersionPromise) {
+    if (!this.dolphinVersion) {
       return false;
     }
 

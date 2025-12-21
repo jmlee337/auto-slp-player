@@ -9,6 +9,7 @@ import {
   DolphinMessageType,
 } from '@slippi/slippi-js';
 import { kill, stderr, stdout } from 'process';
+import { DOLPHIN_USER_SUBDIR } from '../common/types';
 
 export enum DolphinEvent {
   CLOSE = 'close',
@@ -34,8 +35,6 @@ export class Dolphin extends EventEmitter {
 
   private port: number;
 
-  private addDelay: boolean;
-
   private process: ChildProcess | null;
 
   private gameIndex: number;
@@ -52,12 +51,13 @@ export class Dolphin extends EventEmitter {
 
   private mirroring: boolean;
 
+  private userDir: string;
+
   constructor(
     dolphinPath: string,
     isoPath: string,
     tempDir: string,
     port: number,
-    addDelay: boolean,
   ) {
     super();
     this.pid = 0;
@@ -66,7 +66,6 @@ export class Dolphin extends EventEmitter {
     this.dolphinPath = dolphinPath;
     this.isoPath = isoPath;
     this.port = port;
-    this.addDelay = addDelay;
     this.process = null;
     this.gameIndex = 0;
     this.replayPaths = [];
@@ -77,6 +76,7 @@ export class Dolphin extends EventEmitter {
     this.mirroring = false;
 
     this.commPath = path.join(tempDir, `${port}.json`);
+    this.userDir = path.join(tempDir, DOLPHIN_USER_SUBDIR);
     this.dolphinConnection = new DolphinConnection();
     this.dolphinConnection.on(ConnectionEvent.MESSAGE, (messageEvent) => {
       if (this.mirroring) {
@@ -94,13 +94,9 @@ export class Dolphin extends EventEmitter {
           this.gameIndex += 1;
           if (this.gameIndex >= this.replayPaths.length) {
             this.emit(DolphinEvent.ENDING);
-            if (this.addDelay) {
-              setTimeout(() => {
-                this.emit(DolphinEvent.ENDED);
-              }, 4000);
-            } else {
+            setTimeout(() => {
               this.emit(DolphinEvent.ENDED);
-            }
+            }, 4000);
           } else {
             this.waitingForStart = true;
             setTimeout(() => {
@@ -260,10 +256,6 @@ export class Dolphin extends EventEmitter {
     });
   }
 
-  public setAddDelay(addDelay: boolean) {
-    this.addDelay = addDelay;
-  }
-
   public async open() {
     if (this.process) {
       return;
@@ -276,6 +268,8 @@ export class Dolphin extends EventEmitter {
       this.isoPath,
       '-i',
       this.commPath,
+      '--user',
+      this.userDir,
       '--slippi-spectator-port',
       `${this.port}`,
     ];

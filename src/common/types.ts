@@ -333,3 +333,5 @@ export type ApiSet = ApiPhaseGroup & {
   entrant2Prefixes: string[];
   fullRoundText: string;
 };
+
+export const DOLPHIN_USER_SUBDIR = 'user';

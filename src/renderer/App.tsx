@@ -63,8 +63,8 @@ function Hello() {
       setIsoPath(await isoPathPromise);
       setMaxDolphins(await maxDolphinsPromise);
       setNumDolphins(await numDolphinsPromise);
-      setDolphinVersion((await dolphinVersionPromise).version);
-      setDolphinVersionError((await dolphinVersionPromise).error);
+      setDolphinVersion((await dolphinVersionPromise).dolphinVersion);
+      setDolphinVersionError((await dolphinVersionPromise).dolphinVersionError);
       setShouldSetupAndAutoSwitchObs(await shouldSetupAndAutoSwitchObsPromise);
       const initialTwitchUserName = await twitchUserNamePromise;
       setTwitchUserName((prev) => prev || initialTwitchUserName);
@@ -229,10 +229,9 @@ function Hello() {
             />
             <Setup
               watchFolderMsg={watchFolderMsg}
-              watchFolderDisabled={!dolphinPath || !isoPath}
+              watchFolderDisabled={!dolphinPath || !isoPath || !dolphinVersion}
               maxDolphins={maxDolphins}
               numDolphins={numDolphins}
-              dolphinVersion={dolphinVersion}
               shouldSetupAndAutoSwitchObs={shouldSetupAndAutoSwitchObs}
             />
             <Mirror canPlay={canPlay} numDolphins={numDolphins} />

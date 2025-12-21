@@ -25,14 +25,12 @@ export default function Setup({
   watchFolderDisabled,
   maxDolphins,
   numDolphins,
-  dolphinVersion,
   shouldSetupAndAutoSwitchObs,
 }: {
   watchFolderMsg: string;
   watchFolderDisabled: boolean;
   maxDolphins: number;
   numDolphins: number;
-  dolphinVersion: string;
   shouldSetupAndAutoSwitchObs: boolean;
 }) {
   const [open, setOpen] = useState(false);
@@ -139,7 +137,6 @@ export default function Setup({
           </Button>
           <Button
             disabled={
-              !dolphinVersion ||
               (numDolphins < maxDolphins &&
                 obsConnectionStatus === OBSConnectionStatus.OBS_NOT_CONNECTED &&
                 shouldSetupAndAutoSwitchObs) ||

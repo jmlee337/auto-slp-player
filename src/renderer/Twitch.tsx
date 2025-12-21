@@ -201,19 +201,16 @@ export default function Twitch({ userName }: { userName: string }) {
   const [botEnabled, setBotEnabled] = useState(false);
   const [botStatus, setBotStatus] = useState(TwitchStatus.STOPPED);
   const [botStatusMessage, setBotStatusMessage] = useState('');
-  const [stealth, setStealth] = useState(false);
 
   useEffect(() => {
     (async () => {
       const botEnabledPromise = window.electron.getTwitchBotEnabled();
       const botStatusPromise = window.electron.getTwitchBotStatus();
-      const stealthPromise = window.electron.getStealth();
 
       setBotEnabled(await botEnabledPromise);
       const initialBotStatus = await botStatusPromise;
       setBotStatus(await initialBotStatus.status);
       setBotStatusMessage(await initialBotStatus.message);
-      setStealth(await stealthPromise);
     })();
   }, []);
   useEffect(() => {
@@ -277,20 +274,6 @@ export default function Twitch({ userName }: { userName: string }) {
         )}
         {botStatus === TwitchStatus.STARTED && <Check color="success" />}
       </Stack>
-      <FormControlLabel
-        disabled={!userName || !botEnabled}
-        label="Stealth (bot will not mention Slippi)"
-        control={
-          <Checkbox
-            checked={stealth}
-            onChange={async (event) => {
-              const newStealth = event.target.checked;
-              await window.electron.setStealth(newStealth);
-              setStealth(newStealth);
-            }}
-          />
-        }
-      />
       <SetupDialog open={open} setOpen={setOpen} />
     </Stack>
   );

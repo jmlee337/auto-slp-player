@@ -15,6 +15,7 @@ import {
   mkdir,
   open,
   readdir,
+  readFile,
   rm,
   unlink,
   writeFile,
@@ -26,11 +27,14 @@ import { AccessToken } from '@twurple/auth';
 import { parseStream, writeToString } from 'fast-csv';
 import { createReadStream } from 'fs';
 import { format, parse } from 'date-fns';
+import ini from 'ini';
+import os from 'os';
 import { deleteZipDir, scan, unzip } from './unzip';
 import {
   ApiPhaseGroup,
   ApiSet,
   AvailableSet,
+  DOLPHIN_USER_SUBDIR,
   MainContextChallonge,
   MainContextStartgg,
   OBSConnectionStatus,
@@ -84,6 +88,194 @@ async function wrappedFetch(input: URL | RequestInfo) {
   return response.json();
 }
 
+async function getDolphinVersion(dolphinPath: string) {
+  try {
+    const dolphinVersion = await new Promise<string>((resolve, reject) => {
+      const process = spawn(dolphinPath, ['--version']);
+      process.stdout.on('data', (data: Buffer) => {
+        const match = data.toString().match(SEMVER_REGEX);
+        if (match) {
+          resolve(match[0]);
+        }
+      });
+      process.on('close', () => {
+        reject(new Error('Valid dolphin path, but could not get version'));
+      });
+      process.on('error', (e) => {
+        reject(new Error(`Invalid dolphin path: ${e.message}`));
+      });
+    });
+    return { dolphinVersion, dolphinVersionError: '' };
+  } catch (e: any) {
+    const dolphinVersionError =
+      e instanceof Error ? e.message : (e.toString() as string);
+    return { dolphinVersion: '', dolphinVersionError };
+  }
+}
+
+function getUserDir(dolphinPath: string) {
+  if (process.platform === 'win32') {
+    if (dolphinPath) {
+      return path.join(path.dirname(dolphinPath), 'User');
+    }
+    return path.join(
+      app.getPath('appData'),
+      'Slippi Launcher',
+      'playback',
+      'User',
+    );
+  }
+  if (process.platform === 'darwin') {
+    return path.join(
+      os.homedir(),
+      'Library',
+      'Application Support',
+      'com.project-slippi.dolphin',
+      'playback',
+      'User',
+    );
+  }
+  if (process.platform === 'linux') {
+    return path.join(os.homedir(), '.config', 'SlippiPlayback');
+  }
+  throw new Error('unreachable');
+}
+
+async function getUserDolphinGFX(dolphinPath: string) {
+  const defaultUserDir = getUserDir(dolphinPath);
+
+  let dolphinIni: {
+    [key: string]: any;
+  } = {};
+  const dolphinIniPath = path.join(defaultUserDir, 'Config', 'Dolphin.ini');
+  try {
+    dolphinIni = ini.parse(
+      await readFile(dolphinIniPath, { encoding: 'utf8' }),
+    );
+  } catch {
+    // just catch
+  }
+
+  let gfxIni: {
+    [key: string]: any;
+  } = {};
+  const gfxIniPath = path.join(defaultUserDir, 'Config', 'GFX.ini');
+  try {
+    gfxIni = ini.parse(await readFile(gfxIniPath, { encoding: 'utf8' }));
+  } catch {
+    // just catch
+  }
+
+  return { dolphinIni, gfxIni };
+}
+
+async function writeUserConfig(
+  tempDir: string,
+  dolphinIni: {
+    [key: string]: any;
+  },
+  gfxIni: {
+    [key: string]: any;
+  },
+) {
+  const configDir = path.join(tempDir, DOLPHIN_USER_SUBDIR, 'Config');
+  try {
+    await mkdir(configDir, { recursive: true });
+  } catch (e: any) {
+    if (e instanceof Error) {
+      throw new Error(`Could not make config dir: ${e.message}`);
+    }
+  }
+
+  if (dolphinIni.Core) {
+    dolphinIni.Core.AdapterRumble0 = false;
+    dolphinIni.Core.AdapterRumble1 = false;
+    dolphinIni.Core.AdapterRumble2 = false;
+    dolphinIni.Core.AdapterRumble3 = false;
+  } else {
+    dolphinIni.Core = {
+      AdapterRumble0: false,
+      AdapterRumble1: false,
+      AdapterRumble2: false,
+      AdapterRumble3: false,
+    };
+  }
+  if (dolphinIni.Display) {
+    dolphinIni.Display.Fullscreen = false;
+    dolphinIni.Display.KeepWindowOnTop = false;
+    dolphinIni.Display.RenderToMain = true;
+    dolphinIni.Display.RenderWindowAutoSize = true;
+  } else {
+    dolphinIni.Display = {
+      Fullscreen: false,
+      KeepWindowOnTop: false,
+      RenderToMain: true,
+      RenderWindowAutoSize: true,
+    };
+  }
+  if (dolphinIni.Interface) {
+    dolphinIni.Interface.HideCursor = false;
+    dolphinIni.Interface.ShowToolbar = true;
+    dolphinIni.Interface.ShowStatusbar = true;
+    dolphinIni.Interface.ShowSeekbar = false;
+  } else {
+    dolphinIni.Interface = {
+      HideCursor: false,
+      ShowToolbar: true,
+      ShowStatusbar: true,
+      ShowSeekbar: false,
+    };
+  }
+  const dolphinConfigPath = path.join(configDir, 'Dolphin.ini');
+  await writeFile(dolphinConfigPath, ini.stringify(dolphinIni));
+
+  if (gfxIni.Settings) {
+    gfxIni.Settings.AspectRatio = 0;
+  } else {
+    gfxIni.Settings = {
+      AspectRatio: 0,
+    };
+  }
+  const gfxConfigPath = path.join(configDir, 'GFX.ini');
+  await writeFile(gfxConfigPath, ini.stringify(gfxIni));
+
+  const hotkeysConfigPath = path.join(configDir, 'Hotkeys.ini');
+  await writeFile(
+    hotkeysConfigPath,
+    ini.stringify({
+      Hotkeys1: {
+        Device: '/0/',
+      },
+    }),
+  );
+}
+
+function getGameSettingsPath(tempDir: string) {
+  return path.join(tempDir, DOLPHIN_USER_SUBDIR, 'GameSettings', 'GALE01.ini');
+}
+
+async function writeGameSettings(stealth: boolean, tempDir: string) {
+  const gameSettingsDir = path.join(
+    tempDir,
+    DOLPHIN_USER_SUBDIR,
+    'GameSettings',
+  );
+  try {
+    await mkdir(gameSettingsDir, { recursive: true });
+  } catch (e: any) {
+    if (e instanceof Error) {
+      throw new Error(`Could not make config dir: ${e.message}`);
+    }
+  }
+  const gameSettingsPath = getGameSettingsPath(tempDir);
+  await writeFile(
+    gameSettingsPath,
+    stealth
+      ? '[Gecko_Disabled]\n$Optional: Show Player Names\n\n[Gecko_Enabled]\n$Optional: Hide Waiting For Game\n'
+      : '[Gecko_Enabled]\n$Optional: Hide Waiting For Game\n$Optional: Show Player Names\n',
+  );
+}
+
 export default async function setupIPCs(
   mainWindow: BrowserWindow,
   resourcesPath: string,
@@ -101,8 +293,12 @@ export default async function setupIPCs(
   }>();
   let sggApiKey = store.get('sggApiKey', '');
   let dolphinPath = '';
+  let dolphinVersion = '';
+  let dolphinVersionError = '';
   if (store.has('dolphinPath')) {
     dolphinPath = store.get('dolphinPath') as string;
+    ({ dolphinVersion, dolphinVersionError } =
+      await getDolphinVersion(dolphinPath));
   } else {
     let defaultPath = path.join(
       app.getPath('appData'),
@@ -124,12 +320,15 @@ export default async function setupIPCs(
     } else {
       throw new Error('unsupported platform???');
     }
-    try {
-      await access(defaultPath);
+
+    const dolphinVersionRet = await getDolphinVersion(defaultPath);
+    if (
+      dolphinVersionRet.dolphinVersion &&
+      !dolphinVersionRet.dolphinVersionError
+    ) {
       dolphinPath = defaultPath;
       store.set('dolphinPath', dolphinPath);
-    } catch {
-      // just catch
+      ({ dolphinVersion, dolphinVersionError } = dolphinVersionRet);
     }
   }
 
@@ -140,14 +339,34 @@ export default async function setupIPCs(
   let generateTimestamps = store.has('generateTimestamps')
     ? (store.get('generateTimestamps') as boolean)
     : true;
-  let addDelay = store.has('addDelay')
-    ? (store.get('addDelay') as boolean)
-    : false;
+  let stealth: boolean = store.get('stealth', false);
   let splitOption: SplitOption = store.has('splitOption')
     ? (store.get('splitOption') as SplitOption)
     : SplitOption.EVENT;
   let splitByWave: boolean = store.get('splitByWave', true);
   let checkOvertime: boolean = store.get('checkOvertime', true);
+
+  const tempDir = path.join(app.getPath('temp'), 'auto-slp-player');
+  try {
+    await mkdir(tempDir, { recursive: true });
+  } catch (e: any) {
+    if (e instanceof Error) {
+      throw new Error(`Could not make temp dir: ${e.message}`);
+    }
+  }
+
+  const initUserDolphinGFX = await getUserDolphinGFX(dolphinPath);
+  await writeUserConfig(
+    tempDir,
+    initUserDolphinGFX.dolphinIni,
+    initUserDolphinGFX.gfxIni,
+  );
+
+  try {
+    await access(getGameSettingsPath(tempDir));
+  } catch {
+    await writeGameSettings(stealth, tempDir);
+  }
 
   let obsSettings: OBSSettings = store.has('obsSettings')
     ? (store.get('obsSettings') as OBSSettings)
@@ -164,7 +383,6 @@ export default async function setupIPCs(
   if (store.has('twitchAccessToken')) {
     twitchAccessToken = store.get('twitchAccessToken');
   }
-  let stealth: boolean = store.get('stealth', false);
   let twitchBotStatus = TwitchStatus.STOPPED;
   let twitchBotStatusMessage = '';
   let twitchCallbackServerStatus = TwitchStatus.STOPPED;
@@ -252,10 +470,11 @@ export default async function setupIPCs(
   ipcMain.removeAllListeners('getStealth');
   ipcMain.handle('getStealth', () => stealth);
   ipcMain.removeAllListeners('setStealth');
-  ipcMain.handle('setStealth', (event, newStealth: boolean) => {
+  ipcMain.handle('setStealth', async (event, newStealth: boolean) => {
+    await writeGameSettings(newStealth, tempDir);
+    twitch.setStealth(newStealth);
+    store.set('stealth', newStealth);
     stealth = newStealth;
-    store.set('stealth', stealth);
-    twitch.setStealth(stealth);
   });
 
   const overlayPath = path.join(app.getPath('userData'), 'overlay');
@@ -278,28 +497,6 @@ export default async function setupIPCs(
 
   let shouldSetupAndAutoSwitchObs = store.get('setupObs', true) as boolean;
 
-  const dolphinVersionPromiseFn = (
-    resolve: (value: string) => void,
-    reject: (reason?: any) => void,
-  ) => {
-    const process = spawn(dolphinPath, ['--version']);
-    process.stdout.on('data', (data: Buffer) => {
-      const match = data.toString().match(SEMVER_REGEX);
-      if (match) {
-        resolve(match[0]);
-      }
-    });
-    process.on('close', () => {
-      reject(new Error('Valid dolphin path, but could not get version'));
-    });
-    process.on('error', (e) => {
-      reject(new Error(`Invalid dolphin path: ${e.message}`));
-    });
-  };
-  let dolphinVersionPromise = dolphinPath
-    ? new Promise(dolphinVersionPromiseFn)
-    : null;
-
   const obsConnection = new OBSConnection(
     mainWindow,
     path.join(overlayPath, 'default.html'),
@@ -308,9 +505,7 @@ export default async function setupIPCs(
   );
   obsConnection.setShouldSetupAndAutoSwitch(shouldSetupAndAutoSwitchObs);
   obsConnection.setMaxDolphins(maxDolphins);
-  if (dolphinVersionPromise) {
-    obsConnection.setDolphinVersionPromise(dolphinVersionPromise);
-  }
+  obsConnection.setDolphinVersion(dolphinVersion);
 
   ipcMain.removeHandler('getShouldSetupAndAutoSwitchObs');
   ipcMain.handle(
@@ -338,10 +533,25 @@ export default async function setupIPCs(
     if (openDialogRes.canceled) {
       return dolphinPath;
     }
-    [dolphinPath] = openDialogRes.filePaths;
+    const [newDolphinPath] = openDialogRes.filePaths;
+    const dolphinVersionRet = await getDolphinVersion(newDolphinPath);
+    if (dolphinVersionRet.dolphinVersionError) {
+      throw new Error(dolphinVersionRet.dolphinVersionError);
+    }
+
+    dolphinVersion = dolphinVersionRet.dolphinVersion;
+    dolphinVersionError = dolphinVersionRet.dolphinVersionError;
+    obsConnection.setDolphinVersion(dolphinVersion);
+
+    dolphinPath = newDolphinPath;
     store.set('dolphinPath', dolphinPath);
-    dolphinVersionPromise = new Promise(dolphinVersionPromiseFn);
-    obsConnection.setDolphinVersionPromise(dolphinVersionPromise);
+    const newUserDolphinGFX = await getUserDolphinGFX(dolphinPath);
+    await writeUserConfig(
+      tempDir,
+      newUserDolphinGFX.dolphinIni,
+      newUserDolphinGFX.gfxIni,
+    );
+
     return dolphinPath;
   });
 
@@ -366,15 +576,6 @@ export default async function setupIPCs(
     store.set('isoPath', isoPath);
     return isoPath;
   });
-
-  const tempDir = path.join(app.getPath('temp'), 'auto-slp-player');
-  try {
-    await mkdir(tempDir, { recursive: true });
-  } catch (e: any) {
-    if (e instanceof Error) {
-      throw new Error(`Could not make temp dir: ${e.message}`);
-    }
-  }
 
   const originalPathToPlayedMs = new Map<string, number>();
   const playingSets: Map<number, AvailableSet | null> = new Map();
@@ -946,13 +1147,7 @@ export default async function setupIPCs(
       return Promise.resolve();
     }
 
-    const newDolphin = new Dolphin(
-      dolphinPath,
-      isoPath,
-      tempDir,
-      port,
-      addDelay,
-    );
+    const newDolphin = new Dolphin(dolphinPath, isoPath, tempDir, port);
     newDolphin.on(DolphinEvent.CLOSE, () => {
       if (port === mirrorPort) {
         mirrorPort = 0;
@@ -1477,17 +1672,6 @@ export default async function setupIPCs(
     },
   );
 
-  ipcMain.removeHandler('getAddDelay');
-  ipcMain.handle('getAddDelay', () => addDelay);
-  ipcMain.removeHandler('setAddDelay');
-  ipcMain.handle('setAddDelay', (event, newAddDelay: boolean) => {
-    store.set('addDelay', newAddDelay);
-    addDelay = newAddDelay;
-    for (const dolphin of dolphins.values()) {
-      dolphin.setAddDelay(addDelay);
-    }
-  });
-
   const requeueAll = () => {
     const allSets: AvailableSet[] = [];
     getQueues().forEach((queue) => {
@@ -1621,15 +1805,10 @@ export default async function setupIPCs(
   });
 
   ipcMain.removeHandler('getDolphinVersion');
-  ipcMain.handle('getDolphinVersion', async () => {
-    try {
-      const version = dolphinVersionPromise ? await dolphinVersionPromise : '';
-      return { version, error: '' };
-    } catch (e: any) {
-      const error = e instanceof Error ? e.message : (e.toString() as string);
-      return { version: '', error };
-    }
-  });
+  ipcMain.handle('getDolphinVersion', () => ({
+    dolphinVersion,
+    dolphinVersionError,
+  }));
 
   ipcMain.removeHandler('getObsSettings');
   ipcMain.handle('getObsSettings', () => obsSettings);

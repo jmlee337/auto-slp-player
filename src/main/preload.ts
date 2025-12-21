@@ -52,9 +52,6 @@ const electronHandler = {
     ipcRenderer.invoke('setSggApiKey', sggApiKey),
   setSggVodUrls: (baseYoutubeUrl: string): Promise<void> =>
     ipcRenderer.invoke('setSggVodUrls', baseYoutubeUrl),
-  getAddDelay: (): Promise<boolean> => ipcRenderer.invoke('getAddDelay'),
-  setAddDelay: (addDelay: boolean): Promise<void> =>
-    ipcRenderer.invoke('setAddDelay', addDelay),
   getSplitOption: (): Promise<SplitOption> =>
     ipcRenderer.invoke('getSplitOption'),
   setSplitOption: (newSplitOption: SplitOption): Promise<void> =>
@@ -128,8 +125,10 @@ const electronHandler = {
     ipcRenderer.invoke('setQueuePaused', queueId, paused),
   checkObsGamecapture: (): Promise<ObsGamecaptureResult> =>
     ipcRenderer.invoke('checkObsGamecapture'),
-  getDolphinVersion: (): Promise<{ version: string; error: string }> =>
-    ipcRenderer.invoke('getDolphinVersion'),
+  getDolphinVersion: (): Promise<{
+    dolphinVersion: string;
+    dolphinVersionError: string;
+  }> => ipcRenderer.invoke('getDolphinVersion'),
   getShouldSetupAndAutoSwitchObs: (): Promise<boolean> =>
     ipcRenderer.invoke('getShouldSetupAndAutoSwitchObs'),
   setShouldSetupAndAutoSwitchObs: (

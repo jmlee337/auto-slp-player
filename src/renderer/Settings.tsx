@@ -66,7 +66,7 @@ export default function Settings({
 }) {
   const [appVersion, setAppVersion] = useState('');
   const [generateTimestamps, setGenerateTimestamps] = useState(false);
-  const [addDelay, setAddDelay] = useState(false);
+  const [stealth, setStealth] = useState(false);
   const [splitOption, setSplitOption] = useState(SplitOption.NONE);
   const [splitByWave, setSplitByWave] = useState(false);
   const [checkOvertime, setCheckOvertime] = useState(false);
@@ -84,7 +84,7 @@ export default function Settings({
     (async () => {
       const appVersionPromise = window.electron.getVersion();
       const generateTimestampsPromise = window.electron.getGenerateTimestamps();
-      const addDelayPromise = window.electron.getAddDelay();
+      const stealthPromise = window.electron.getStealth();
       const splitOptionPromise = window.electron.getSplitOption();
       const splitByWavePromise = window.electron.getSplitByWave();
       const checkOvertimePromise = window.electron.getCheckOvertime();
@@ -97,7 +97,7 @@ export default function Settings({
 
       setAppVersion(await appVersionPromise);
       setGenerateTimestamps(await generateTimestampsPromise);
-      setAddDelay(await addDelayPromise);
+      setStealth(await stealthPromise);
       setSplitOption(await splitOptionPromise);
       setSplitByWave(await splitByWavePromise);
       setCheckOvertime(await checkOvertimePromise);
@@ -162,11 +162,18 @@ export default function Settings({
     (obsGamecaptureResult === ObsGamecaptureResult.FAIL ||
       !dolphinPath ||
       !isoPath ||
+      !dolphinVersion ||
       needUpdate)
   ) {
     setOpen(true);
     setHasAutoOpened(true);
   }
+
+  useEffect(() => {
+    if (dolphinVersionError && open) {
+      showAppErrorDialog(dolphinVersionError);
+    }
+  }, [dolphinVersionError, open, showAppErrorDialog]);
 
   return (
     <>
@@ -236,43 +243,51 @@ export default function Settings({
               )}
             </>
           )}
-          <Stack direction="row">
+          <Stack direction="row" alignItems="center">
             <InputBase
               disabled
               size="small"
-              value={dolphinPath || 'Set dolphin path...'}
+              slotProps={{ input: { style: { padding: 0 } } }}
               style={{ flexGrow: 1 }}
+              value={dolphinPath || 'Set dolphin path...'}
             />
             {dolphinPath && dolphinVersion && (
               <Tooltip arrow title={`Dolphin version: ${dolphinVersion}`}>
-                <CheckCircle style={{ padding: '9px' }} />
+                <CheckCircle style={{ padding: '8px' }} />
               </Tooltip>
             )}
             {dolphinPath && dolphinVersionError && (
               <Tooltip arrow title={dolphinVersionError}>
-                <Report style={{ padding: '9px' }} />
+                <Report style={{ padding: '8px' }} />
               </Tooltip>
             )}
             <Tooltip arrow title="Set dolphin path">
               <IconButton
                 onClick={async () => {
-                  setDolphinPath(await window.electron.chooseDolphinPath());
-                  const { version, error } =
-                    await window.electron.getDolphinVersion();
-                  setDolphinVersion(version);
-                  setDolphinVersionError(error);
+                  try {
+                    setDolphinPath(await window.electron.chooseDolphinPath());
+                    const dolphinVersionRet =
+                      await window.electron.getDolphinVersion();
+                    setDolphinVersion(dolphinVersionRet.dolphinVersion);
+                    setDolphinVersionError(
+                      dolphinVersionRet.dolphinVersionError,
+                    );
+                  } catch (e: any) {
+                    showAppErrorDialog(e instanceof Error ? e.message : e);
+                  }
                 }}
               >
                 <Terminal />
               </IconButton>
             </Tooltip>
           </Stack>
-          <Stack direction="row">
+          <Stack direction="row" alignItems="center">
             <InputBase
               disabled
               size="small"
-              value={isoPath || 'Set ISO path...'}
+              slotProps={{ input: { style: { padding: 0 } } }}
               style={{ flexGrow: 1 }}
+              value={isoPath || 'Set ISO path...'}
             />
             <Tooltip arrow title="Set ISO path">
               <IconButton
@@ -303,34 +318,16 @@ export default function Settings({
           </Box>
           <Box>
             <FormControlLabel
+              label="Stealth (players names will be hidden, bot will not mention Slippi)"
               control={
                 <Checkbox
-                  checked={addDelay}
+                  checked={stealth}
                   onChange={async (event) => {
-                    const newAddDelay = event.target.checked;
-                    await window.electron.setAddDelay(newAddDelay);
-                    setAddDelay(newAddDelay);
+                    const newStealth = event.target.checked;
+                    await window.electron.setStealth(newStealth);
+                    setStealth(newStealth);
                   }}
                 />
-              }
-              label={
-                <>
-                  Add Delay
-                  {addDelay && (
-                    <>
-                      {' '}
-                      (Recommend{' '}
-                      <Link
-                        href={`https://github.com/jmlee337/auto-slp-player/blob/${appVersion}/src/docs/waiting.md`}
-                        target="_blank"
-                        rel="noreferrer"
-                      >
-                        hiding
-                      </Link>{' '}
-                      &quot;Waiting For Game&quot;)
-                    </>
-                  )}
-                </>
               }
             />
           </Box>

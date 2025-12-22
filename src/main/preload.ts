@@ -8,6 +8,7 @@ import {
   RendererQueue,
   SplitOption,
   TwitchClient,
+  TwitchPrediction,
   TwitchStatus,
 } from '../common/types';
 
@@ -69,6 +70,26 @@ const electronHandler = {
     ipcRenderer.invoke('setTwitchBotEnabled', twitchBotEnabled),
   getTwitchBotStatus: (): Promise<{ status: TwitchStatus; message: string }> =>
     ipcRenderer.invoke('getTwitchBotStatus'),
+  getTwitchPredictionsEnabled: (): Promise<boolean> =>
+    ipcRenderer.invoke('getTwitchPredictionsEnabled'),
+  setTwitchPredictionsEnabled: (
+    twitchPredictionsEnabled: boolean,
+  ): Promise<void> =>
+    ipcRenderer.invoke('setTwitchPredictionsEnabled', twitchPredictionsEnabled),
+  getAutoTwitchPredictions: (): Promise<boolean> =>
+    ipcRenderer.invoke('getAutoTwitchPredictions'),
+  setAutoTwitchPredictions: (autoTwitchPredictions: boolean): Promise<void> =>
+    ipcRenderer.invoke('setAutoTwitchPredictions', autoTwitchPredictions),
+  getTwitchPrediction: (): Promise<TwitchPrediction | null> =>
+    ipcRenderer.invoke('getTwitchPrediction'),
+  createTwitchPrediction: (set: ApiSet): Promise<void> =>
+    ipcRenderer.invoke('createTwitchPrediction', set),
+  lockTwitchPrediction: (): Promise<void> =>
+    ipcRenderer.invoke('lockTwitchPrediction'),
+  resolveTwitchPrediction: (): Promise<void> =>
+    ipcRenderer.invoke('resolveTwitchPrediction'),
+  resolveTwitchPredictionWithWinner: (winnerName: string): Promise<void> =>
+    ipcRenderer.invoke('resolveTwitchPredictionWithWinner', winnerName),
   getTwitchClient: (): Promise<TwitchClient> =>
     ipcRenderer.invoke('getTwitchClient'),
   setTwitchClient: (twitchClient: TwitchClient): Promise<void> =>
@@ -102,6 +123,15 @@ const electronHandler = {
   ) => {
     ipcRenderer.removeAllListeners('twitchBotStatus');
     ipcRenderer.on('twitchBotStatus', callback);
+  },
+  onTwitchPrediction: (
+    callback: (
+      event: IpcRendererEvent,
+      twitchPrediction: TwitchPrediction | null,
+    ) => void,
+  ) => {
+    ipcRenderer.removeAllListeners('twitchPrediction');
+    ipcRenderer.on('twitchPrediction', callback);
   },
   onTwitchCallbackServerStatus: (
     callback: (
@@ -166,6 +196,8 @@ const electronHandler = {
     ipcRenderer.invoke('getPhaseGroups'),
   getPendingSets: (phaseGroupId: number): Promise<ApiSet[]> =>
     ipcRenderer.invoke('getPendingSets', phaseGroupId),
+  getMirrorSet: (): Promise<ApiSet | null> =>
+    ipcRenderer.invoke('getMirrorSet'),
   setMirrorSet: (setId: number | null): Promise<void> =>
     ipcRenderer.invoke('setMirrorSet', setId),
 

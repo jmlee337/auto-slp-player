@@ -41,6 +41,8 @@ function Hello() {
   const [shouldSetupAndAutoSwitchObs, setShouldSetupAndAutoSwitchObs] =
     useState(false);
   const [twitchUserName, setTwitchUserName] = useState('');
+  const [twitchPredictionsEnabled, setTwitchPredictionsEnabled] =
+    useState(false);
   const [canPlay, setCanPlay] = useState(false);
   const [queues, setQueues] = useState<RendererQueue[]>([]);
   const [visibleQueue, setVisibleQueue] = useState<RendererQueue | null>(null);
@@ -56,6 +58,8 @@ function Hello() {
       const shouldSetupAndAutoSwitchObsPromise =
         window.electron.getShouldSetupAndAutoSwitchObs();
       const twitchUserNamePromise = window.electron.getTwitchUserName();
+      const twitchPredictionsEnabledPromise =
+        window.electron.getTwitchPredictionsEnabled();
       const canPlayPromise = window.electron.getCanPlay();
       const queuesPromise = window.electron.getQueues();
 
@@ -66,8 +70,8 @@ function Hello() {
       setDolphinVersion((await dolphinVersionPromise).dolphinVersion);
       setDolphinVersionError((await dolphinVersionPromise).dolphinVersionError);
       setShouldSetupAndAutoSwitchObs(await shouldSetupAndAutoSwitchObsPromise);
-      const initialTwitchUserName = await twitchUserNamePromise;
-      setTwitchUserName((prev) => prev || initialTwitchUserName);
+      setTwitchUserName(await twitchUserNamePromise);
+      setTwitchPredictionsEnabled(await twitchPredictionsEnabledPromise);
       setCanPlay(await canPlayPromise);
 
       const initialQueues = await queuesPromise;
@@ -218,6 +222,8 @@ function Hello() {
               maxDolphins={maxDolphins}
               setMaxDolphins={setMaxDolphins}
               twitchUserName={twitchUserName}
+              twitchPredictionsEnabled={twitchPredictionsEnabled}
+              setTwitchPredictionsEnabled={setTwitchPredictionsEnabled}
               dolphinVersion={dolphinVersion}
               setDolphinVersion={setDolphinVersion}
               dolphinVersionError={dolphinVersionError}
@@ -234,7 +240,14 @@ function Hello() {
               numDolphins={numDolphins}
               shouldSetupAndAutoSwitchObs={shouldSetupAndAutoSwitchObs}
             />
-            <Mirror canPlay={canPlay} numDolphins={numDolphins} />
+            <Mirror
+              canPlay={canPlay}
+              numDolphins={numDolphins}
+              twitchPredictionsEnabled={
+                Boolean(twitchUserName) && twitchPredictionsEnabled
+              }
+              showAppErrorDialog={showAppErrorDialog}
+            />
             <Timestamps />
           </Stack>
         </Stack>

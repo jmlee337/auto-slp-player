@@ -197,7 +197,15 @@ function SetupDialog({
   );
 }
 
-export default function Twitch({ userName }: { userName: string }) {
+export default function Twitch({
+  userName,
+  predictionsEnabled,
+  setPredictionsEnabled,
+}: {
+  userName: string;
+  predictionsEnabled: boolean;
+  setPredictionsEnabled: (predictionsEnabled: boolean) => void;
+}) {
   const [botEnabled, setBotEnabled] = useState(false);
   const [botStatus, setBotStatus] = useState(TwitchStatus.STOPPED);
   const [botStatusMessage, setBotStatusMessage] = useState('');
@@ -272,8 +280,28 @@ export default function Twitch({ userName }: { userName: string }) {
         {botStatus === TwitchStatus.STARTING && (
           <CircularProgress size="24px" />
         )}
-        {botStatus === TwitchStatus.STARTED && <Check color="success" />}
+        {botStatus === TwitchStatus.STARTED && (
+          <Tooltip title="Bot running">
+            <Check color="success" />
+          </Tooltip>
+        )}
       </Stack>
+      <FormControlLabel
+        disabled={!userName}
+        label="Predictions"
+        control={
+          <Checkbox
+            checked={predictionsEnabled}
+            onChange={async (event) => {
+              const newPredictionsEnabled = event.target.checked;
+              await window.electron.setTwitchPredictionsEnabled(
+                newPredictionsEnabled,
+              );
+              setPredictionsEnabled(newPredictionsEnabled);
+            }}
+          />
+        }
+      />
       <SetupDialog open={open} setOpen={setOpen} />
     </Stack>
   );

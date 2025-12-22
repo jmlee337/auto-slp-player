@@ -39,6 +39,8 @@ export default function Settings({
   maxDolphins,
   setMaxDolphins,
   twitchUserName,
+  twitchPredictionsEnabled,
+  setTwitchPredictionsEnabled,
   dolphinVersion,
   setDolphinVersion,
   dolphinVersionError,
@@ -55,6 +57,8 @@ export default function Settings({
   maxDolphins: number;
   setMaxDolphins: (maxDolphins: number) => void;
   twitchUserName: string;
+  twitchPredictionsEnabled: boolean;
+  setTwitchPredictionsEnabled: (twitchPredictionsEnabled: boolean) => void;
   dolphinVersion: string;
   setDolphinVersion: (dolphinVersion: string) => void;
   dolphinVersionError: string;
@@ -499,7 +503,11 @@ export default function Settings({
               />
             </Stack>
           </Stack>
-          <Twitch userName={twitchUserName} />
+          <Twitch
+            userName={twitchUserName}
+            predictionsEnabled={twitchPredictionsEnabled}
+            setPredictionsEnabled={setTwitchPredictionsEnabled}
+          />
           <Stack alignItems="end" marginRight="8px" spacing="8px">
             <Button
               onClick={() => {

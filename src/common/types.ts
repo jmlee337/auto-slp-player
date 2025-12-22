@@ -335,3 +335,8 @@ export type ApiSet = ApiPhaseGroup & {
 };
 
 export const DOLPHIN_USER_SUBDIR = 'user';
+
+export type TwitchPrediction = {
+  title: string;
+  locked: boolean;
+};

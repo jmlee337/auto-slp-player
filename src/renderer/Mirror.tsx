@@ -9,7 +9,6 @@ import {
   VisibilityOff,
 } from '@mui/icons-material';
 import {
-  Alert,
   Button,
   Checkbox,
   CircularProgress,
@@ -31,10 +30,11 @@ import {
   Tooltip,
   Typography,
 } from '@mui/material';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import styled from '@emotion/styled';
 import { blue } from '@mui/material/colors';
-import { ApiPhaseGroup, ApiSet } from '../common/types';
+import { ApiPhaseGroup, ApiSet, TwitchPrediction } from '../common/types';
+import { getEntrantName } from '../common/commonUtil';
 
 const StyledRating = styled(Rating)({
   '& .MuiRating-iconFilled': {
@@ -48,37 +48,43 @@ const StyledRating = styled(Rating)({
 export default function Mirror({
   canPlay,
   numDolphins,
+  twitchPredictionsEnabled,
+  showAppErrorDialog,
 }: {
   canPlay: boolean;
   numDolphins: number;
+  twitchPredictionsEnabled: boolean;
+  showAppErrorDialog: (message: string) => void;
 }) {
-  const [open, setOpen] = useState(false);
+  const cannotStartMirroring = useMemo(
+    () => !canPlay || numDolphins === 0,
+    [canPlay, numDolphins],
+  );
+
   const [isMirroring, setIsMirroring] = useState(false);
   const [mirrorDir, setMirrorDir] = useState('');
-  const [showScore, setShowScore] = useState(false);
-  const [score, setScore] = useState<[number, number]>([0, 0]);
-  const [mirrorChanging, setMirrorChanging] = useState(false);
-  const [slug, setSlug] = useState('');
-  const [loadingPhaseGroups, setLoadingPhaseGroups] = useState(false);
-  const [phaseGroups, setPhaseGroups] = useState<ApiPhaseGroup[]>([]);
-  const [phaseGroupIdStr, setPhaseGroupIdStr] = useState('');
-  const [gettingPendingSets, setGettingPendingSets] = useState(false);
-  const [apiSets, setApiSets] = useState<ApiSet[]>([]);
   const [mirrorSet, setMirrorSet] = useState<ApiSet | null>(null);
-
-  const [error, setError] = useState('');
-  const [errorOpen, setErrorOpen] = useState(false);
+  const [showScore, setShowScore] = useState(false);
+  const [autoPredictions, setAutoPredictions] = useState(true);
+  const [score, setScore] = useState<[number, number]>([0, 0]);
+  const [prediction, setPrediction] = useState<TwitchPrediction | null>(null);
 
   useEffect(() => {
     const inner = async () => {
       const isMirroringPromise = window.electron.getIsMirroring();
       const mirrorDirPromise = window.electron.getMirrorDir();
       const showScorePromise = window.electron.getMirrorShowScore();
+      const autoPredictionsPromise = window.electron.getAutoTwitchPredictions();
+      const mirrorSetPromise = window.electron.getMirrorSet();
       const scorePromise = window.electron.getMirrorScore();
+      const predictionPromise = window.electron.getTwitchPrediction();
       setIsMirroring(await isMirroringPromise);
       setMirrorDir(await mirrorDirPromise);
+      setMirrorSet(await mirrorSetPromise);
       setShowScore(await showScorePromise);
+      setAutoPredictions(await autoPredictionsPromise);
       setScore(await scorePromise);
+      setPrediction(await predictionPromise);
     };
     inner();
   }, []);
@@ -87,24 +93,51 @@ export default function Mirror({
     window.electron.onMirroring((event, newIsMirroring) => {
       setIsMirroring(newIsMirroring);
     });
+    window.electron.onTwitchPrediction((event, newTwitchPrediction) => {
+      setPrediction(newTwitchPrediction);
+    });
   }, []);
 
-  const getPendingSets = async (newPhaseGroupIdStr: string) => {
-    setGettingPendingSets(true);
-    try {
-      setApiSets(
-        await window.electron.getPendingSets(parseInt(newPhaseGroupIdStr, 10)),
-      );
-    } catch (e: any) {
-      const message = e instanceof Error ? e.message : e.toString();
-      setError(message);
-      setErrorOpen(true);
-    } finally {
-      setGettingPendingSets(false);
-    }
-  };
+  const [gettingPendingSets, setGettingPendingSets] = useState(false);
+  const [apiSets, setApiSets] = useState<ApiSet[]>([]);
+  const getPendingSets = useCallback(
+    async (newPhaseGroupIdStr: string) => {
+      setGettingPendingSets(true);
+      try {
+        setApiSets(
+          await window.electron.getPendingSets(
+            parseInt(newPhaseGroupIdStr, 10),
+          ),
+        );
+      } catch (e: any) {
+        showAppErrorDialog(e instanceof Error ? e.message : e.toString());
+      } finally {
+        setGettingPendingSets(false);
+      }
+    },
+    [showAppErrorDialog],
+  );
 
-  const cannotStartMirroring = !canPlay || numDolphins === 0;
+  const setsToShow = useMemo(
+    () =>
+      mirrorSet
+        ? apiSets.filter((apiSet) => apiSet.id !== mirrorSet.id)
+        : apiSets,
+    [apiSets, mirrorSet],
+  );
+
+  const [open, setOpen] = useState(false);
+  const [mirrorChanging, setMirrorChanging] = useState(false);
+  const [slug, setSlug] = useState('');
+  const [loadingPhaseGroups, setLoadingPhaseGroups] = useState(false);
+  const [phaseGroups, setPhaseGroups] = useState<ApiPhaseGroup[]>([]);
+  const [phaseGroupIdStr, setPhaseGroupIdStr] = useState('');
+  const [settingMirrorSet, setSettingMirrorSet] = useState(false);
+  const [creatingTwitchPrediction, setCreatingTwitchPrediction] =
+    useState(false);
+  const [lockingTwitchPrediction, setLockingTwitchPrediction] = useState(false);
+  const [resolvingTwitchPrediction, setResolvingTwitchPrediction] =
+    useState(false);
 
   return (
     <>
@@ -134,249 +167,430 @@ export default function Mirror({
             gap: '8px',
           }}
         >
-          <Stack direction="row" marginRight="-9px" spacing="2px" width="100%">
-            <InputBase
-              disabled
-              size="small"
-              value={mirrorDir}
-              style={{ flexGrow: 1 }}
-            />
-            <Tooltip arrow placement="right" title="Set mirror folder...">
-              <IconButton
-                onClick={async () => {
-                  setMirrorDir(await window.electron.chooseMirrorDir());
-                }}
-              >
-                <Folder />
-              </IconButton>
-            </Tooltip>
-          </Stack>
-          {isMirroring && (
-            <form
-              onSubmit={async (event) => {
-                event.preventDefault();
-                event.stopPropagation();
-                try {
-                  setLoadingPhaseGroups(true);
-                  await window.electron.loadPhaseGroups(slug);
-                  setPhaseGroups(await window.electron.getPhaseGroups());
-                  setSlug('');
-                } catch (e: any) {
-                  const message = e instanceof Error ? e.message : e.toString();
-                  setError(message);
-                  setErrorOpen(true);
-                } finally {
-                  setLoadingPhaseGroups(false);
-                }
-              }}
-              style={{
-                display: 'flex',
-                flexDirection: 'row',
-                gap: '2px',
-                marginRight: '-9px',
-              }}
-            >
-              <TextField
-                label="Tournament Slug"
+          <Stack width="100%" alignItems="end">
+            <Stack direction="row" marginRight="-10px" width="100%">
+              <InputBase
+                disabled
                 size="small"
-                value={slug}
-                onChange={(event) => {
-                  setSlug(event.target.value);
+                slotProps={{
+                  input: { style: { padding: 0, textAlign: 'right' } },
                 }}
+                style={{ flexGrow: 1, marginRight: '-1px' }}
+                value={mirrorDir}
               />
-              <Tooltip arrow placement="right" title="Load Tournament...">
-                <span>
-                  <IconButton type="submit" disabled={loadingPhaseGroups}>
-                    {loadingPhaseGroups ? (
-                      <CircularProgress size="24px" />
-                    ) : (
-                      <Download />
-                    )}
-                  </IconButton>
-                </span>
-              </Tooltip>
-            </form>
-          )}
-          {isMirroring && phaseGroups.length > 0 && (
-            <Stack direction="row" marginRight="-9px" spacing="2px">
-              <FormControl>
-                <InputLabel size="small" id="mirror-select-input-label">
-                  Pool
-                </InputLabel>
-                <Select
-                  label="Pool"
-                  labelId="mirror-select-input-label"
-                  style={{ minWidth: '222.5px' }}
-                  size="small"
-                  value={phaseGroupIdStr}
-                  onChange={async (event: SelectChangeEvent) => {
-                    const newPhaseGroupIdStr = event.target.value;
-                    setPhaseGroupIdStr(newPhaseGroupIdStr);
-                    getPendingSets(newPhaseGroupIdStr);
+              <Tooltip arrow placement="right" title="Set mirror folder...">
+                <IconButton
+                  onClick={async () => {
+                    setMirrorDir(await window.electron.chooseMirrorDir());
                   }}
                 >
-                  {phaseGroups.map((phaseGroup) => (
-                    <MenuItem
-                      key={phaseGroup.phaseGroupId}
-                      value={phaseGroup.phaseGroupId}
-                    >
-                      {`${phaseGroup.eventName}, ${phaseGroup.phaseName}, ${phaseGroup.phaseGroupName}`}
-                    </MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
-              <Tooltip arrow placement="right" title="Refresh">
-                <span>
-                  <IconButton
-                    disabled={gettingPendingSets}
-                    onClick={() => {
-                      getPendingSets(phaseGroupIdStr);
-                    }}
-                  >
-                    {gettingPendingSets ? (
-                      <CircularProgress size="24px" />
-                    ) : (
-                      <Refresh />
-                    )}
-                  </IconButton>
-                </span>
+                  <Folder />
+                </IconButton>
               </Tooltip>
             </Stack>
+            {isMirroring && (
+              <>
+                <FormControlLabel
+                  control={
+                    <Checkbox
+                      checked={showScore}
+                      style={{ padding: '8px' }}
+                      onChange={async (event) => {
+                        const newShowScore = event.target.checked;
+                        await window.electron.setMirrorShowScore(newShowScore);
+                        setShowScore(newShowScore);
+                        if (!newShowScore) {
+                          setScore([0, 0]);
+                        }
+                      }}
+                    />
+                  }
+                  label="Show Score"
+                  labelPlacement="start"
+                />
+                {twitchPredictionsEnabled && (
+                  <FormControlLabel
+                    label="Auto Predictions"
+                    labelPlacement="start"
+                    control={
+                      <Checkbox
+                        checked={autoPredictions}
+                        style={{ padding: '8px' }}
+                        onChange={(event) => {
+                          setAutoPredictions(event.target.checked);
+                        }}
+                      />
+                    }
+                  />
+                )}
+              </>
+            )}
+          </Stack>
+          {isMirroring && (
+            <Stack
+              direction="row"
+              alignItems="center"
+              gap="8px"
+              paddingTop="4px"
+              marginRight={phaseGroups.length === 0 ? '-11px' : undefined}
+            >
+              <form
+                onSubmit={async (event) => {
+                  event.preventDefault();
+                  event.stopPropagation();
+                  try {
+                    setLoadingPhaseGroups(true);
+                    await window.electron.loadPhaseGroups(slug);
+                    setPhaseGroups(await window.electron.getPhaseGroups());
+                    setSlug('');
+                    const { activeElement } = document;
+                    if (activeElement && activeElement instanceof HTMLElement) {
+                      activeElement.blur();
+                    }
+                  } catch (e: any) {
+                    showAppErrorDialog(
+                      e instanceof Error ? e.message : e.toString(),
+                    );
+                  } finally {
+                    setLoadingPhaseGroups(false);
+                  }
+                }}
+                style={{
+                  display: 'flex',
+                  flexDirection: 'row',
+                }}
+              >
+                <TextField
+                  label="Tournament Slug"
+                  size="small"
+                  value={slug}
+                  onChange={(event) => {
+                    setSlug(event.target.value);
+                  }}
+                />
+                <Tooltip arrow placement="right" title="Load Tournament...">
+                  <span>
+                    <IconButton type="submit" disabled={loadingPhaseGroups}>
+                      {loadingPhaseGroups ? (
+                        <CircularProgress size="24px" />
+                      ) : (
+                        <Download />
+                      )}
+                    </IconButton>
+                  </span>
+                </Tooltip>
+              </form>
+              {phaseGroups.length > 0 && (
+                <Stack direction="row" marginRight="-10px">
+                  <FormControl>
+                    <InputLabel size="small" id="mirror-select-input-label">
+                      Pool
+                    </InputLabel>
+                    <Select
+                      label="Pool"
+                      labelId="mirror-select-input-label"
+                      style={{ minWidth: '222.5px' }}
+                      size="small"
+                      value={phaseGroupIdStr}
+                      onChange={async (event: SelectChangeEvent) => {
+                        const newPhaseGroupIdStr = event.target.value;
+                        setPhaseGroupIdStr(newPhaseGroupIdStr);
+                        getPendingSets(newPhaseGroupIdStr);
+                      }}
+                    >
+                      {phaseGroups.map((phaseGroup) => (
+                        <MenuItem
+                          key={phaseGroup.phaseGroupId}
+                          value={phaseGroup.phaseGroupId}
+                        >
+                          {`${phaseGroup.eventName}, ${phaseGroup.phaseName}, ${phaseGroup.phaseGroupName}`}
+                        </MenuItem>
+                      ))}
+                    </Select>
+                  </FormControl>
+                  <Tooltip arrow placement="right" title="Refresh">
+                    <span>
+                      <IconButton
+                        disabled={gettingPendingSets}
+                        onClick={() => {
+                          getPendingSets(phaseGroupIdStr);
+                        }}
+                      >
+                        {gettingPendingSets ? (
+                          <CircularProgress size="24px" />
+                        ) : (
+                          <Refresh />
+                        )}
+                      </IconButton>
+                    </span>
+                  </Tooltip>
+                </Stack>
+              )}
+            </Stack>
           )}
-          {isMirroring && apiSets.length > 0 && (
+          {isMirroring && setsToShow.length > 0 && (
             <Stack
               direction="row"
               flexWrap="wrap"
               justifyContent="end"
-              spacing="16px"
+              gap="8px"
             >
-              {apiSets.map((set) => (
+              {setsToShow.map((set) => (
                 <ListItemButton
                   key={set.id}
-                  style={{ flexGrow: 0 }}
+                  disabled={
+                    settingMirrorSet ||
+                    (twitchPredictionsEnabled &&
+                      !autoPredictions &&
+                      mirrorSet !== null &&
+                      prediction !== null) ||
+                    (twitchPredictionsEnabled &&
+                      autoPredictions &&
+                      mirrorSet !== null &&
+                      prediction !== null &&
+                      !showScore) ||
+                    (twitchPredictionsEnabled &&
+                      autoPredictions &&
+                      mirrorSet !== null &&
+                      prediction !== null &&
+                      showScore &&
+                      score[0] === score[1])
+                  }
+                  style={{ flexGrow: 0, padding: '8px' }}
                   onClick={async () => {
-                    await Promise.all([
-                      window.electron.setMirrorSet(set.id),
-                      window.electron.setMirrorScore([0, 0]),
-                    ]);
-                    setMirrorSet(set);
-                    setScore([0, 0]);
+                    try {
+                      setSettingMirrorSet(true);
+                      if (
+                        twitchPredictionsEnabled &&
+                        autoPredictions &&
+                        mirrorSet &&
+                        prediction &&
+                        showScore &&
+                        score[0] !== score[1]
+                      ) {
+                        try {
+                          setResolvingTwitchPrediction(true);
+                          await window.electron.resolveTwitchPredictionWithWinner(
+                            getEntrantName(
+                              score[0] > score[1]
+                                ? mirrorSet.entrant1Names
+                                : mirrorSet.entrant2Names,
+                            ),
+                          );
+                        } finally {
+                          setResolvingTwitchPrediction(false);
+                        }
+                      }
+                      await Promise.all([
+                        window.electron.setMirrorSet(set.id),
+                        window.electron.setMirrorScore([0, 0]),
+                      ]);
+                      setMirrorSet(set);
+                      setScore([0, 0]);
+                      if (twitchPredictionsEnabled && autoPredictions) {
+                        try {
+                          setCreatingTwitchPrediction(true);
+                          await window.electron.createTwitchPrediction(set);
+                        } finally {
+                          setCreatingTwitchPrediction(false);
+                        }
+                      }
+                    } catch (e: any) {
+                      showAppErrorDialog(
+                        e instanceof Error ? e.message : e.toString(),
+                      );
+                    } finally {
+                      setSettingMirrorSet(false);
+                    }
                   }}
                 >
-                  <Stack direction="column">
+                  <Stack>
                     <Typography variant="caption">
                       {set.fullRoundText}
                     </Typography>
                     <Typography variant="body2">
-                      {set.entrant1Names.join(' + ')}
+                      {getEntrantName(set.entrant1Names)}
                     </Typography>
                     <Typography variant="body2">
-                      {set.entrant2Names.join(' + ')}
+                      {getEntrantName(set.entrant2Names)}
                     </Typography>
                   </Stack>
                 </ListItemButton>
               ))}
             </Stack>
           )}
-          {isMirroring && (
-            <FormControlLabel
-              control={
-                <Checkbox
-                  checked={showScore}
-                  onChange={async (event) => {
-                    const newShowScore = event.target.checked;
-                    await window.electron.setMirrorShowScore(newShowScore);
-                    setShowScore(newShowScore);
-                    if (!newShowScore) {
-                      setScore([0, 0]);
-                    }
-                  }}
-                />
-              }
-              label="Show Score"
-              labelPlacement="start"
-            />
-          )}
           {isMirroring && mirrorSet && (
-            <Stack>
-              <FormControlLabel
-                label={mirrorSet.entrant1Names.join(' + ')}
-                labelPlacement="start"
-                slotProps={{
-                  typography: {
-                    style: { marginRight: '4px' },
-                    variant: 'caption',
-                  },
-                }}
-                style={{ marginRight: '-2px' }}
-                control={
-                  <StyledRating
-                    max={3}
-                    icon={<CheckBox fontSize="inherit" />}
-                    emptyIcon={<CheckBoxOutlineBlank fontSize="inherit" />}
-                    value={score[0]}
-                    onChange={async (event, newP1Score) => {
-                      const newScore: [number, number] = [
-                        newP1Score ?? 0,
-                        score[1],
-                      ];
-                      await window.electron.setMirrorScore(newScore);
-                      setScore(newScore);
-                    }}
-                  />
-                }
-              />
-              <FormControlLabel
-                label={mirrorSet.entrant2Names.join(' + ')}
-                labelPlacement="start"
-                slotProps={{
-                  typography: {
-                    style: { marginRight: '4px' },
-                    variant: 'caption',
-                  },
-                }}
-                style={{ marginRight: '-2px' }}
-                sx={{ typography: 'caption' }}
-                control={
-                  <StyledRating
-                    max={3}
-                    icon={<CheckBox fontSize="inherit" />}
-                    emptyIcon={<CheckBoxOutlineBlank fontSize="inherit" />}
-                    value={score[1]}
-                    onChange={async (event, newP2Score) => {
-                      const newScore: [number, number] = [
-                        score[0],
-                        newP2Score ?? 0,
-                      ];
-                      await window.electron.setMirrorScore(newScore);
-                      setScore(newScore);
-                    }}
-                  />
-                }
-              />
+            <Stack padding="8px 0">
+              <Typography variant="caption">
+                {mirrorSet.fullRoundText}
+              </Typography>
+              {showScore ? (
+                <FormControlLabel
+                  label={getEntrantName(mirrorSet.entrant1Names)}
+                  labelPlacement="start"
+                  slotProps={{
+                    typography: {
+                      style: { marginRight: '4px' },
+                      variant: 'body2',
+                    },
+                  }}
+                  style={{ marginRight: '-2px', marginLeft: 0 }}
+                  control={
+                    <StyledRating
+                      max={3}
+                      icon={<CheckBox fontSize="inherit" />}
+                      emptyIcon={<CheckBoxOutlineBlank fontSize="inherit" />}
+                      value={score[0]}
+                      onChange={async (event, newP1Score) => {
+                        const newScore: [number, number] = [
+                          newP1Score ?? 0,
+                          score[1],
+                        ];
+                        await window.electron.setMirrorScore(newScore);
+                        setScore(newScore);
+                      }}
+                    />
+                  }
+                />
+              ) : (
+                <Typography variant="body2">
+                  {getEntrantName(mirrorSet.entrant1Names)}
+                </Typography>
+              )}
+              {showScore ? (
+                <FormControlLabel
+                  label={getEntrantName(mirrorSet.entrant2Names)}
+                  labelPlacement="start"
+                  slotProps={{
+                    typography: {
+                      style: { marginRight: '4px' },
+                      variant: 'body2',
+                    },
+                  }}
+                  style={{ marginRight: '-2px', marginLeft: 0 }}
+                  sx={{ typography: 'caption' }}
+                  control={
+                    <StyledRating
+                      max={3}
+                      icon={<CheckBox fontSize="inherit" />}
+                      emptyIcon={<CheckBoxOutlineBlank fontSize="inherit" />}
+                      value={score[1]}
+                      onChange={async (event, newP2Score) => {
+                        const newScore: [number, number] = [
+                          score[0],
+                          newP2Score ?? 0,
+                        ];
+                        await window.electron.setMirrorScore(newScore);
+                        setScore(newScore);
+                      }}
+                    />
+                  }
+                />
+              ) : (
+                <Typography variant="body2">
+                  {getEntrantName(mirrorSet.entrant2Names)}
+                </Typography>
+              )}
             </Stack>
           )}
         </DialogContent>
         <DialogActions>
-          {isMirroring && mirrorSet && (
-            <Button
-              color="warning"
-              onClick={async () => {
-                await Promise.all([
-                  window.electron.setMirrorSet(null),
-                  window.electron.setMirrorScore([0, 0]),
-                ]);
-                setMirrorSet(null);
-                setScore([0, 0]);
-              }}
-              variant="contained"
-            >
-              Clear Scoreboard
-            </Button>
-          )}
+          {isMirroring &&
+            mirrorSet &&
+            (twitchPredictionsEnabled && prediction ? (
+              <>
+                <Button
+                  disabled={lockingTwitchPrediction || prediction.locked}
+                  onClick={async () => {
+                    try {
+                      setLockingTwitchPrediction(true);
+                      await window.electron.lockTwitchPrediction();
+                    } catch (e: any) {
+                      showAppErrorDialog(
+                        e instanceof Error ? e.message : e.toString(),
+                      );
+                    } finally {
+                      setLockingTwitchPrediction(false);
+                    }
+                  }}
+                  variant="contained"
+                >
+                  Lock Prediction
+                </Button>
+                <Button
+                  disabled={
+                    resolvingTwitchPrediction ||
+                    (showScore && score[0] === score[1])
+                  }
+                  onClick={async () => {
+                    try {
+                      setResolvingTwitchPrediction(true);
+                      if (showScore) {
+                        await window.electron.resolveTwitchPredictionWithWinner(
+                          getEntrantName(
+                            score[0] > score[1]
+                              ? mirrorSet.entrant1Names
+                              : mirrorSet.entrant2Names,
+                          ),
+                        );
+                      } else {
+                        await window.electron.resolveTwitchPrediction();
+                      }
+                    } catch (e: any) {
+                      showAppErrorDialog(
+                        e instanceof Error ? e.message : e.toString(),
+                      );
+                    } finally {
+                      setResolvingTwitchPrediction(false);
+                    }
+                  }}
+                  variant="contained"
+                >
+                  Resolve Prediction
+                </Button>
+              </>
+            ) : (
+              <>
+                <Button
+                  color="warning"
+                  onClick={async () => {
+                    await Promise.all([
+                      window.electron.setMirrorSet(null),
+                      window.electron.setMirrorScore([0, 0]),
+                    ]);
+                    setMirrorSet(null);
+                    setScore([0, 0]);
+                  }}
+                  variant="contained"
+                >
+                  Clear Scoreboard
+                </Button>
+                {twitchPredictionsEnabled && (
+                  <Button
+                    disabled={creatingTwitchPrediction}
+                    onClick={async () => {
+                      try {
+                        setCreatingTwitchPrediction(true);
+                        await window.electron.createTwitchPrediction(mirrorSet);
+                      } catch (e: any) {
+                        showAppErrorDialog(
+                          e instanceof Error ? e.message : e.toString(),
+                        );
+                      } finally {
+                        setCreatingTwitchPrediction(false);
+                      }
+                    }}
+                    variant="contained"
+                  >
+                    Start Prediction
+                  </Button>
+                )}
+              </>
+            ))}
           {isMirroring ? (
             <Button
               color="error"
+              disabled={twitchPredictionsEnabled && prediction !== null}
               endIcon={
                 mirrorChanging ? <CircularProgress /> : <VisibilityOff />
               }
@@ -416,16 +630,6 @@ export default function Mirror({
             </Button>
           )}
         </DialogActions>
-      </Dialog>
-      <Dialog
-        open={errorOpen}
-        onClose={() => {
-          setErrorOpen(false);
-        }}
-      >
-        <DialogContent>
-          <Alert severity="error">{error}</Alert>
-        </DialogContent>
       </Dialog>
     </>
   );

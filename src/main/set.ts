@@ -1,3 +1,4 @@
+import { getEntrantName } from '../common/commonUtil';
 import {
   ApiPhaseGroup,
   AvailableSet,
@@ -233,8 +234,8 @@ export function toRendererSet(set: AvailableSet): RendererSet {
     rendererSet.context = {
       bestOf: set.context.bestOf,
       players: set.context.players,
-      namesLeft: set.context.scores[0].slots[0].displayNames.join(' + '),
-      namesRight: set.context.scores[0].slots[1].displayNames.join(' + '),
+      namesLeft: getEntrantName(set.context.scores[0].slots[0].displayNames),
+      namesRight: getEntrantName(set.context.scores[0].slots[1].displayNames),
       durationMs: set.context.durationMs,
     };
     if (set.context.startgg) {

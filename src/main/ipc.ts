@@ -48,6 +48,7 @@ import {
   SetType,
   SplitOption,
   TwitchClient,
+  TwitchPrediction,
   TwitchStatus,
 } from '../common/types';
 import { Dolphin, DolphinEvent } from './dolphin';
@@ -55,6 +56,8 @@ import { toApiPhaseGroup, toRendererSet } from './set';
 import OBSConnection from './obs';
 import Queue from './queue';
 import Twitch from './twitch';
+import { getEntrantName } from '../common/commonUtil';
+import { wrappedFetch } from './util';
 
 // taken from https://semver.org/#is-there-a-suggested-regular-expression-regex-to-check-a-semver-string
 // via https://github.com/project-slippi/slippi-launcher/blob/ae8bb69e235b6e46b24bc966aeaa80f45030c6f9/src/dolphin/install/ishiiruka_installation.ts#L23-L24
@@ -72,20 +75,6 @@ function getDefaultMirrorDir() {
     }
   }
   return path.join(root, 'Slippi', 'Spectate');
-}
-
-async function wrappedFetch(input: URL | RequestInfo) {
-  let response: Response | undefined;
-  try {
-    response = await fetch(input);
-  } catch {
-    throw new Error('***You may not be connected to the internet***');
-  }
-
-  if (!response.ok) {
-    throw new Error(`${response.status} - ${response.statusText}.`);
-  }
-  return response.json();
 }
 
 async function getDolphinVersion(dolphinPath: string) {
@@ -287,6 +276,7 @@ export default async function setupIPCs(
   resourcesPath: string,
 ): Promise<void> {
   const store = new Store<{
+    autoTwitchPredictions: boolean;
     checkOvertime: boolean;
     mirrorDir: string;
     mirrorShowScore: boolean;
@@ -295,6 +285,7 @@ export default async function setupIPCs(
     splitByWave: boolean;
     stealth: boolean;
     twitchBotEnabled: boolean;
+    twitchPredictionsEnabled: boolean;
     twitchClient: TwitchClient;
     twitchAccessToken: AccessToken;
   }>();
@@ -380,6 +371,7 @@ export default async function setupIPCs(
   // twitch
   let twitchUserName = '';
   let twitchBotEnabled = store.get('twitchBotEnabled', false);
+  let twitchPredictionsEnabled = store.get('twitchPredictionsEnabled', false);
   let twitchClient: TwitchClient = store.get('twitchClient', {
     clientId: '',
     clientSecret: '',
@@ -390,12 +382,14 @@ export default async function setupIPCs(
   }
   let twitchBotStatus = TwitchStatus.STOPPED;
   let twitchBotStatusMessage = '';
+  let twitchPrediction: TwitchPrediction | null = null;
   let twitchCallbackServerStatus = TwitchStatus.STOPPED;
   let twitchCallbackServerPort = 0;
   const twitch = new Twitch(
     twitchClient,
     twitchAccessToken,
     twitchBotEnabled,
+    twitchPredictionsEnabled,
     stealth,
     (accessToken) => {
       twitchAccessToken = accessToken;
@@ -423,6 +417,10 @@ export default async function setupIPCs(
         twitchCallbackServerPort,
       );
     },
+    (newTwitchPrediction) => {
+      twitchPrediction = newTwitchPrediction;
+      mainWindow.webContents.send('twitchPrediction', twitchPrediction);
+    },
   );
   twitch.initialize();
 
@@ -436,6 +434,9 @@ export default async function setupIPCs(
     status: twitchBotStatus,
     message: twitchBotStatusMessage,
   }));
+
+  ipcMain.removeAllListeners('getTwitchPrediction');
+  ipcMain.handle('getTwitchPrediction', () => twitchPrediction);
 
   ipcMain.removeAllListeners('getTwitchCallbackServerStatus');
   ipcMain.handle('getTwitchCallbackServerStatus', () => ({
@@ -456,11 +457,53 @@ export default async function setupIPCs(
   ipcMain.removeAllListeners('setTwitchBotEnabled');
   ipcMain.handle(
     'setTwitchBotEnabled',
-    (event, newTwitchBotEnabled: boolean) => {
+    async (event, newTwitchBotEnabled: boolean) => {
+      await twitch.setBotEnabled(newTwitchBotEnabled);
+      store.set('twitchBotEnabled', newTwitchBotEnabled);
       twitchBotEnabled = newTwitchBotEnabled;
-      store.set('twitchBotEnabled', twitchBotEnabled);
-      twitch.setBotEnabled(twitchBotEnabled);
     },
+  );
+
+  ipcMain.removeAllListeners('getTwitchPredictionsEnabled');
+  ipcMain.handle('getTwitchPredictionsEnabled', () => twitchPredictionsEnabled);
+  ipcMain.removeAllListeners('setTwitchPredictionsEnabled');
+  ipcMain.handle(
+    'setTwitchPredictionsEnabled',
+    async (event, newTwitchPredictionsEnabled: boolean) => {
+      await twitch.setPredictionsEnabled(newTwitchPredictionsEnabled);
+      store.set('twitchPredictionsEnabled', newTwitchPredictionsEnabled);
+      twitchPredictionsEnabled = newTwitchPredictionsEnabled;
+    },
+  );
+
+  ipcMain.removeAllListeners('getAutoTwitchPredictions');
+  ipcMain.handle('getAutoTwitchPredictions', () =>
+    store.get('autoTwitchPredictions', true),
+  );
+  ipcMain.removeAllListeners('setAutoTwitchPredictions');
+  ipcMain.handle(
+    'setAutoTwitchPredictions',
+    (event, autoTwitchPredictions: boolean) => {
+      store.set('autoTwitchPredictions', autoTwitchPredictions);
+    },
+  );
+
+  ipcMain.removeAllListeners('createTwitchPrediction');
+  ipcMain.handle('createTwitchPrediction', (event, set: ApiSet) =>
+    twitch.createPrediction(set),
+  );
+
+  ipcMain.removeAllListeners('lockTwitchPrediction');
+  ipcMain.handle('lockTwitchPrediction', () => twitch.lockPrediction());
+
+  ipcMain.removeAllListeners('resolveTwitchPrediction');
+  ipcMain.handle('resolveTwitchPrediction', () => twitch.resolvePrediction());
+
+  ipcMain.removeAllListeners('resolveTwitchPredictionWithWinner');
+  ipcMain.handle(
+    'resolveTwitchPredictionWithWinner',
+    (event, winnerName: string) =>
+      twitch.resolvePredictionWithWinner(winnerName),
   );
 
   ipcMain.removeAllListeners('getTwitchClient');
@@ -1053,8 +1096,8 @@ export default async function setupIPCs(
         }
       }
       const lineParts = [
-        entrant1Names.join(' + '),
-        entrant2Names.join(' + '),
+        getEntrantName(entrant1Names),
+        getEntrantName(entrant2Names),
         phaseName,
         fullRoundText,
         timecode,
@@ -2052,6 +2095,7 @@ export default async function setupIPCs(
         }
       });
 
+      idToApiSet.clear();
       const retSets: ApiSet[] = [];
       pendingSets.forEach((set: any) => {
         const entrant1Names = idToEntrantNames.get(set.entrant1Id);
@@ -2082,6 +2126,10 @@ export default async function setupIPCs(
       return retSets;
     },
   );
+
+  ipcMain.removeHandler('getMirrorSet');
+  ipcMain.handle('getMirrorSet', () => mirrorSet);
+
   ipcMain.removeHandler('setMirrorSet');
   ipcMain.handle(
     'setMirrorSet',
@@ -2145,32 +2193,32 @@ export default async function setupIPCs(
   });
 
   app.on('will-quit', (event) => {
-    if (dolphins.size > 0 || playingSets.size > 0) {
-      event.preventDefault();
-      (async () => {
-        if (dolphins.size > 0) {
-          for (const [port, dolphin] of dolphins) {
-            dolphin.removeAllListeners();
-            dolphin.close();
-            dolphins.delete(port);
-          }
-        }
-        if (playingSets.size > 0) {
-          await Promise.allSettled(
-            Array.from(playingSets).map(async ([port, playingSet]) => {
-              try {
-                if (playingSet) {
-                  await deleteZipDir(playingSet, tempDir);
-                }
-              } finally {
-                playingSets.delete(port);
+    event.preventDefault();
+    (async () => {
+      const promises = [twitch.destroy()];
+      if (playingSets.size > 0) {
+        promises.push(
+          ...Array.from(playingSets).map(async ([port, playingSet]) => {
+            try {
+              if (playingSet) {
+                await deleteZipDir(playingSet, tempDir);
               }
-            }),
-          );
+            } finally {
+              playingSets.delete(port);
+            }
+          }),
+        );
+      }
+      if (dolphins.size > 0) {
+        for (const [port, dolphin] of dolphins) {
+          dolphin.removeAllListeners();
+          dolphin.close();
+          dolphins.delete(port);
         }
-        app.quit();
-      })();
-    }
+      }
+      await Promise.allSettled(promises);
+      app.quit();
+    })();
   });
 
   await mkdir(overlayPath, { recursive: true });

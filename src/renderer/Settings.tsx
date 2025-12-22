@@ -115,10 +115,9 @@ export default function Settings({
       // req network
       try {
         setLatestAppVersion(await latestAppVersionPromise);
-      } catch {
-        showAppErrorDialog(
-          'Unable to check for updates. Are you connected to the internet?',
-        );
+      } catch (e: any) {
+        const originalMessage = e instanceof Error ? e.message : e.toString();
+        showAppErrorDialog(`Unable to check for updates: ${originalMessage}`);
       }
 
       setGotSettingsLocal(true);

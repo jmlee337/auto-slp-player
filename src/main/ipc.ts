@@ -2169,11 +2169,10 @@ export default async function setupIPCs(
 
   ipcMain.removeHandler('getLatestVersion');
   ipcMain.handle('getLatestVersion', async () => {
-    const response = await fetch(
-      'https://api.github.com/repos/jmlee337/auto-slp-player/releases',
+    const json = await wrappedFetch(
+      'https://api.github.com/repos/jmlee337/auto-slp-player/releases/latest',
     );
-    const json = await response.json();
-    return json[0].tag_name;
+    return json.tag_name;
   });
 
   ipcMain.removeHandler('copyToClipboard');

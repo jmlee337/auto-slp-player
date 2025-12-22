@@ -34,6 +34,7 @@ module.exports = {
     },
   },
   globals: {
+    Electron: true,
     NodeJS: true,
     RequestInfo: true,
   },

@@ -2191,7 +2191,7 @@ export default async function setupIPCs(
     app.quit();
   });
 
-  app.on('will-quit', (event) => {
+  const onWillQuit = (event: Electron.Event) => {
     event.preventDefault();
     (async () => {
       const promises = [twitch.destroy()];
@@ -2216,9 +2216,11 @@ export default async function setupIPCs(
         }
       }
       await Promise.allSettled(promises);
+      app.removeListener('will-quit', onWillQuit);
       app.quit();
     })();
-  });
+  };
+  app.on('will-quit', onWillQuit);
 
   await mkdir(overlayPath, { recursive: true });
   await Promise.all(

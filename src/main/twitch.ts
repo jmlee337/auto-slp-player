@@ -280,8 +280,14 @@ export default class Twitch {
   }
 
   async destroy() {
-    await this.stopBot();
+    this.onUserName = () => {};
+    this.onBotStatus = () => {};
+    this.onCallbackServerStatus = () => {};
+    this.onPrediction = () => {};
+
+    const promises = [this.stopBot(), this.stopCallbackServer()];
     this.stopPredictor();
+    await Promise.allSettled(promises);
   }
 
   private async stopBot() {
@@ -422,12 +428,12 @@ export default class Twitch {
     return port;
   }
 
-  stopCallbackServer() {
+  async stopCallbackServer() {
     if (!this.server) {
       return;
     }
 
-    GracefulShutdown(this.server, {
+    await GracefulShutdown(this.server, {
       finally: () => {
         this.server = null;
         this.onCallbackServerStatus(TwitchStatus.STOPPED, 0);
@@ -478,7 +484,7 @@ export default class Twitch {
           this.startPredictor(commonAuth);
         }
 
-        this.stopCallbackServer();
+        await this.stopCallbackServer();
       } catch (e: unknown) {
         res.status(503).send(e instanceof Error ? e.message : e);
       }

@@ -21,7 +21,7 @@ export async function wrappedFetch(input: URL | RequestInfo) {
   }
 
   if (!response.ok) {
-    throw new Error(`${response.status} - ${response.statusText}.`);
+    throw new Error(`${input}: ${response.status} - ${response.statusText}.`);
   }
   return response.json();
 }

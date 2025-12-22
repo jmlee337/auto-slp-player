@@ -9,12 +9,14 @@ import {
   VisibilityOff,
 } from '@mui/icons-material';
 import {
+  Autocomplete,
   Button,
   Checkbox,
   CircularProgress,
   Dialog,
   DialogActions,
   DialogContent,
+  DialogTitle,
   FormControl,
   FormControlLabel,
   IconButton,
@@ -45,6 +47,123 @@ const StyledRating = styled(Rating)({
   },
 });
 
+function FetchPools({
+  tournamentSlugs,
+  setTournamentSlugs,
+  setPhaseGroups,
+  showAppErrorDialog,
+}: {
+  tournamentSlugs: string[];
+  setTournamentSlugs: (tournamentSlugs: string[]) => void;
+  setPhaseGroups: (phaseGroups: ApiPhaseGroup[]) => void;
+  showAppErrorDialog: (message: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [slug, setSlug] = useState('');
+  const [loadingPhaseGroups, setLoadingPhaseGroups] = useState(false);
+
+  return (
+    <>
+      <FormControlLabel
+        label="Fetch Pools"
+        labelPlacement="start"
+        control={
+          <IconButton
+            onClick={async () => {
+              if (tournamentSlugs.length === 1) {
+                try {
+                  setLoadingPhaseGroups(true);
+                  await window.electron.loadPhaseGroups(tournamentSlugs[0]);
+                  const phaseGroupsRet = await window.electron.getPhaseGroups();
+                  setPhaseGroups(phaseGroupsRet.phaseGroups);
+                  setTournamentSlugs(phaseGroupsRet.tournamentSlugs);
+                } catch (e: any) {
+                  showAppErrorDialog(
+                    e instanceof Error ? e.message : e.toString(),
+                  );
+                } finally {
+                  setLoadingPhaseGroups(false);
+                }
+              } else {
+                setOpen(true);
+              }
+            }}
+          >
+            <Download />
+          </IconButton>
+        }
+      />
+      <Dialog
+        open={open}
+        onClose={() => {
+          setOpen(false);
+        }}
+      >
+        <DialogTitle style={{ paddingBottom: '8px' }}>
+          Fetch Pools from Tournament
+        </DialogTitle>
+        <DialogContent>
+          <form
+            style={{
+              display: 'flex',
+              flexDirection: 'row',
+              paddingTop: '8px',
+            }}
+            onSubmit={async (event) => {
+              event.preventDefault();
+              event.stopPropagation();
+              try {
+                setLoadingPhaseGroups(true);
+                await window.electron.loadPhaseGroups(slug);
+                const phaseGroupsRet = await window.electron.getPhaseGroups();
+                setPhaseGroups(phaseGroupsRet.phaseGroups);
+                setTournamentSlugs(phaseGroupsRet.tournamentSlugs);
+                setOpen(false);
+              } catch (e: any) {
+                showAppErrorDialog(
+                  e instanceof Error ? e.message : e.toString(),
+                );
+              } finally {
+                setLoadingPhaseGroups(false);
+              }
+            }}
+          >
+            <Autocomplete
+              freeSolo
+              options={tournamentSlugs}
+              value={slug}
+              onChange={(event, value) => {
+                setSlug(value ?? '');
+              }}
+              renderInput={(params) => (
+                <TextField
+                  // eslint-disable-next-line react/jsx-props-no-spreading
+                  {...params}
+                  placeholder="midlane-melee-200"
+                  label="Tournament Slug"
+                  size="small"
+                  style={{ minWidth: '200px' }}
+                />
+              )}
+            />
+            <Tooltip arrow placement="right" title="Load Tournament...">
+              <span>
+                <IconButton type="submit" disabled={loadingPhaseGroups}>
+                  {loadingPhaseGroups ? (
+                    <CircularProgress size="24px" />
+                  ) : (
+                    <Download />
+                  )}
+                </IconButton>
+              </span>
+            </Tooltip>
+          </form>
+        </DialogContent>
+      </Dialog>
+    </>
+  );
+}
+
 export default function Mirror({
   canPlay,
   numDolphins,
@@ -65,7 +184,7 @@ export default function Mirror({
   const [mirrorDir, setMirrorDir] = useState('');
   const [mirrorSet, setMirrorSet] = useState<ApiSet | null>(null);
   const [showScore, setShowScore] = useState(false);
-  const [autoPredictions, setAutoPredictions] = useState(true);
+  const [autoPredictions, setAutoPredictions] = useState(false);
   const [score, setScore] = useState<[number, number]>([0, 0]);
   const [prediction, setPrediction] = useState<TwitchPrediction | null>(null);
 
@@ -128,9 +247,8 @@ export default function Mirror({
 
   const [open, setOpen] = useState(false);
   const [mirrorChanging, setMirrorChanging] = useState(false);
-  const [slug, setSlug] = useState('');
-  const [loadingPhaseGroups, setLoadingPhaseGroups] = useState(false);
   const [phaseGroups, setPhaseGroups] = useState<ApiPhaseGroup[]>([]);
+  const [tournamentSlugs, setTournamentSlugs] = useState<string[]>([]);
   const [phaseGroupIdStr, setPhaseGroupIdStr] = useState('');
   const [settingMirrorSet, setSettingMirrorSet] = useState(false);
   const [creatingTwitchPrediction, setCreatingTwitchPrediction] =
@@ -145,7 +263,9 @@ export default function Mirror({
         disabled={cannotStartMirroring && !isMirroring}
         endIcon={isMirroring ? <Check /> : undefined}
         onClick={async () => {
-          setPhaseGroups(await window.electron.getPhaseGroups());
+          const phaseGroupsRet = await window.electron.getPhaseGroups();
+          setPhaseGroups(phaseGroupsRet.phaseGroups);
+          setTournamentSlugs(phaseGroupsRet.tournamentSlugs);
           setOpen(true);
         }}
         variant="contained"
@@ -223,111 +343,63 @@ export default function Mirror({
                     }
                   />
                 )}
+                <Stack direction="row" alignItems="center" gap="27px">
+                  <FetchPools
+                    tournamentSlugs={tournamentSlugs}
+                    setTournamentSlugs={setTournamentSlugs}
+                    setPhaseGroups={setPhaseGroups}
+                    showAppErrorDialog={showAppErrorDialog}
+                  />
+                  {phaseGroups.length > 0 && (
+                    <Stack direction="row" marginRight="-10px" paddingTop="4px">
+                      <FormControl>
+                        <InputLabel size="small" id="mirror-select-input-label">
+                          Pool
+                        </InputLabel>
+                        <Select
+                          label="Pool"
+                          labelId="mirror-select-input-label"
+                          style={{ minWidth: '222.5px' }}
+                          size="small"
+                          value={phaseGroupIdStr}
+                          onChange={async (event: SelectChangeEvent) => {
+                            const newPhaseGroupIdStr = event.target.value;
+                            setPhaseGroupIdStr(newPhaseGroupIdStr);
+                            getPendingSets(newPhaseGroupIdStr);
+                          }}
+                        >
+                          {phaseGroups.map((phaseGroup) => (
+                            <MenuItem
+                              key={phaseGroup.phaseGroupId}
+                              value={phaseGroup.phaseGroupId}
+                            >
+                              {`${phaseGroup.eventName}, ${phaseGroup.phaseName}, ${phaseGroup.phaseGroupName}`}
+                            </MenuItem>
+                          ))}
+                        </Select>
+                      </FormControl>
+                      <Tooltip arrow placement="right" title="Refresh">
+                        <span>
+                          <IconButton
+                            disabled={gettingPendingSets}
+                            onClick={() => {
+                              getPendingSets(phaseGroupIdStr);
+                            }}
+                          >
+                            {gettingPendingSets ? (
+                              <CircularProgress size="24px" />
+                            ) : (
+                              <Refresh />
+                            )}
+                          </IconButton>
+                        </span>
+                      </Tooltip>
+                    </Stack>
+                  )}
+                </Stack>
               </>
             )}
           </Stack>
-          {isMirroring && (
-            <Stack
-              direction="row"
-              alignItems="center"
-              gap="8px"
-              paddingTop="4px"
-              marginRight={phaseGroups.length === 0 ? '-11px' : undefined}
-            >
-              <form
-                onSubmit={async (event) => {
-                  event.preventDefault();
-                  event.stopPropagation();
-                  try {
-                    setLoadingPhaseGroups(true);
-                    await window.electron.loadPhaseGroups(slug);
-                    setPhaseGroups(await window.electron.getPhaseGroups());
-                    setSlug('');
-                    const { activeElement } = document;
-                    if (activeElement && activeElement instanceof HTMLElement) {
-                      activeElement.blur();
-                    }
-                  } catch (e: any) {
-                    showAppErrorDialog(
-                      e instanceof Error ? e.message : e.toString(),
-                    );
-                  } finally {
-                    setLoadingPhaseGroups(false);
-                  }
-                }}
-                style={{
-                  display: 'flex',
-                  flexDirection: 'row',
-                }}
-              >
-                <TextField
-                  label="Tournament Slug"
-                  size="small"
-                  value={slug}
-                  onChange={(event) => {
-                    setSlug(event.target.value);
-                  }}
-                />
-                <Tooltip arrow placement="right" title="Load Tournament...">
-                  <span>
-                    <IconButton type="submit" disabled={loadingPhaseGroups}>
-                      {loadingPhaseGroups ? (
-                        <CircularProgress size="24px" />
-                      ) : (
-                        <Download />
-                      )}
-                    </IconButton>
-                  </span>
-                </Tooltip>
-              </form>
-              {phaseGroups.length > 0 && (
-                <Stack direction="row" marginRight="-10px">
-                  <FormControl>
-                    <InputLabel size="small" id="mirror-select-input-label">
-                      Pool
-                    </InputLabel>
-                    <Select
-                      label="Pool"
-                      labelId="mirror-select-input-label"
-                      style={{ minWidth: '222.5px' }}
-                      size="small"
-                      value={phaseGroupIdStr}
-                      onChange={async (event: SelectChangeEvent) => {
-                        const newPhaseGroupIdStr = event.target.value;
-                        setPhaseGroupIdStr(newPhaseGroupIdStr);
-                        getPendingSets(newPhaseGroupIdStr);
-                      }}
-                    >
-                      {phaseGroups.map((phaseGroup) => (
-                        <MenuItem
-                          key={phaseGroup.phaseGroupId}
-                          value={phaseGroup.phaseGroupId}
-                        >
-                          {`${phaseGroup.eventName}, ${phaseGroup.phaseName}, ${phaseGroup.phaseGroupName}`}
-                        </MenuItem>
-                      ))}
-                    </Select>
-                  </FormControl>
-                  <Tooltip arrow placement="right" title="Refresh">
-                    <span>
-                      <IconButton
-                        disabled={gettingPendingSets}
-                        onClick={() => {
-                          getPendingSets(phaseGroupIdStr);
-                        }}
-                      >
-                        {gettingPendingSets ? (
-                          <CircularProgress size="24px" />
-                        ) : (
-                          <Refresh />
-                        )}
-                      </IconButton>
-                    </span>
-                  </Tooltip>
-                </Stack>
-              )}
-            </Stack>
-          )}
           {isMirroring && setsToShow.length > 0 && (
             <Stack
               direction="row"
@@ -551,20 +623,6 @@ export default function Mirror({
               </>
             ) : (
               <>
-                <Button
-                  color="warning"
-                  onClick={async () => {
-                    await Promise.all([
-                      window.electron.setMirrorSet(null),
-                      window.electron.setMirrorScore([0, 0]),
-                    ]);
-                    setMirrorSet(null);
-                    setScore([0, 0]);
-                  }}
-                  variant="contained"
-                >
-                  Clear Scoreboard
-                </Button>
                 {twitchPredictionsEnabled && (
                   <Button
                     disabled={creatingTwitchPrediction}
@@ -585,6 +643,20 @@ export default function Mirror({
                     Start Prediction
                   </Button>
                 )}
+                <Button
+                  color="warning"
+                  onClick={async () => {
+                    await Promise.all([
+                      window.electron.setMirrorSet(null),
+                      window.electron.setMirrorScore([0, 0]),
+                    ]);
+                    setMirrorSet(null);
+                    setScore([0, 0]);
+                  }}
+                  variant="contained"
+                >
+                  Clear Mirror Set
+                </Button>
               </>
             ))}
           {isMirroring ? (

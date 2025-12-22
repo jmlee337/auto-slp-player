@@ -192,8 +192,10 @@ const electronHandler = {
 
   loadPhaseGroups: (slug: string): Promise<void> =>
     ipcRenderer.invoke('loadPhaseGroups', slug),
-  getPhaseGroups: (): Promise<ApiPhaseGroup[]> =>
-    ipcRenderer.invoke('getPhaseGroups'),
+  getPhaseGroups: (): Promise<{
+    phaseGroups: ApiPhaseGroup[];
+    tournamentSlugs: string[];
+  }> => ipcRenderer.invoke('getPhaseGroups'),
   getPendingSets: (phaseGroupId: number): Promise<ApiSet[]> =>
     ipcRenderer.invoke('getPendingSets', phaseGroupId),
   getMirrorSet: (): Promise<ApiSet | null> =>

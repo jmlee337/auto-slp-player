@@ -1392,24 +1392,18 @@ export default async function setupIPCs(
   ipcMain.removeHandler('getWatchDir');
   ipcMain.handle('getWatchDir', () => watchDir);
 
+  const startggTournamentSlugs = new Set<string>();
+  const maybeAddStartggTournamentSlug = (availableSet: AvailableSet) => {
+    const eventSlug = availableSet.context?.startgg?.event.slug;
+    if (eventSlug) {
+      const end = eventSlug.indexOf('/event/');
+      if (end > 11) {
+        startggTournamentSlugs.add(eventSlug.slice(11, end));
+      }
+    }
+  };
+
   const idToApiPhaseGroup = new Map<number, ApiPhaseGroup>();
-  // for testing
-  /*
-  idToApiPhaseGroup.set(2391299, {
-    tournamentName: 'Midlane Melee',
-    tournamentLocation: 'Chicago, IL',
-    eventSlug: 'tournament/test-tournament-sorry/event/progression',
-    eventHasSiblings: true,
-    eventName: 'progression',
-    phaseId: 1598103,
-    phaseName: 'Bracket',
-    phaseHasSiblings: true,
-    phaseGroupId: 2391299,
-    phaseGroupName: '1',
-    phaseGroupBracketType: 2,
-    phaseGroupHasSiblings: false,
-  });
-  */
   const mirroredSetIds = new Set<number>();
   let watcher: FSWatcher | undefined;
   ipcMain.removeHandler('chooseWatchDir');
@@ -1443,6 +1437,7 @@ export default async function setupIPCs(
           mirroredSetIds,
           twitchUserName,
         );
+        maybeAddStartggTournamentSlug(newSet);
         const apiPhaseGroup = toApiPhaseGroup(newSet);
         if (apiPhaseGroup) {
           idToApiPhaseGroup.set(apiPhaseGroup.phaseGroupId, apiPhaseGroup);
@@ -2037,9 +2032,10 @@ export default async function setupIPCs(
   );
 
   ipcMain.removeHandler('getPhaseGroups');
-  ipcMain.handle('getPhaseGroups', () =>
-    Array.from(idToApiPhaseGroup.values()),
-  );
+  ipcMain.handle('getPhaseGroups', () => ({
+    phaseGroups: Array.from(idToApiPhaseGroup.values()),
+    tournamentSlugs: Array.from(startggTournamentSlugs.values()),
+  }));
 
   const idToApiSet = new Map<number, ApiSet>();
   ipcMain.removeHandler('getPendingSets');

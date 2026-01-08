@@ -57,7 +57,7 @@ export type Context = {
       waveId?: number | null;
     };
     set?: {
-      id?: number | string;
+      id?: number | null;
       fullRoundText?: string;
       ordinal?: number | null;
       round?: number;

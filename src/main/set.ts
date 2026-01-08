@@ -129,9 +129,10 @@ export function toMainContext(context: Context): MainContext | undefined {
     context.startgg?.phaseGroup?.hasSiblings ?? true;
   const startggPhaseGroupWaveId = context.startgg?.phaseGroup?.waveId ?? null;
   const startggSetId =
-    Number.isInteger(context.startgg?.set?.id) &&
-    (context.startgg!.set!.id as number) > 0
-      ? (context.startgg!.set!.id as number)
+    typeof context.startgg?.set?.id === 'number' &&
+    Number.isInteger(context.startgg.set.id) &&
+    context.startgg.set.id > 0
+      ? context.startgg.set.id
       : null;
   const startggFullRoundText = context.startgg?.set?.fullRoundText;
   const startggRound = context.startgg?.set?.round;

@@ -12,6 +12,7 @@ import Store from 'electron-store';
 import {
   access,
   copyFile,
+  FileHandle,
   mkdir,
   open,
   readdir,
@@ -1070,6 +1071,7 @@ export default async function setupIPCs(
     return actualPort;
   };
   let expectedTimecodeOffset = 0;
+  const timestampsQueue: string[] = [];
   const writeTimestamps = async (
     entrant1Names: string[],
     entrant2Names: string[],
@@ -1105,10 +1107,18 @@ export default async function setupIPCs(
         setId,
         adjustedTimecode,
       ];
-      const file = await open(path.join(watchDir, 'timestamps.csv'), 'a');
-      const csvLine = await writeToString([lineParts]);
-      await file.write(`${csvLine}\n`);
-      await file.close();
+      timestampsQueue.push(await writeToString([lineParts]));
+
+      let file: FileHandle | null = null;
+      try {
+        file = await open(path.join(watchDir, 'timestamps.csv'), 'a');
+        while (timestampsQueue.length > 0) {
+          await file.write(`${timestampsQueue[0]}\n`);
+          timestampsQueue.shift();
+        }
+      } finally {
+        await file?.close();
+      }
     }
   };
   const playDolphin = async (

@@ -528,7 +528,7 @@ export default class Twitch {
   }
 
   async setPredictionsEnabled(predictionsEnabled: boolean) {
-    const changed = this.predictionsEnabled === predictionsEnabled;
+    const changed = this.predictionsEnabled !== predictionsEnabled;
     if (changed) {
       this.predictionsEnabled = predictionsEnabled;
       if (this.predictionsEnabled) {

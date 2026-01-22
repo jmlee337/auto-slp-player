@@ -212,7 +212,9 @@ export default class Twitch {
 
   private stealth: boolean;
 
-  private setAccessToken: (newAccessToken: AccessToken) => void;
+  private onAccessToken: (newAccessToken: AccessToken | null) => void;
+
+  private onClient: (newClient: TwitchClient) => void;
 
   private onUserName: (botUserName: string) => void;
 
@@ -239,7 +241,8 @@ export default class Twitch {
     botEnabled: boolean,
     predictionsEnabled: boolean,
     stealth: boolean,
-    setAccessToken: (newAccessToken: AccessToken) => void,
+    onAccessToken: (newAccessToken: AccessToken | null) => void,
+    onClient: (newClient: TwitchClient) => void,
     onUserName: (botUserName: string) => void,
     onBotStatus: (botStatus: TwitchStatus, message: string) => void,
     onCallbackServerStatus: (
@@ -253,7 +256,8 @@ export default class Twitch {
     this.botEnabled = botEnabled;
     this.predictionsEnabled = predictionsEnabled;
     this.stealth = stealth;
-    this.setAccessToken = setAccessToken;
+    this.onAccessToken = onAccessToken;
+    this.onClient = onClient;
     this.onUserName = onUserName;
     this.onBotStatus = onBotStatus;
     this.onCallbackServerStatus = onCallbackServerStatus;
@@ -300,6 +304,7 @@ export default class Twitch {
         }
 
         this.bot.onDisconnect(() => {
+          this.bot?.removeListener();
           this.bot = null;
           this.onBotStatus(TwitchStatus.STOPPED, '');
           resolve();
@@ -335,7 +340,7 @@ export default class Twitch {
         this.client.clientSecret,
         this.accessToken.refreshToken,
       );
-      this.setAccessToken(this.accessToken);
+      this.onAccessToken(this.accessToken);
     }
 
     const tokenInfo = await getTokenInfo(
@@ -355,7 +360,7 @@ export default class Twitch {
     const authProvider = new RefreshingAuthProvider(this.client);
     authProvider.onRefresh((userId, accessToken) => {
       this.accessToken = accessToken;
-      this.setAccessToken(this.accessToken);
+      this.onAccessToken(this.accessToken);
     });
     await authProvider.addUser(tokenInfo.userId, this.accessToken, ['chat']);
     return {
@@ -477,7 +482,7 @@ export default class Twitch {
             'Success! You can close this tab and return to Auto SLP Player.',
           );
         this.accessToken = newAccessToken;
-        this.setAccessToken(this.accessToken);
+        this.onAccessToken(this.accessToken);
         const commonAuth = await this.getCommonAuth();
         if (commonAuth) {
           await this.startBot(commonAuth);
@@ -491,7 +496,7 @@ export default class Twitch {
     });
   }
 
-  setClient(client: TwitchClient) {
+  async setClient(client: TwitchClient) {
     if (!client.clientId || !client.clientSecret) {
       throw new Error('must set client ID and client secret.');
     }
@@ -500,8 +505,14 @@ export default class Twitch {
       client.clientId !== this.client.clientId ||
       client.clientSecret !== this.client.clientSecret ||
       !this.bot;
-    this.client = client;
     if (shouldOpenExternal) {
+      await this.stopBot();
+      this.onUserName('');
+      this.client = client;
+      this.onClient(this.client);
+      this.accessToken = null;
+      this.onAccessToken(this.accessToken);
+
       const port = this.getPort();
       if (!port) {
         throw new Error('must start callback server.');
@@ -510,6 +521,15 @@ export default class Twitch {
         `https://id.twitch.tv/oauth2/authorize?client_id=${this.client.clientId}&redirect_uri=http://localhost:${port}&response_type=code&scope=chat:read+chat:edit+channel:read:predictions+channel:manage:predictions`,
       );
     }
+  }
+
+  async clearClient() {
+    await this.stopBot();
+    this.onUserName('');
+    this.client = { clientId: '', clientSecret: '' };
+    this.onClient(this.client);
+    this.accessToken = null;
+    this.onAccessToken(this.accessToken);
   }
 
   async setBotEnabled(botEnabled: boolean) {

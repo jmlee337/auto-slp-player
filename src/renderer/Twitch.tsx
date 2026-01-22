@@ -20,9 +20,11 @@ import { TwitchClient, TwitchStatus } from '../common/types';
 function SetupDialog({
   open,
   setOpen,
+  botStatus,
 }: {
   open: boolean;
   setOpen: (open: boolean) => void;
+  botStatus: TwitchStatus;
 }) {
   const [botClient, setBotClient] = useState<TwitchClient>({
     clientId: '',
@@ -144,33 +146,52 @@ function SetupDialog({
             value={clientSecret}
             variant="filled"
           />
-          <Button
-            disabled={
-              !clientId ||
-              !clientSecret ||
-              callbackServerStatus !== TwitchStatus.STARTED
-            }
-            endIcon={
-              callbackServerStatus === TwitchStatus.STARTING ? (
-                <CircularProgress size="24px" />
-              ) : undefined
-            }
-            onClick={async () => {
-              await window.electron.setTwitchClient({
-                clientId,
-                clientSecret,
-              });
-              setBotClient({
-                clientId,
-                clientSecret,
-              });
-            }}
-            variant="contained"
-          >
-            {callbackServerStatus === TwitchStatus.STOPPED && 'Error!'}
-            {callbackServerStatus === TwitchStatus.STARTING && 'Loading'}
-            {callbackServerStatus === TwitchStatus.STARTED && 'Save & Go!'}
-          </Button>
+          <Stack direction="row" gap="8px">
+            <Button
+              color="error"
+              variant="contained"
+              onClick={async () => {
+                await window.electron.clearTwitchClient();
+                setClientId('');
+                setClientSecret('');
+                setBotClient({ clientId: '', clientSecret: '' });
+                setOpen(false);
+              }}
+            >
+              Disconnect
+            </Button>
+            <Button
+              disabled={
+                !clientId ||
+                !clientSecret ||
+                callbackServerStatus !== TwitchStatus.STARTED ||
+                (clientId === botClient.clientId &&
+                  clientSecret === botClient.clientSecret &&
+                  botStatus === TwitchStatus.STARTED)
+              }
+              endIcon={
+                callbackServerStatus === TwitchStatus.STARTING ? (
+                  <CircularProgress size="24px" />
+                ) : undefined
+              }
+              onClick={async () => {
+                await window.electron.setTwitchClient({
+                  clientId,
+                  clientSecret,
+                });
+                setBotClient({
+                  clientId,
+                  clientSecret,
+                });
+              }}
+              style={{ flexGrow: 1 }}
+              variant="contained"
+            >
+              {callbackServerStatus === TwitchStatus.STOPPED && 'Error!'}
+              {callbackServerStatus === TwitchStatus.STARTING && 'Loading'}
+              {callbackServerStatus === TwitchStatus.STARTED && 'Save & Go!'}
+            </Button>
+          </Stack>
           <Dialog open={abortOpen}>
             <DialogTitle>Abort Twitch Setup?</DialogTitle>
             <DialogActions>
@@ -184,6 +205,8 @@ function SetupDialog({
               <Button
                 onClick={() => {
                   setAbortOpen(false);
+                  setClientId(botClient.clientId);
+                  setClientSecret(botClient.clientSecret);
                   window.electron.stopTwitchCallbackServer();
                 }}
               >
@@ -302,7 +325,7 @@ export default function Twitch({
           />
         }
       />
-      <SetupDialog open={open} setOpen={setOpen} />
+      <SetupDialog open={open} setOpen={setOpen} botStatus={botStatus} />
     </Stack>
   );
 }

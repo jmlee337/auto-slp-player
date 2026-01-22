@@ -94,6 +94,8 @@ const electronHandler = {
     ipcRenderer.invoke('getTwitchClient'),
   setTwitchClient: (twitchClient: TwitchClient): Promise<void> =>
     ipcRenderer.invoke('setTwitchClient', twitchClient),
+  clearTwitchClient: (): Promise<void> =>
+    ipcRenderer.invoke('clearTwitchClient'),
   getMusicOff: (): Promise<boolean> => ipcRenderer.invoke('getMusicOff'),
   setMusicOff: (musicOff: boolean): Promise<void> =>
     ipcRenderer.invoke('setMusicOff', musicOff),

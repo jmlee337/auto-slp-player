@@ -394,7 +394,15 @@ export default async function setupIPCs(
     stealth,
     (accessToken) => {
       twitchAccessToken = accessToken;
-      store.set('twitchAccessToken', twitchAccessToken);
+      if (twitchAccessToken) {
+        store.set('twitchAccessToken', twitchAccessToken);
+      } else {
+        store.delete('twitchAccessToken');
+      }
+    },
+    (client) => {
+      twitchClient = client;
+      store.set('twitchClient', client);
     },
     (userName) => {
       twitchUserName = userName;
@@ -510,11 +518,11 @@ export default async function setupIPCs(
   ipcMain.removeAllListeners('getTwitchClient');
   ipcMain.handle('getTwitchClient', () => twitchClient);
   ipcMain.removeAllListeners('setTwitchClient');
-  ipcMain.handle('setTwitchClient', (event, newTwitchClient: TwitchClient) => {
-    twitchClient = newTwitchClient;
-    store.set('twitchClient', twitchClient);
-    twitch.setClient(twitchClient);
-  });
+  ipcMain.handle('setTwitchClient', (event, newTwitchClient: TwitchClient) =>
+    twitch.setClient(newTwitchClient),
+  );
+  ipcMain.removeAllListeners('clearTwitchClient');
+  ipcMain.handle('clearTwitchClient', () => twitch.clearClient());
 
   ipcMain.removeAllListeners('getMusicOff');
   ipcMain.handle('getMusicOff', () => musicOff);

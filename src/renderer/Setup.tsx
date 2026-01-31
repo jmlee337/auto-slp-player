@@ -14,11 +14,12 @@ import {
   IconButton,
   InputBase,
   Stack,
+  TextField,
   Tooltip,
 } from '@mui/material';
 import { IpcRendererEvent } from 'electron';
 import { useEffect, useState } from 'react';
-import { OBSConnectionStatus } from '../common/types';
+import { OBSConnectionStatus, Remote } from '../common/types';
 
 export default function Setup({
   watchFolderMsg,
@@ -26,12 +27,14 @@ export default function Setup({
   maxDolphins,
   numDolphins,
   shouldSetupAndAutoSwitchObs,
+  remote,
 }: {
   watchFolderMsg: string;
   watchFolderDisabled: boolean;
   maxDolphins: number;
   numDolphins: number;
   shouldSetupAndAutoSwitchObs: boolean;
+  remote: Remote;
 }) {
   const [open, setOpen] = useState(false);
   const [watchDir, setWatchDir] = useState('');
@@ -43,6 +46,9 @@ export default function Setup({
   const [obsError, setObsError] = useState('');
   const [obsErrorDialogOpen, setObsErrorDialogOpen] = useState(false);
   const [streamOutputActive, setStreamOutputActive] = useState(false);
+  const [port, setPort] = useState(50000);
+  const [offlineModeAddress, setOfflineModeAddress] = useState('');
+  const [offlineModeError, setOfflineModeError] = useState('');
 
   useEffect(() => {
     const inner = async () => {
@@ -77,6 +83,10 @@ export default function Setup({
         }
       },
     );
+    window.electron.onOfflineModeStatus((event, address, error) => {
+      setOfflineModeAddress(address);
+      setOfflineModeError(error);
+    });
     window.electron.onStreamOutputActive((event, outputActive: boolean) => {
       setStreamOutputActive(outputActive);
     });
@@ -185,6 +195,43 @@ export default function Setup({
               </IconButton>
             </Tooltip>
           </Stack>
+          {remote === Remote.OFFLINE_MODE && (
+            <>
+              <Stack direction="row" alignItems="center" spacing="8px">
+                <InputBase
+                  disabled
+                  size="small"
+                  value="Offline Mode:"
+                  style={{ flexGrow: 1 }}
+                />
+                <TextField
+                  disabled={Boolean(offlineModeAddress)}
+                  label="Port"
+                  name="port"
+                  onChange={(event) => {
+                    setPort(Number.parseInt(event.target.value, 10));
+                  }}
+                  size="small"
+                  slotProps={{ htmlInput: { min: 1024, max: 65536 } }}
+                  type="number"
+                  value={port}
+                  variant="filled"
+                />
+                <Button
+                  disabled={Boolean(offlineModeAddress)}
+                  onClick={async () => {
+                    await window.electron.connectToOfflineMode(port);
+                  }}
+                  variant="contained"
+                >
+                  {offlineModeAddress ? 'Connected!' : 'Connect'}
+                </Button>
+              </Stack>
+              {offlineModeError && (
+                <Alert severity="error">{offlineModeError}</Alert>
+              )}
+            </>
+          )}
           <Button
             disabled={
               streamOutputActive ||

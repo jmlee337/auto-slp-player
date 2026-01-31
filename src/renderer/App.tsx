@@ -16,7 +16,7 @@ import {
   Typography,
 } from '@mui/material';
 import { Add, Pause, PlayArrow, Remove } from '@mui/icons-material';
-import { RendererQueue } from '../common/types';
+import { Remote, RendererQueue } from '../common/types';
 import Settings from './Settings';
 import Queue from './Queue';
 import QueueTabPanel from './QueueTabPanel';
@@ -44,6 +44,7 @@ function Hello() {
   const [twitchPredictionsEnabled, setTwitchPredictionsEnabled] =
     useState(false);
   const [canPlay, setCanPlay] = useState(false);
+  const [remote, setRemote] = useState(Remote.STARTGG);
   const [queues, setQueues] = useState<RendererQueue[]>([]);
   const [visibleQueue, setVisibleQueue] = useState<RendererQueue | null>(null);
   const [visibleQueueId, setVisibleQueueId] = useState('');
@@ -61,6 +62,7 @@ function Hello() {
       const twitchPredictionsEnabledPromise =
         window.electron.getTwitchPredictionsEnabled();
       const canPlayPromise = window.electron.getCanPlay();
+      const remotePromise = window.electron.getRemote();
       const queuesPromise = window.electron.getQueues();
 
       setDolphinPath(await dolphinPathPromise);
@@ -73,6 +75,7 @@ function Hello() {
       setTwitchUserName(await twitchUserNamePromise);
       setTwitchPredictionsEnabled(await twitchPredictionsEnabledPromise);
       setCanPlay(await canPlayPromise);
+      setRemote(await remotePromise);
 
       const initialQueues = await queuesPromise;
       setQueues(initialQueues);
@@ -230,6 +233,8 @@ function Hello() {
               setDolphinVersionError={setDolphinVersionError}
               shouldSetupAndAutoSwitchObs={shouldSetupAndAutoSwitchObs}
               setShouldSetupAndAutoSwitchObs={setShouldSetupAndAutoSwitchObs}
+              remote={remote}
+              setRemote={setRemote}
               gotSettings={gotSettings}
               showAppErrorDialog={showAppErrorDialog}
             />
@@ -239,10 +244,12 @@ function Hello() {
               maxDolphins={maxDolphins}
               numDolphins={numDolphins}
               shouldSetupAndAutoSwitchObs={shouldSetupAndAutoSwitchObs}
+              remote={remote}
             />
             <Mirror
               canPlay={canPlay}
               numDolphins={numDolphins}
+              remote={remote}
               twitchPredictionsEnabled={
                 Boolean(twitchUserName) && twitchPredictionsEnabled
               }

@@ -5,6 +5,7 @@ import {
   OBSConnectionStatus,
   ObsGamecaptureResult,
   OBSSettings,
+  Remote,
   RendererQueue,
   SplitOption,
   TwitchClient,
@@ -192,6 +193,11 @@ const electronHandler = {
   setMirrorScore: (mirrorScore: [number, number]): Promise<void> =>
     ipcRenderer.invoke('setMirrorScore', mirrorScore),
 
+  getRemote: (): Promise<Remote> => ipcRenderer.invoke('getRemote'),
+  setRemote: (remote: Remote): Promise<void> =>
+    ipcRenderer.invoke('setRemote', remote),
+  connectToOfflineMode: (port: number): Promise<void> =>
+    ipcRenderer.invoke('connectToOfflineMode', port),
   loadPhaseGroups: (slug: string): Promise<void> =>
     ipcRenderer.invoke('loadPhaseGroups', slug),
   getPhaseGroups: (): Promise<{
@@ -202,8 +208,8 @@ const electronHandler = {
     ipcRenderer.invoke('getPendingSets', phaseGroupId),
   getMirrorSet: (): Promise<ApiSet | null> =>
     ipcRenderer.invoke('getMirrorSet'),
-  setMirrorSet: (setId: number | null): Promise<void> =>
-    ipcRenderer.invoke('setMirrorSet', setId),
+  setMirrorSet: (set: ApiSet | null): Promise<void> =>
+    ipcRenderer.invoke('setMirrorSet', set),
 
   getVersion: (): Promise<string> => ipcRenderer.invoke('getVersion'),
   getLatestVersion: (): Promise<string> =>
@@ -221,6 +227,12 @@ const electronHandler = {
   ) => {
     ipcRenderer.removeAllListeners('mirroring');
     ipcRenderer.on('mirroring', callback);
+  },
+  onOfflineModeStatus: (
+    callback: (event: IpcRendererEvent, address: string, error: string) => void,
+  ) => {
+    ipcRenderer.removeAllListeners('offlineModeStatus');
+    ipcRenderer.on('offlineModeStatus', callback);
   },
   onObsConnectionStatus: (
     callback: (

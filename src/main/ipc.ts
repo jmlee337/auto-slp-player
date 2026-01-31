@@ -38,6 +38,7 @@ import {
   DOLPHIN_USER_SUBDIR,
   MainContextChallonge,
   MainContextStartgg,
+  Remote,
   OBSConnectionStatus,
   ObsGamecaptureResult,
   OBSSettings,
@@ -59,6 +60,13 @@ import Queue from './queue';
 import Twitch from './twitch';
 import { getEntrantName } from '../common/commonUtil';
 import { wrappedFetch } from './util';
+import {
+  connectToOfflineMode,
+  disconnectFromOfflineMode,
+  getPendingSets,
+  getPhaseGroups,
+  initOfflineMode,
+} from './offlinemode';
 
 // taken from https://semver.org/#is-there-a-suggested-regular-expression-regex-to-check-a-semver-string
 // via https://github.com/project-slippi/slippi-launcher/blob/ae8bb69e235b6e46b24bc966aeaa80f45030c6f9/src/dolphin/install/ishiiruka_installation.ts#L23-L24
@@ -281,6 +289,7 @@ export default async function setupIPCs(
     checkOvertime: boolean;
     mirrorDir: string;
     mirrorShowScore: boolean;
+    remote: Remote;
     musicOff: boolean;
     sggApiKey: string;
     splitByWave: boolean;
@@ -290,6 +299,8 @@ export default async function setupIPCs(
     twitchClient: TwitchClient;
     twitchAccessToken: AccessToken;
   }>();
+  initOfflineMode(mainWindow);
+
   let sggApiKey = store.get('sggApiKey', '');
   let dolphinPath = '';
   let dolphinVersion = '';
@@ -970,11 +981,11 @@ export default async function setupIPCs(
           isFinal: false,
           leftPrefixes: mirrorSet.entrant1Prefixes,
           leftNames: mirrorSet.entrant1Names,
-          leftPronouns: [],
+          leftPronouns: mirrorSet.entrant1Pronouns,
           leftScore: mirrorShowScore ? mirrorScore[0] : -1,
           rightPrefixes: mirrorSet.entrant2Prefixes,
           rightNames: mirrorSet.entrant2Names,
-          rightPronouns: [],
+          rightPronouns: mirrorSet.entrant2Pronouns,
           rightScore: mirrorShowScore ? mirrorScore[1] : -1,
           type: OverlaySetType.LIVE,
         };
@@ -2005,6 +2016,23 @@ export default async function setupIPCs(
     },
   );
 
+  let remote = store.get('remote', Remote.STARTGG);
+  ipcMain.removeHandler('getRemote');
+  ipcMain.handle('getRemote', () => remote);
+  ipcMain.removeHandler('setRemote');
+  ipcMain.handle('setRemote', (event, newRemote: Remote) => {
+    if (remote !== newRemote && newRemote !== Remote.OFFLINE_MODE) {
+      disconnectFromOfflineMode();
+    }
+    store.set('remote', newRemote);
+    remote = newRemote;
+  });
+
+  ipcMain.removeHandler('connectToOfflineMode');
+  ipcMain.handle('connectToOfflineMode', (event, port: number) => {
+    connectToOfflineMode(port);
+  });
+
   ipcMain.removeHandler('loadPhaseGroups');
   ipcMain.handle(
     'loadPhaseGroups',
@@ -2050,16 +2078,26 @@ export default async function setupIPCs(
   );
 
   ipcMain.removeHandler('getPhaseGroups');
-  ipcMain.handle('getPhaseGroups', () => ({
-    phaseGroups: Array.from(idToApiPhaseGroup.values()),
-    tournamentSlugs: Array.from(startggTournamentSlugs.values()),
-  }));
+  ipcMain.handle('getPhaseGroups', () => {
+    if (remote === Remote.OFFLINE_MODE) {
+      return getPhaseGroups();
+    }
+
+    return {
+      phaseGroups: Array.from(idToApiPhaseGroup.values()),
+      tournamentSlugs: Array.from(startggTournamentSlugs.values()),
+    };
+  });
 
   const idToApiSet = new Map<number, ApiSet>();
   ipcMain.removeHandler('getPendingSets');
   ipcMain.handle(
     'getPendingSets',
     async (event: IpcMainInvokeEvent, phaseGroupId: number) => {
+      if (remote === Remote.OFFLINE_MODE) {
+        return getPendingSets(phaseGroupId);
+      }
+
       const phaseGroup = idToApiPhaseGroup.get(phaseGroupId);
       if (!phaseGroup) {
         throw new Error(`no known phaseGroup for id ${phaseGroupId}`);
@@ -2129,8 +2167,10 @@ export default async function setupIPCs(
             id: set.id,
             entrant1Names,
             entrant1Prefixes,
+            entrant1Pronouns: [],
             entrant2Names,
             entrant2Prefixes,
+            entrant2Pronouns: [],
             fullRoundText: set.fullRoundText,
           };
           idToApiSet.set(retSet.id, retSet);
@@ -2147,24 +2187,19 @@ export default async function setupIPCs(
   ipcMain.removeHandler('setMirrorSet');
   ipcMain.handle(
     'setMirrorSet',
-    (event: IpcMainInvokeEvent, setId: number | null) => {
+    (event: IpcMainInvokeEvent, set: ApiSet | null) => {
       if (!mirrorPort) {
         return;
       }
 
-      if (setId === null) {
+      if (set === null) {
         mirrorSet = null;
         updateOverlayAndTwitchBot();
         return;
       }
 
-      const set = idToApiSet.get(setId);
-      if (!set) {
-        throw new Error(`no known set for id: ${setId}`);
-      }
-
       mirrorSet = set;
-      mirroredSetIds.add(setId);
+      mirroredSetIds.add(set.id);
       if (watchDir) {
         writeTimestamps(
           set.entrant1Names,

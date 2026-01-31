@@ -35,7 +35,12 @@ import {
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import styled from '@emotion/styled';
 import { blue } from '@mui/material/colors';
-import { ApiPhaseGroup, ApiSet, TwitchPrediction } from '../common/types';
+import {
+  ApiPhaseGroup,
+  ApiSet,
+  Remote,
+  TwitchPrediction,
+} from '../common/types';
 import { getEntrantName } from '../common/commonUtil';
 
 const StyledRating = styled(Rating)({
@@ -167,11 +172,13 @@ function FetchPools({
 export default function Mirror({
   canPlay,
   numDolphins,
+  remote,
   twitchPredictionsEnabled,
   showAppErrorDialog,
 }: {
   canPlay: boolean;
   numDolphins: number;
+  remote: Remote;
   twitchPredictionsEnabled: boolean;
   showAppErrorDialog: (message: string) => void;
 }) {
@@ -344,12 +351,14 @@ export default function Mirror({
                   />
                 )}
                 <Stack direction="row" alignItems="center" gap="27px">
-                  <FetchPools
-                    tournamentSlugs={tournamentSlugs}
-                    setTournamentSlugs={setTournamentSlugs}
-                    setPhaseGroups={setPhaseGroups}
-                    showAppErrorDialog={showAppErrorDialog}
-                  />
+                  {remote === Remote.STARTGG && (
+                    <FetchPools
+                      tournamentSlugs={tournamentSlugs}
+                      setTournamentSlugs={setTournamentSlugs}
+                      setPhaseGroups={setPhaseGroups}
+                      showAppErrorDialog={showAppErrorDialog}
+                    />
+                  )}
                   {phaseGroups.length > 0 && (
                     <Stack direction="row" marginRight="-10px" paddingTop="4px">
                       <FormControl>
@@ -454,7 +463,7 @@ export default function Mirror({
                         }
                       }
                       await Promise.all([
-                        window.electron.setMirrorSet(set.id),
+                        window.electron.setMirrorSet(set),
                         window.electron.setMirrorScore([0, 0]),
                       ]);
                       setMirrorSet(set);

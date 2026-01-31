@@ -329,8 +329,10 @@ export type ApiSet = ApiPhaseGroup & {
   id: number;
   entrant1Names: string[];
   entrant1Prefixes: string[];
+  entrant1Pronouns: string[];
   entrant2Names: string[];
   entrant2Prefixes: string[];
+  entrant2Pronouns: string[];
   fullRoundText: string;
 };
 
@@ -340,3 +342,8 @@ export type TwitchPrediction = {
   title: string;
   locked: boolean;
 };
+
+export enum Remote {
+  STARTGG = 'start.gg',
+  OFFLINE_MODE = 'offline mode',
+}

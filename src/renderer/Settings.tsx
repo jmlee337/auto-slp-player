@@ -13,13 +13,15 @@ import {
   InputLabel,
   Link,
   MenuItem,
+  Radio,
+  RadioGroup,
   Select,
   Stack,
   TextField,
   Tooltip,
   Typography,
 } from '@mui/material';
-import { useEffect, useMemo, useState } from 'react';
+import { ChangeEvent, useEffect, useMemo, useState } from 'react';
 import {
   CheckCircle,
   CloudDownload,
@@ -28,8 +30,25 @@ import {
   Settings as SettingsIcon,
   Terminal,
 } from '@mui/icons-material';
-import { ObsGamecaptureResult, SplitOption } from '../common/types';
+import { ObsGamecaptureResult, Remote, SplitOption } from '../common/types';
 import Twitch from './Twitch';
+
+function LabeledRadioButton({
+  label,
+  value,
+}: {
+  label: string;
+  value: Remote;
+}) {
+  return (
+    <FormControlLabel
+      label={label}
+      labelPlacement="end"
+      value={value}
+      control={<Radio />}
+    />
+  );
+}
 
 export default function Settings({
   dolphinPath,
@@ -47,6 +66,8 @@ export default function Settings({
   setDolphinVersionError,
   shouldSetupAndAutoSwitchObs,
   setShouldSetupAndAutoSwitchObs,
+  remote,
+  setRemote,
   gotSettings,
   showAppErrorDialog,
 }: {
@@ -65,6 +86,8 @@ export default function Settings({
   setDolphinVersionError: (dolphinVersionError: string) => void;
   shouldSetupAndAutoSwitchObs: boolean;
   setShouldSetupAndAutoSwitchObs: (setupObs: boolean) => void;
+  remote: Remote;
+  setRemote: (remote: Remote) => void;
   gotSettings: boolean;
   showAppErrorDialog: (message: string) => void;
 }) {
@@ -331,6 +354,25 @@ export default function Settings({
                 />
               }
             />
+          </Box>
+          <Box>
+            <FormControl>
+              <RadioGroup
+                row
+                value={remote}
+                onChange={async (event: ChangeEvent<HTMLInputElement>) => {
+                  const newRemote = event.target.value as Remote;
+                  await window.electron.setRemote(newRemote);
+                  setRemote(newRemote);
+                }}
+              >
+                <LabeledRadioButton label="start.gg" value={Remote.STARTGG} />
+                <LabeledRadioButton
+                  label="Offline Mode"
+                  value={Remote.OFFLINE_MODE}
+                />
+              </RadioGroup>
+            </FormControl>
           </Box>
           <Stack direction="row" spacing="8px">
             <FormControl variant="filled">

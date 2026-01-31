@@ -184,6 +184,19 @@ class Predictor {
     });
   }
 
+  async cancelPrediction() {
+    if (!this.currentPrediction) {
+      return;
+    }
+
+    await this.api.predictions.cancelPrediction(
+      this.userId,
+      this.currentPrediction.prediction.id,
+    );
+    this.currentPrediction = null;
+    this.onPrediction(null);
+  }
+
   async lockPrediction() {
     if (!this.currentPrediction) {
       return;
@@ -576,6 +589,14 @@ export default class Twitch {
     }
 
     await this.predictor.createPrediction(set);
+  }
+
+  async cancelPrediction() {
+    if (!this.predictor) {
+      throw new Error('Twitch predictions not enabled');
+    }
+
+    await this.predictor.cancelPrediction();
   }
 
   async lockPrediction() {

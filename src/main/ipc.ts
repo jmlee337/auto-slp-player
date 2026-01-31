@@ -444,37 +444,37 @@ export default async function setupIPCs(
   );
   twitch.initialize();
 
-  ipcMain.removeAllListeners('getTwitchUserName');
+  ipcMain.removeHandler('getTwitchUserName');
   ipcMain.handle('getTwitchUserName', () => {
     return twitchUserName;
   });
 
-  ipcMain.removeAllListeners('getTwitchBotStatus');
+  ipcMain.removeHandler('getTwitchBotStatus');
   ipcMain.handle('getTwitchBotStatus', () => ({
     status: twitchBotStatus,
     message: twitchBotStatusMessage,
   }));
 
-  ipcMain.removeAllListeners('getTwitchPrediction');
+  ipcMain.removeHandler('getTwitchPrediction');
   ipcMain.handle('getTwitchPrediction', () => twitchPrediction);
 
-  ipcMain.removeAllListeners('getTwitchCallbackServerStatus');
+  ipcMain.removeHandler('getTwitchCallbackServerStatus');
   ipcMain.handle('getTwitchCallbackServerStatus', () => ({
     status: twitchCallbackServerStatus,
     port: twitchCallbackServerPort,
   }));
 
-  ipcMain.removeAllListeners('startTwitchCallbackServer');
+  ipcMain.removeHandler('startTwitchCallbackServer');
   ipcMain.handle('startTwitchCallbackServer', () =>
     twitch.startCallbackServer(),
   );
 
-  ipcMain.removeAllListeners('stopTwitchCallbackServer');
+  ipcMain.removeHandler('stopTwitchCallbackServer');
   ipcMain.handle('stopTwitchCallbackServer', () => twitch.stopCallbackServer());
 
-  ipcMain.removeAllListeners('getTwitchBotEnabled');
+  ipcMain.removeHandler('getTwitchBotEnabled');
   ipcMain.handle('getTwitchBotEnabled', () => twitchBotEnabled);
-  ipcMain.removeAllListeners('setTwitchBotEnabled');
+  ipcMain.removeHandler('setTwitchBotEnabled');
   ipcMain.handle(
     'setTwitchBotEnabled',
     async (event, newTwitchBotEnabled: boolean) => {
@@ -484,9 +484,9 @@ export default async function setupIPCs(
     },
   );
 
-  ipcMain.removeAllListeners('getTwitchPredictionsEnabled');
+  ipcMain.removeHandler('getTwitchPredictionsEnabled');
   ipcMain.handle('getTwitchPredictionsEnabled', () => twitchPredictionsEnabled);
-  ipcMain.removeAllListeners('setTwitchPredictionsEnabled');
+  ipcMain.removeHandler('setTwitchPredictionsEnabled');
   ipcMain.handle(
     'setTwitchPredictionsEnabled',
     async (event, newTwitchPredictionsEnabled: boolean) => {
@@ -496,11 +496,11 @@ export default async function setupIPCs(
     },
   );
 
-  ipcMain.removeAllListeners('getAutoTwitchPredictions');
+  ipcMain.removeHandler('getAutoTwitchPredictions');
   ipcMain.handle('getAutoTwitchPredictions', () =>
     store.get('autoTwitchPredictions', true),
   );
-  ipcMain.removeAllListeners('setAutoTwitchPredictions');
+  ipcMain.removeHandler('setAutoTwitchPredictions');
   ipcMain.handle(
     'setAutoTwitchPredictions',
     (event, autoTwitchPredictions: boolean) => {
@@ -508,45 +508,48 @@ export default async function setupIPCs(
     },
   );
 
-  ipcMain.removeAllListeners('createTwitchPrediction');
+  ipcMain.removeHandler('createTwitchPrediction');
   ipcMain.handle('createTwitchPrediction', (event, set: ApiSet) =>
     twitch.createPrediction(set),
   );
 
-  ipcMain.removeAllListeners('lockTwitchPrediction');
+  ipcMain.removeHandler('cancelTwitchPrediction');
+  ipcMain.handle('cancelTwitchPrediction', () => twitch.cancelPrediction());
+
+  ipcMain.removeHandler('lockTwitchPrediction');
   ipcMain.handle('lockTwitchPrediction', () => twitch.lockPrediction());
 
-  ipcMain.removeAllListeners('resolveTwitchPrediction');
+  ipcMain.removeHandler('resolveTwitchPrediction');
   ipcMain.handle('resolveTwitchPrediction', () => twitch.resolvePrediction());
 
-  ipcMain.removeAllListeners('resolveTwitchPredictionWithWinner');
+  ipcMain.removeHandler('resolveTwitchPredictionWithWinner');
   ipcMain.handle(
     'resolveTwitchPredictionWithWinner',
     (event, winnerName: string) =>
       twitch.resolvePredictionWithWinner(winnerName),
   );
 
-  ipcMain.removeAllListeners('getTwitchClient');
+  ipcMain.removeHandler('getTwitchClient');
   ipcMain.handle('getTwitchClient', () => twitchClient);
-  ipcMain.removeAllListeners('setTwitchClient');
+  ipcMain.removeHandler('setTwitchClient');
   ipcMain.handle('setTwitchClient', (event, newTwitchClient: TwitchClient) =>
     twitch.setClient(newTwitchClient),
   );
-  ipcMain.removeAllListeners('clearTwitchClient');
+  ipcMain.removeHandler('clearTwitchClient');
   ipcMain.handle('clearTwitchClient', () => twitch.clearClient());
 
-  ipcMain.removeAllListeners('getMusicOff');
+  ipcMain.removeHandler('getMusicOff');
   ipcMain.handle('getMusicOff', () => musicOff);
-  ipcMain.removeAllListeners('setMusicOff');
+  ipcMain.removeHandler('setMusicOff');
   ipcMain.handle('setMusicOff', async (event, newMusicOff: boolean) => {
     await writeGameSettings(newMusicOff, stealth, tempDir);
     store.set('musicOff', newMusicOff);
     musicOff = newMusicOff;
   });
 
-  ipcMain.removeAllListeners('getStealth');
+  ipcMain.removeHandler('getStealth');
   ipcMain.handle('getStealth', () => stealth);
-  ipcMain.removeAllListeners('setStealth');
+  ipcMain.removeHandler('setStealth');
   ipcMain.handle('setStealth', async (event, newStealth: boolean) => {
     await writeGameSettings(musicOff, newStealth, tempDir);
     twitch.setStealth(newStealth);

@@ -85,6 +85,8 @@ const electronHandler = {
     ipcRenderer.invoke('getTwitchPrediction'),
   createTwitchPrediction: (set: ApiSet): Promise<void> =>
     ipcRenderer.invoke('createTwitchPrediction', set),
+  cancelTwitchPrediction: (): Promise<void> =>
+    ipcRenderer.invoke('cancelTwitchPrediction'),
   lockTwitchPrediction: (): Promise<void> =>
     ipcRenderer.invoke('lockTwitchPrediction'),
   resolveTwitchPrediction: (): Promise<void> =>

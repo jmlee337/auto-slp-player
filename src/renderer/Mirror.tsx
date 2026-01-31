@@ -16,6 +16,7 @@ import {
   Dialog,
   DialogActions,
   DialogContent,
+  DialogContentText,
   DialogTitle,
   FormControl,
   FormControlLabel,
@@ -259,6 +260,8 @@ export default function Mirror({
   const [phaseGroupIdStr, setPhaseGroupIdStr] = useState('');
   const [settingMirrorSet, setSettingMirrorSet] = useState(false);
   const [creatingTwitchPrediction, setCreatingTwitchPrediction] =
+    useState(false);
+  const [cancellingTwitchPrediction, setCancellingTwitchPrediction] =
     useState(false);
   const [lockingTwitchPrediction, setLockingTwitchPrediction] = useState(false);
   const [resolvingTwitchPrediction, setResolvingTwitchPrediction] =
@@ -575,11 +578,30 @@ export default function Mirror({
             </Stack>
           )}
         </DialogContent>
-        <DialogActions>
-          {isMirroring &&
-            mirrorSet &&
-            (twitchPredictionsEnabled && prediction ? (
+        {isMirroring && mirrorSet && (
+          <DialogActions>
+            {twitchPredictionsEnabled && prediction ? (
               <>
+                <DialogContentText>Prediction:</DialogContentText>
+                <Button
+                  color="warning"
+                  disabled={cancellingTwitchPrediction}
+                  onClick={async () => {
+                    try {
+                      setCancellingTwitchPrediction(true);
+                      await window.electron.cancelTwitchPrediction();
+                    } catch (e: any) {
+                      showAppErrorDialog(
+                        e instanceof Error ? e.message : e.toString(),
+                      );
+                    } finally {
+                      setCancellingTwitchPrediction(false);
+                    }
+                  }}
+                  variant="contained"
+                >
+                  Cancel
+                </Button>
                 <Button
                   disabled={lockingTwitchPrediction || prediction.locked}
                   onClick={async () => {
@@ -596,7 +618,7 @@ export default function Mirror({
                   }}
                   variant="contained"
                 >
-                  Lock Prediction
+                  Lock
                 </Button>
                 <Button
                   disabled={
@@ -627,7 +649,7 @@ export default function Mirror({
                   }}
                   variant="contained"
                 >
-                  Resolve Prediction
+                  Resolve
                 </Button>
               </>
             ) : (
@@ -667,7 +689,10 @@ export default function Mirror({
                   Clear Mirror Set
                 </Button>
               </>
-            ))}
+            )}
+          </DialogActions>
+        )}
+        <DialogActions>
           {isMirroring ? (
             <Button
               color="error"

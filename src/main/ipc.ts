@@ -1619,7 +1619,7 @@ export default async function setupIPCs(
     },
   );
 
-  // entrant1Names, entrant2Names, phaseName, fullRoundText, timecode, base VOD URL, setId
+  // entrant1Names, entrant2Names, phaseName, fullRoundText, timecode, base VOD URL, setId, adjustedTimecode
   const readTimestampsCsv = () => {
     return new Promise<string[][]>((resolve, reject) => {
       const stream = createReadStream(path.join(watchDir, 'timestamps.csv')).on(
@@ -1650,7 +1650,7 @@ export default async function setupIPCs(
         .map((row) => {
           const namesLeft = row[0];
           const namesRight = row[1];
-          const timecode = row[4];
+          const timecode = row[7];
           if (namesLeft && namesRight && timecode) {
             return `${timecode} ${namesLeft} vs ${namesRight}`;
           }
@@ -1693,7 +1693,7 @@ export default async function setupIPCs(
         const setIdToVodUrl = new Map<string, string>();
         thisTimeRows.forEach((row) => {
           const setId = row[6];
-          const timecodeParts = row[4].split(':');
+          const timecodeParts = row[7].split(':');
           if (setId && timecodeParts.length === 3) {
             const timecode = `?t=${timecodeParts[0]}h${timecodeParts[1]}m${timecodeParts[2]}s`;
             const vodUrl = baseYoutubeUrl + timecode;

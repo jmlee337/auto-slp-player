@@ -977,10 +977,15 @@ export default class OBSConnection {
         settings.password.length > 0 ? settings.password : undefined,
       );
       this.connectionStatus = OBSConnectionStatus.OBS_NOT_SETUP;
-      const { outputActive } = await this.obsWebSocket.call('GetStreamStatus');
-      this.streamOutputStatus = outputActive
-        ? 'OBS_WEBSOCKET_OUTPUT_STARTED'
-        : 'OBS_WEBSOCKET_OUTPUT_STOPPED';
+      const { outputActive, outputReconnecting } =
+        await this.obsWebSocket.call('GetStreamStatus');
+      if (outputReconnecting) {
+        this.streamOutputStatus = 'OBS_WEBSOCKET_OUTPUT_RECONNECTING';
+      } else {
+        this.streamOutputStatus = outputActive
+          ? 'OBS_WEBSOCKET_OUTPUT_STARTED'
+          : 'OBS_WEBSOCKET_OUTPUT_STOPPED';
+      }
       this.mainWindow.webContents.send(
         'streamOutputStatus',
         this.streamOutputStatus,

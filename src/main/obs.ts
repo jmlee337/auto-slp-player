@@ -52,7 +52,7 @@ export default class OBSConnection {
 
   private sceneNameToInputNameToSceneItemId: Map<string, Map<string, number>>;
 
-  private streamOutputActive: boolean;
+  private streamOutputStatus: string;
 
   private overlay01Path: string;
 
@@ -87,7 +87,7 @@ export default class OBSConnection {
     this.portToPid = new Map();
     this.portToInputName = new Map();
     this.sceneNameToInputNameToSceneItemId = new Map();
-    this.streamOutputActive = false;
+    this.streamOutputStatus = 'OBS_WEBSOCKET_OUTPUT_STOPPED';
     this.shouldSetupAndAutoSwitch = false;
     this.soundPort = 0;
     this.connectionStatusCallback = () => {};
@@ -665,7 +665,13 @@ export default class OBSConnection {
       inputNameToInputUuid.set(SLIDES_INPUT_NAME, inputUuid);
     }
 
-    if (!this.streamOutputActive) {
+    if (
+      !(
+        this.streamOutputStatus === 'OBS_WEBSOCKET_OUTPUT_STARTED' ||
+        this.streamOutputStatus === 'OBS_WEBSOCKET_OUTPUT_RECONNECTED' ||
+        this.streamOutputStatus === 'OBS_WEBSOCKET_OUTPUT_RESUMED'
+      )
+    ) {
       if (missingSceneNames.length > 0) {
         await this.obsWebSocket.call('SetCurrentProgramScene', {
           sceneName: 'quad 1',
@@ -935,7 +941,13 @@ export default class OBSConnection {
         }
       }
     }
-    if (!this.streamOutputActive) {
+    if (
+      !(
+        this.streamOutputStatus === 'OBS_WEBSOCKET_OUTPUT_STARTED' ||
+        this.streamOutputStatus === 'OBS_WEBSOCKET_OUTPUT_RECONNECTED' ||
+        this.streamOutputStatus === 'OBS_WEBSOCKET_OUTPUT_RESUMED'
+      )
+    ) {
       await this.obsWebSocket.call('SetCurrentProgramScene', {
         sceneName: 'quad 0',
       });
@@ -950,19 +962,13 @@ export default class OBSConnection {
       this.obsWebSocket.on('ConnectionClosed', () => {
         this.setConnectionStatus(OBSConnectionStatus.OBS_NOT_CONNECTED);
       });
-      this.obsWebSocket.on('StreamStateChanged', ({ outputActive }) => {
-        this.streamOutputActive = outputActive;
+      this.obsWebSocket.on('StreamStateChanged', ({ outputState }) => {
+        this.streamOutputStatus = outputState;
         this.mainWindow.webContents.send(
-          'streamOutputActive',
-          this.streamOutputActive,
+          'streamOutputStatus',
+          this.streamOutputStatus,
         );
       });
-      const { outputActive } = await this.obsWebSocket.call('GetStreamStatus');
-      this.streamOutputActive = outputActive;
-      this.mainWindow.webContents.send(
-        'streamOutputActive',
-        this.streamOutputActive,
-      );
     }
     let canCheckTEB = false;
     if (this.connectionStatus === OBSConnectionStatus.OBS_NOT_CONNECTED) {
@@ -971,6 +977,14 @@ export default class OBSConnection {
         settings.password.length > 0 ? settings.password : undefined,
       );
       this.connectionStatus = OBSConnectionStatus.OBS_NOT_SETUP;
+      const { outputActive } = await this.obsWebSocket.call('GetStreamStatus');
+      this.streamOutputStatus = outputActive
+        ? 'OBS_WEBSOCKET_OUTPUT_STARTED'
+        : 'OBS_WEBSOCKET_OUTPUT_STOPPED';
+      this.mainWindow.webContents.send(
+        'streamOutputStatus',
+        this.streamOutputStatus,
+      );
       canCheckTEB = await this.setupObsScenesAndSources();
     } else if (this.connectionStatus === OBSConnectionStatus.OBS_NOT_SETUP) {
       canCheckTEB = await this.setupObsScenesAndSources();
@@ -1071,8 +1085,8 @@ export default class OBSConnection {
     await this.obsWebSocket.callBatch(requests);
   }
 
-  getStreamOutputActive() {
-    return this.streamOutputActive;
+  getStreamOutputStatus() {
+    return this.streamOutputStatus;
   }
 
   async startStream() {

@@ -1381,9 +1381,9 @@ export default async function setupIPCs(
   ipcMain.handle('getObsConnectionStatus', () =>
     obsConnection.getConnectionStatus(),
   );
-  ipcMain.removeHandler('getStreamOutputActive');
-  ipcMain.handle('getStreamOutputActive', () =>
-    obsConnection.getStreamOutputActive(),
+  ipcMain.removeHandler('getStreamOutputStatus');
+  ipcMain.handle('getStreamOutputStatus', () =>
+    obsConnection.getStreamOutputStatus(),
   );
   ipcMain.removeHandler('connectObs');
   ipcMain.handle('connectObs', async () => {

@@ -45,7 +45,9 @@ export default function Setup({
   const [obsConnecting, setObsConnecting] = useState(false);
   const [obsError, setObsError] = useState('');
   const [obsErrorDialogOpen, setObsErrorDialogOpen] = useState(false);
-  const [streamOutputActive, setStreamOutputActive] = useState(false);
+  const [streamOutputStatus, setStreamOutputStatus] = useState(
+    'OBS_WEBSOCKET_OUTPUT_STOPPED',
+  );
   const [port, setPort] = useState(50000);
   const [offlineModeAddress, setOfflineModeAddress] = useState('');
   const [offlineModeError, setOfflineModeError] = useState('');
@@ -55,10 +57,10 @@ export default function Setup({
       const watchDirPromise = window.electron.getWatchDir();
       const obsConnectionStatusPromise =
         window.electron.getObsConnectionStatus();
-      const streamOutputActivePromise = window.electron.getStreamOutputActive();
+      const streamOutputStatusPromise = window.electron.getStreamOutputStatus();
       setWatchDir(await watchDirPromise);
       setObsConnectionStatus(await obsConnectionStatusPromise);
-      setStreamOutputActive(await streamOutputActivePromise);
+      setStreamOutputStatus(await streamOutputStatusPromise);
     };
     inner();
   }, []);
@@ -87,8 +89,8 @@ export default function Setup({
       setOfflineModeAddress(address);
       setOfflineModeError(error);
     });
-    window.electron.onStreamOutputActive((event, outputActive: boolean) => {
-      setStreamOutputActive(outputActive);
+    window.electron.onStreamOutputStatus((event, outputStatus) => {
+      setStreamOutputStatus(outputStatus);
     });
   }, []);
 
@@ -105,7 +107,9 @@ export default function Setup({
     watchDir &&
     numDolphins === maxDolphins &&
     obsConnectionStatus === OBSConnectionStatus.READY &&
-    streamOutputActive;
+    (streamOutputStatus === 'OBS_WEBSOCKET_OUTPUT_STARTED' ||
+      streamOutputStatus === 'OBS_WEBSOCKET_OUTPUT_RECONNECTED' ||
+      streamOutputStatus === 'OBS_WEBSOCKET_OUTPUT_RESUMED');
 
   return (
     <>
@@ -234,11 +238,19 @@ export default function Setup({
           )}
           <Button
             disabled={
-              streamOutputActive ||
+              streamOutputStatus === 'OBS_WEBSOCKET_OUTPUT_STARTED' ||
+              streamOutputStatus === 'OBS_WEBSOCKET_OUTPUT_RECONNECTED' ||
+              streamOutputStatus === 'OBS_WEBSOCKET_OUTPUT_RESUMED' ||
+              streamOutputStatus === 'OBS_WEBSOCKET_OUTPUT_STARTING' ||
+              streamOutputStatus === 'OBS_WEBSOCKET_OUTPUT_RECONNECTING' ||
               obsConnectionStatus !== OBSConnectionStatus.READY
             }
             endIcon={
-              streamOutputActive ? (
+              streamOutputStatus === 'OBS_WEBSOCKET_OUTPUT_STARTED' ||
+              streamOutputStatus === 'OBS_WEBSOCKET_OUTPUT_RECONNECTED' ||
+              streamOutputStatus === 'OBS_WEBSOCKET_OUTPUT_RESUMED' ||
+              streamOutputStatus === 'OBS_WEBSOCKET_OUTPUT_STARTING' ||
+              streamOutputStatus === 'OBS_WEBSOCKET_OUTPUT_RECONNECTING' ? (
                 <CircularProgress size="24px" />
               ) : (
                 <PlayCircle />
@@ -249,7 +261,21 @@ export default function Setup({
             }}
             variant="contained"
           >
-            {streamOutputActive ? 'Streaming' : 'Start Stream'}
+            {(streamOutputStatus === 'OBS_WEBSOCKET_OUTPUT_STARTED' ||
+              streamOutputStatus === 'OBS_WEBSOCKET_OUTPUT_RECONNECTED' ||
+              streamOutputStatus === 'OBS_WEBSOCKET_OUTPUT_RESUMED') &&
+              'Streaming'}
+            {streamOutputStatus === 'OBS_WEBSOCKET_OUTPUT_STARTING' &&
+              'Starting...'}
+            {streamOutputStatus === 'OBS_WEBSOCKET_OUTPUT_RECONNECTING' &&
+              'Reconnecting...'}
+            {!(
+              streamOutputStatus === 'OBS_WEBSOCKET_OUTPUT_STARTED' ||
+              streamOutputStatus === 'OBS_WEBSOCKET_OUTPUT_RECONNECTED' ||
+              streamOutputStatus === 'OBS_WEBSOCKET_OUTPUT_RESUMED' ||
+              streamOutputStatus === 'OBS_WEBSOCKET_OUTPUT_STARTING' ||
+              streamOutputStatus === 'OBS_WEBSOCKET_OUTPUT_RECONNECTING'
+            ) && 'Start Stream'}
           </Button>
         </DialogContent>
       </Dialog>

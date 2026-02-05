@@ -1,3 +1,4 @@
+import { UTCDate } from '@date-fns/utc';
 import { format } from 'date-fns';
 import { memo } from 'react';
 import { useTimer } from 'react-timer-hook';
@@ -14,7 +15,7 @@ function Countdown({
     expiryTimestamp: new Date(playedMs + durationMs),
   });
 
-  return format(new Date(totalMilliseconds), 'm:ss');
+  return format(new UTCDate(totalMilliseconds), 'm:ss');
 }
 
 export default memo(Countdown);

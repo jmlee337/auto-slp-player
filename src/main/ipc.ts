@@ -27,7 +27,6 @@ import { spawn } from 'child_process';
 import { AccessToken } from '@twurple/auth';
 import { parseStream, writeToString } from 'fast-csv';
 import { createReadStream } from 'fs';
-import { format, parse } from 'date-fns';
 import ini from 'ini';
 import os from 'os';
 import { deleteZipDir, scan, unzip } from './unzip';
@@ -1092,7 +1091,6 @@ export default async function setupIPCs(
     }
     return actualPort;
   };
-  let expectedTimecodeOffset = 0;
   const timestampsQueue: string[] = [];
   const writeTimestamps = async (
     entrant1Names: string[],
@@ -1103,22 +1101,6 @@ export default async function setupIPCs(
   ) => {
     const timecode = await obsConnection.getTimecode();
     if (timecode) {
-      let adjustedTimecode = timecode;
-      const timecodeDate = parse(timecode, 'HH:mm:ss', new Date(0));
-      const timecodeTotalS = Math.floor(timecodeDate.getTime() / 1000);
-      if (Number.isInteger(timecodeTotalS)) {
-        const nowS = Math.floor(Date.now() / 1000);
-        const timecodeOffset = nowS - timecodeTotalS;
-        if (expectedTimecodeOffset === 0) {
-          expectedTimecodeOffset = timecodeOffset;
-        } else if (timecodeOffset - expectedTimecodeOffset > 2) {
-          const adjustedTimecodeTotalS = nowS - expectedTimecodeOffset;
-          adjustedTimecode = format(
-            new Date(adjustedTimecodeTotalS * 1000),
-            'HH:mm:ss',
-          );
-        }
-      }
       const lineParts = [
         getEntrantName(entrant1Names),
         getEntrantName(entrant2Names),
@@ -1127,7 +1109,6 @@ export default async function setupIPCs(
         timecode,
         '', // base VOD URL
         setId,
-        adjustedTimecode,
       ];
       timestampsQueue.push(await writeToString([lineParts]));
 
@@ -1650,7 +1631,7 @@ export default async function setupIPCs(
         .map((row) => {
           const namesLeft = row[0];
           const namesRight = row[1];
-          const timecode = row[7];
+          const timecode = row[4];
           if (namesLeft && namesRight && timecode) {
             return `${timecode} ${namesLeft} vs ${namesRight}`;
           }
@@ -1693,7 +1674,7 @@ export default async function setupIPCs(
         const setIdToVodUrl = new Map<string, string>();
         thisTimeRows.forEach((row) => {
           const setId = row[6];
-          const timecodeParts = row[7].split(':');
+          const timecodeParts = row[4].split(':');
           if (setId && timecodeParts.length === 3) {
             const timecode = `?t=${timecodeParts[0]}h${timecodeParts[1]}m${timecodeParts[2]}s`;
             const vodUrl = baseYoutubeUrl + timecode;

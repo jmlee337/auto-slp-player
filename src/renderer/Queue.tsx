@@ -20,6 +20,7 @@ import {
 } from '@mui/icons-material';
 import { useState } from 'react';
 import { format } from 'date-fns';
+import { UTCDate } from '@date-fns/utc';
 import { RendererQueue, RendererSet, Stream } from '../common/types';
 import Countdown from './Countdown';
 
@@ -146,7 +147,7 @@ function QueueSet({
                 durationMs={set.context.durationMs}
               />
             ) : (
-              format(new Date(set.context.durationMs), 'm:ss')
+              format(new UTCDate(set.context.durationMs), 'm:ss')
             )}
           </ListItemText>
         </Stack>

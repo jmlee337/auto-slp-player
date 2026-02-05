@@ -1,5 +1,7 @@
 import OBSWebSocket, { RequestBatchRequest } from 'obs-websocket-js';
 import { BrowserWindow } from 'electron';
+import { UTCDate } from '@date-fns/utc';
+import { format } from 'date-fns';
 import {
   AvailableSet,
   OBSConnectionStatus,
@@ -64,6 +66,10 @@ export default class OBSConnection {
 
   private soundPort: number;
 
+  private lastReconnectingOutputDuration: number;
+
+  private outputDurationOffset: number;
+
   private connectionStatusCallback: (
     connectionStatus: OBSConnectionStatus,
   ) => void;
@@ -90,6 +96,8 @@ export default class OBSConnection {
     this.streamOutputStatus = 'OBS_WEBSOCKET_OUTPUT_STOPPED';
     this.shouldSetupAndAutoSwitch = false;
     this.soundPort = 0;
+    this.lastReconnectingOutputDuration = 0;
+    this.outputDurationOffset = 0;
     this.connectionStatusCallback = () => {};
   }
 
@@ -962,7 +970,20 @@ export default class OBSConnection {
       this.obsWebSocket.on('ConnectionClosed', () => {
         this.setConnectionStatus(OBSConnectionStatus.OBS_NOT_CONNECTED);
       });
-      this.obsWebSocket.on('StreamStateChanged', ({ outputState }) => {
+      this.obsWebSocket.on('StreamStateChanged', async ({ outputState }) => {
+        if (
+          outputState === 'OBS_WEBSOCKET_OUTPUT_RECONNECTING' &&
+          this.obsWebSocket
+        ) {
+          const { outputDuration } =
+            await this.obsWebSocket.call('GetStreamStatus');
+          this.lastReconnectingOutputDuration = outputDuration;
+        } else if (
+          this.streamOutputStatus === 'OBS_WEBSOCKET_OUTPUT_RECONNECTING' &&
+          outputState === 'OBS_WEBSOCKET_OUTPUT_RECONNECTED'
+        ) {
+          this.outputDurationOffset += this.lastReconnectingOutputDuration;
+        }
         this.streamOutputStatus = outputState;
         this.mainWindow.webContents.send(
           'streamOutputStatus',
@@ -1105,7 +1126,7 @@ export default class OBSConnection {
     await this.obsWebSocket.call('StartStream');
   }
 
-  // 00:01:02.116
+  // 00:01:02
   async getTimecode() {
     if (
       !this.obsWebSocket ||
@@ -1114,7 +1135,8 @@ export default class OBSConnection {
       return '';
     }
 
-    const { outputTimecode } = await this.obsWebSocket.call('GetStreamStatus');
-    return outputTimecode.slice(0, -4);
+    const { outputDuration } = await this.obsWebSocket.call('GetStreamStatus');
+    const finalOutputDuration = outputDuration + this.outputDurationOffset;
+    return format(new UTCDate(finalOutputDuration), 'HH:mm:ss');
   }
 }

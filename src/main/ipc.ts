@@ -2202,7 +2202,9 @@ export default async function setupIPCs(
       }
 
       mirrorSet = set;
-      mirroredSetIds.add(set.id);
+      if (set.id) {
+        mirroredSetIds.add(set.id);
+      }
       if (watchDir) {
         writeTimestamps(
           set.entrant1Names,

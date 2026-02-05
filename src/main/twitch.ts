@@ -96,6 +96,9 @@ class Predictor {
     if (!this.currentPrediction) {
       return;
     }
+    if (!this.currentPrediction.set.id) {
+      return;
+    }
 
     const json = await wrappedFetch(
       `https://api.start.gg/set/${this.currentPrediction.set.id}?expand[]=entrants`,

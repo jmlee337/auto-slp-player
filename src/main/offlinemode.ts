@@ -166,7 +166,7 @@ export function connectToOfflineMode(port: number) {
                         phaseGroupIdToPendingSets.set(pool.id, pendingSets);
                       }
                       pendingSets.push({
-                        id: set.id,
+                        id: typeof set.setId === 'number' ? set.setId : 0,
                         entrant1Names: set.entrant1Participants.map(
                           (participant) => participant.gamerTag,
                         ),

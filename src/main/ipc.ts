@@ -2088,7 +2088,7 @@ export default async function setupIPCs(
       }
 
       const json = await wrappedFetch(
-        `https://api.start.gg/phase_group/${phaseGroupId}?expand[]=sets&expand[]=entrants`,
+        `https://api.start.gg/phase_group/${phaseGroupId}?expand[]=sets&expand[]=entrants&bustCache=true`,
       );
       const { entrants } = json.entities;
       const { sets } = json.entities;

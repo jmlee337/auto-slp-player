@@ -101,7 +101,7 @@ class Predictor {
     }
 
     const json = await wrappedFetch(
-      `https://api.start.gg/set/${this.currentPrediction.set.id}?expand[]=entrants`,
+      `https://api.start.gg/set/${this.currentPrediction.set.id}?expand[]=entrants&bustCache=true`,
     );
     const { entrants } = json.entities;
     if (!Array.isArray(entrants) || entrants.length === 0) {

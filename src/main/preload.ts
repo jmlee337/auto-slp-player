@@ -198,8 +198,8 @@ const electronHandler = {
   getRemote: (): Promise<Remote> => ipcRenderer.invoke('getRemote'),
   setRemote: (remote: Remote): Promise<void> =>
     ipcRenderer.invoke('setRemote', remote),
-  connectToOfflineMode: (port: number): Promise<void> =>
-    ipcRenderer.invoke('connectToOfflineMode', port),
+  connectToOfflineMode: (): Promise<void> =>
+    ipcRenderer.invoke('connectToOfflineMode'),
   loadPhaseGroups: (slug: string): Promise<void> =>
     ipcRenderer.invoke('loadPhaseGroups', slug),
   getPhaseGroups: (): Promise<{

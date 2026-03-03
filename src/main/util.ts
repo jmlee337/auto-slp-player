@@ -1,6 +1,8 @@
 /* eslint import/prefer-default-export: off */
 import { URL } from 'url';
 import path from 'path';
+import { execSync } from 'child_process';
+import { hostname } from 'os';
 
 export function resolveHtmlPath(htmlFileName: string) {
   if (process.env.NODE_ENV === 'development') {
@@ -24,4 +26,28 @@ export async function wrappedFetch(input: URL | RequestInfo) {
     throw new Error(`${input}: ${response.status} - ${response.statusText}.`);
   }
   return response.json();
+}
+
+let computerName = '';
+export function getComputerName() {
+  if (computerName) {
+    return computerName;
+  }
+
+  switch (process.platform) {
+    case 'win32':
+      computerName = execSync('hostname').toString().trim() || hostname();
+      return computerName;
+    case 'darwin':
+      computerName =
+        execSync('scutil --get ComputerName').toString().trim() || hostname();
+      return computerName;
+    case 'linux':
+      computerName =
+        execSync('hostnamectl --pretty').toString().trim() || hostname();
+      return computerName;
+    default:
+      computerName = hostname();
+      return computerName;
+  }
 }

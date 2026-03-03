@@ -14,7 +14,6 @@ import {
   IconButton,
   InputBase,
   Stack,
-  TextField,
   Tooltip,
 } from '@mui/material';
 import { IpcRendererEvent } from 'electron';
@@ -48,7 +47,6 @@ export default function Setup({
   const [streamOutputStatus, setStreamOutputStatus] = useState(
     'OBS_WEBSOCKET_OUTPUT_STOPPED',
   );
-  const [port, setPort] = useState(50000);
   const [offlineModeAddress, setOfflineModeAddress] = useState('');
   const [offlineModeError, setOfflineModeError] = useState('');
 
@@ -201,36 +199,17 @@ export default function Setup({
           </Stack>
           {remote === Remote.OFFLINE_MODE && (
             <>
-              <Stack direction="row" alignItems="center" spacing="8px">
-                <InputBase
-                  disabled
-                  size="small"
-                  value="Offline Mode:"
-                  style={{ flexGrow: 1 }}
-                />
-                <TextField
-                  disabled={Boolean(offlineModeAddress)}
-                  label="Port"
-                  name="port"
-                  onChange={(event) => {
-                    setPort(Number.parseInt(event.target.value, 10));
-                  }}
-                  size="small"
-                  slotProps={{ htmlInput: { min: 1024, max: 65536 } }}
-                  type="number"
-                  value={port}
-                  variant="filled"
-                />
-                <Button
-                  disabled={Boolean(offlineModeAddress)}
-                  onClick={async () => {
-                    await window.electron.connectToOfflineMode(port);
-                  }}
-                  variant="contained"
-                >
-                  {offlineModeAddress ? 'Connected!' : 'Connect'}
-                </Button>
-              </Stack>
+              <Button
+                disabled={Boolean(offlineModeAddress)}
+                onClick={async () => {
+                  await window.electron.connectToOfflineMode();
+                }}
+                variant="contained"
+              >
+                {offlineModeAddress
+                  ? 'Connected to OfflineMode!'
+                  : 'Connect to OfflineMode'}
+              </Button>
               {offlineModeError && (
                 <Alert severity="error">{offlineModeError}</Alert>
               )}

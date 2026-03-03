@@ -1,6 +1,7 @@
 import { BrowserWindow } from 'electron';
 import WebSocket from 'ws';
 import { ApiPhaseGroup, ApiSet } from '../common/types';
+import { getComputerName } from './util';
 
 type OfflineModeParticipant = {
   id: number;
@@ -103,106 +104,120 @@ export function disconnectFromOfflineMode() {
   }
 }
 
-export function connectToOfflineMode(port: number) {
+export function connectToOfflineMode() {
   if (websocket) {
     return;
   }
 
-  const tryAddress = `ws://127.0.01:${port}`;
-  websocket = new WebSocket(tryAddress, 'bracket-protocol')
-    .on('open', () => {
-      setStatus(tryAddress, '');
-    })
-    .on('error', (err) => {
-      cleanup();
-      setStatus('', err.message);
-    })
-    .on('close', () => {
-      cleanup();
-      setStatus('');
-    })
-    .on('message', (data) => {
-      try {
-        const message = JSON.parse(data.toString());
-        if (message.op === 'tournament-update-event') {
-          if (message.tournament) {
-            const newTournament = message.tournament as OfflineModeTournament;
-            tournamentSlug = newTournament.slug;
-            phaseGroups.length = 0;
-            phaseGroupIdToPendingSets.clear();
-            const validEvents = newTournament.events.filter(
-              (event) => event.videogameId === 1 && !event.isOnline,
-            );
-            validEvents.forEach((event) => {
-              event.phases.forEach((phase) => {
-                phase.pools.forEach((pool) => {
-                  const apiPhaseGroup: ApiPhaseGroup = {
-                    tournamentName: newTournament.name,
-                    tournamentLocation: newTournament.location,
-                    eventSlug: event.slug,
-                    eventName: event.name,
-                    eventHasSiblings: validEvents.length > 1,
-                    phaseId: phase.id,
-                    phaseName: phase.name,
-                    phaseHasSiblings: event.phases.length > 1,
-                    phaseGroupId: pool.id,
-                    phaseGroupName: pool.name,
-                    phaseGroupBracketType: pool.bracketType,
-                    phaseGroupHasSiblings: phase.pools.length > 1,
-                  };
-                  let hasSets = false;
-                  pool.sets
-                    .filter(
-                      (set) =>
-                        set.state !== 3 &&
-                        set.entrant1Id !== null &&
-                        set.entrant2Id !== null,
-                    )
-                    .forEach((set) => {
-                      hasSets = true;
-                      let pendingSets = phaseGroupIdToPendingSets.get(pool.id);
-                      if (!pendingSets) {
-                        pendingSets = [];
-                        phaseGroupIdToPendingSets.set(pool.id, pendingSets);
-                      }
-                      pendingSets.push({
-                        id: typeof set.setId === 'number' ? set.setId : 0,
-                        entrant1Names: set.entrant1Participants.map(
-                          (participant) => participant.gamerTag,
-                        ),
-                        entrant1Prefixes: set.entrant1Participants.map(
-                          (participant) => participant.prefix,
-                        ),
-                        entrant1Pronouns: set.entrant1Participants.map(
-                          (participant) => participant.pronouns,
-                        ),
-                        entrant2Names: set.entrant2Participants.map(
-                          (participant) => participant.gamerTag,
-                        ),
-                        entrant2Prefixes: set.entrant2Participants.map(
-                          (participant) => participant.prefix,
-                        ),
-                        entrant2Pronouns: set.entrant2Participants.map(
-                          (participant) => participant.pronouns,
-                        ),
-                        fullRoundText: set.fullRoundText,
-                        ...apiPhaseGroup,
+  const tryAddress = `ws://127.0.01`;
+  try {
+    websocket = new WebSocket(tryAddress, 'bracket-protocol')
+      .on('open', () => {
+        setStatus(tryAddress, '');
+        websocket?.send(
+          JSON.stringify({
+            op: 'client-id-request',
+            num: 1,
+            computerName: getComputerName(),
+            clientName: 'Auto Stream for Slippi',
+          }),
+        );
+      })
+      .on('error', (err) => {
+        cleanup();
+        setStatus('', err.message);
+      })
+      .on('close', () => {
+        cleanup();
+        setStatus('');
+      })
+      .on('message', (data) => {
+        try {
+          const message = JSON.parse(data.toString());
+          if (message.op === 'tournament-update-event') {
+            if (message.tournament) {
+              const newTournament = message.tournament as OfflineModeTournament;
+              tournamentSlug = newTournament.slug;
+              phaseGroups.length = 0;
+              phaseGroupIdToPendingSets.clear();
+              const validEvents = newTournament.events.filter(
+                (event) => event.videogameId === 1 && !event.isOnline,
+              );
+              validEvents.forEach((event) => {
+                event.phases.forEach((phase) => {
+                  phase.pools.forEach((pool) => {
+                    const apiPhaseGroup: ApiPhaseGroup = {
+                      tournamentName: newTournament.name,
+                      tournamentLocation: newTournament.location,
+                      eventSlug: event.slug,
+                      eventName: event.name,
+                      eventHasSiblings: validEvents.length > 1,
+                      phaseId: phase.id,
+                      phaseName: phase.name,
+                      phaseHasSiblings: event.phases.length > 1,
+                      phaseGroupId: pool.id,
+                      phaseGroupName: pool.name,
+                      phaseGroupBracketType: pool.bracketType,
+                      phaseGroupHasSiblings: phase.pools.length > 1,
+                    };
+                    let hasSets = false;
+                    pool.sets
+                      .filter(
+                        (set) =>
+                          set.state !== 3 &&
+                          set.entrant1Id !== null &&
+                          set.entrant2Id !== null,
+                      )
+                      .forEach((set) => {
+                        hasSets = true;
+                        let pendingSets = phaseGroupIdToPendingSets.get(
+                          pool.id,
+                        );
+                        if (!pendingSets) {
+                          pendingSets = [];
+                          phaseGroupIdToPendingSets.set(pool.id, pendingSets);
+                        }
+                        pendingSets.push({
+                          id: typeof set.setId === 'number' ? set.setId : 0,
+                          entrant1Names: set.entrant1Participants.map(
+                            (participant) => participant.gamerTag,
+                          ),
+                          entrant1Prefixes: set.entrant1Participants.map(
+                            (participant) => participant.prefix,
+                          ),
+                          entrant1Pronouns: set.entrant1Participants.map(
+                            (participant) => participant.pronouns,
+                          ),
+                          entrant2Names: set.entrant2Participants.map(
+                            (participant) => participant.gamerTag,
+                          ),
+                          entrant2Prefixes: set.entrant2Participants.map(
+                            (participant) => participant.prefix,
+                          ),
+                          entrant2Pronouns: set.entrant2Participants.map(
+                            (participant) => participant.pronouns,
+                          ),
+                          fullRoundText: set.fullRoundText,
+                          ...apiPhaseGroup,
+                        });
                       });
-                    });
-                  if (hasSets) {
-                    phaseGroups.push(apiPhaseGroup);
-                  }
+                    if (hasSets) {
+                      phaseGroups.push(apiPhaseGroup);
+                    }
+                  });
                 });
               });
-            });
-          } else {
-            tournamentSlug = '';
+            } else {
+              tournamentSlug = '';
+            }
           }
+        } catch {
+          // just catch
         }
-      } catch {
-        // just catch
-      }
-    });
+      });
+  } catch (e: any) {
+    setStatus('', e.message);
+  }
 }
 
 export function getPhaseGroups(): {

@@ -2013,8 +2013,8 @@ export default async function setupIPCs(
   });
 
   ipcMain.removeHandler('connectToOfflineMode');
-  ipcMain.handle('connectToOfflineMode', (event, port: number) => {
-    connectToOfflineMode(port);
+  ipcMain.handle('connectToOfflineMode', () => {
+    connectToOfflineMode();
   });
 
   ipcMain.removeHandler('loadPhaseGroups');

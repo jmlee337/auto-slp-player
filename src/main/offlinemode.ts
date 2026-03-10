@@ -119,7 +119,7 @@ export function connectToOfflineMode() {
             op: 'client-id-request',
             num: 1,
             computerName: getComputerName(),
-            clientName: 'Auto Stream for Slippi',
+            clientName: 'Auto Stream',
           }),
         );
       })

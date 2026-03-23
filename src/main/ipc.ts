@@ -1638,6 +1638,7 @@ export default async function setupIPCs(
           return '';
         })
         .filter((line) => line.length > 0)
+        .map((line) => line.replace(/[<>]/, ''))
         .join('\n');
     } catch (e: any) {
       return '';

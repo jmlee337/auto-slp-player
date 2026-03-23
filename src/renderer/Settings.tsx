@@ -236,7 +236,7 @@ export default function Settings({
         >
           <DialogTitle>Settings</DialogTitle>
           <Typography variant="caption">
-            Auto SLP Player version {appVersion}
+            Auto Stream for Slippi version {appVersion}
           </Typography>
         </Stack>
         <DialogContent sx={{ pt: 0 }}>

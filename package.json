@@ -188,8 +188,8 @@
     "webpack-merge": "^5.9.0"
   },
   "build": {
-    "productName": "AutoSLPPlayer",
-    "appId": "org.jmlee337.AutoSLPPlayer",
+    "productName": "AutoStreamForSlippi",
+    "appId": "org.jmlee337.AutoStreamForSlippi",
     "asar": true,
     "asarUnpack": [
       "**\\*.{node,dll}",

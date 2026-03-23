@@ -39,7 +39,7 @@ jobs:
         with:
           name: macos
           path: |
-            release/build/AutoSLPPlayer*.dmg
+            release/build/AutoStreamForSlippi*.dmg
   ubuntu:
     runs-on: ubuntu-22.04
 
@@ -71,7 +71,7 @@ jobs:
         with:
           name: ubuntu
           path: |
-            release/build/AutoSLPPlayer*.AppImage
+            release/build/AutoStreamForSlippi*.AppImage
   windows:
     runs-on: windows-latest
 
@@ -103,4 +103,4 @@ jobs:
         with:
           name: windows
           path: |
-            release/build/AutoSLPPlayer*.exe
+            release/build/AutoStreamForSlippi*.exe

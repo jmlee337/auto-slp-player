@@ -1,6 +1,6 @@
 ---
 name: Bug report
-about: There is a technical issue with Auto SLP Player.
+about: There is a technical issue with Auto Stream for Slippi.
 labels: 'bug'
 ---
 
@@ -45,5 +45,5 @@ labels: 'bug'
 
 <!--- Include as many relevant details about the environment you experienced the bug in -->
 
-- auto-slp-player version or branch :
+- Auto Stream for Slippi version or branch :
 - Operating System and version :

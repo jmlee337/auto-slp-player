@@ -1,5 +1,5 @@
-# Auto SLP Player
-Auto SLP Player ingests zipped sets produced by [Replay Manager for Slippi](https://github.com/jmlee337/replay-manager-for-slippi) and automatically plays them in Slippi Playback Dolphin for hands-free streaming.
+# Auto Stream for Slippi
+Auto Stream for Slippi ingests zipped sets produced by [Replay Manager for Slippi](https://github.com/jmlee337/replay-manager-for-slippi) and automatically plays them in Slippi Playback Dolphin for hands-free streaming.
 ## Features
 - Can be run "[stealth](https://github.com/jmlee337/auto-slp-player/blob/main/src/docs/stealth.md)"
 ## Users

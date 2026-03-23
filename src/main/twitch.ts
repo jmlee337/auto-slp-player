@@ -495,7 +495,7 @@ export default class Twitch {
         res
           .status(200)
           .send(
-            'Success! You can close this tab and return to Auto SLP Player.',
+            'Success! You can close this tab and return to Auto Stream for Slippi.',
           );
         this.accessToken = newAccessToken;
         this.onAccessToken(this.accessToken);

@@ -11,10 +11,19 @@ git clone https://github.com/jmlee337/auto-slp-player.git auto-slp-player
 cd auto-slp-player
 npm install
 ```
+
+I use Node 22
+
+```bash
+nvm use 22
+npm install
+```
+
 Start the app in the `dev` environment:
 ```bash
 npm start
 ```
+
 To package apps for the local platform:
 
 ```bash

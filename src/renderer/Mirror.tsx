@@ -9,7 +9,6 @@ import {
   VisibilityOff,
 } from '@mui/icons-material';
 import {
-  Autocomplete,
   Button,
   Checkbox,
   CircularProgress,
@@ -23,7 +22,9 @@ import {
   IconButton,
   InputBase,
   InputLabel,
+  List,
   ListItemButton,
+  ListItemText,
   MenuItem,
   Rating,
   Select,
@@ -68,6 +69,24 @@ function FetchPools({
   const [slug, setSlug] = useState('');
   const [loadingPhaseGroups, setLoadingPhaseGroups] = useState(false);
 
+  const loadPhaseGroups = useCallback(
+    async (tournamentSlug: string) => {
+      try {
+        setLoadingPhaseGroups(true);
+        await window.electron.loadPhaseGroups(tournamentSlug);
+        const phaseGroupsRet = await window.electron.getPhaseGroups();
+        setPhaseGroups(phaseGroupsRet.phaseGroups);
+        setTournamentSlugs(phaseGroupsRet.tournamentSlugs);
+        setOpen(false);
+      } catch (e: any) {
+        showAppErrorDialog(e instanceof Error ? e.message : e.toString());
+      } finally {
+        setLoadingPhaseGroups(false);
+      }
+    },
+    [setPhaseGroups, setTournamentSlugs, showAppErrorDialog],
+  );
+
   return (
     <>
       <FormControlLabel
@@ -76,23 +95,7 @@ function FetchPools({
         control={
           <IconButton
             onClick={async () => {
-              if (tournamentSlugs.length === 1) {
-                try {
-                  setLoadingPhaseGroups(true);
-                  await window.electron.loadPhaseGroups(tournamentSlugs[0]);
-                  const phaseGroupsRet = await window.electron.getPhaseGroups();
-                  setPhaseGroups(phaseGroupsRet.phaseGroups);
-                  setTournamentSlugs(phaseGroupsRet.tournamentSlugs);
-                } catch (e: any) {
-                  showAppErrorDialog(
-                    e instanceof Error ? e.message : e.toString(),
-                  );
-                } finally {
-                  setLoadingPhaseGroups(false);
-                }
-              } else {
-                setOpen(true);
-              }
+              setOpen(true);
             }}
           >
             <Download />
@@ -115,42 +118,21 @@ function FetchPools({
               flexDirection: 'row',
               paddingTop: '8px',
             }}
-            onSubmit={async (event) => {
+            onSubmit={(event) => {
               event.preventDefault();
               event.stopPropagation();
-              try {
-                setLoadingPhaseGroups(true);
-                await window.electron.loadPhaseGroups(slug);
-                const phaseGroupsRet = await window.electron.getPhaseGroups();
-                setPhaseGroups(phaseGroupsRet.phaseGroups);
-                setTournamentSlugs(phaseGroupsRet.tournamentSlugs);
-                setOpen(false);
-              } catch (e: any) {
-                showAppErrorDialog(
-                  e instanceof Error ? e.message : e.toString(),
-                );
-              } finally {
-                setLoadingPhaseGroups(false);
-              }
+              loadPhaseGroups(slug);
             }}
           >
-            <Autocomplete
-              freeSolo
-              options={tournamentSlugs}
+            <TextField
+              placeholder="midlane-melee-200"
+              label="Tournament Slug"
+              size="small"
+              style={{ minWidth: '200px' }}
               value={slug}
-              onChange={(event, value) => {
-                setSlug(value ?? '');
+              onChange={(event) => {
+                setSlug(event.target.value);
               }}
-              renderInput={(params) => (
-                <TextField
-                  // eslint-disable-next-line react/jsx-props-no-spreading
-                  {...params}
-                  placeholder="midlane-melee-200"
-                  label="Tournament Slug"
-                  size="small"
-                  style={{ minWidth: '200px' }}
-                />
-              )}
             />
             <Tooltip arrow placement="right" title="Load Tournament...">
               <span>
@@ -164,6 +146,20 @@ function FetchPools({
               </span>
             </Tooltip>
           </form>
+          {tournamentSlugs.length > 0 && (
+            <List disablePadding style={{ marginTop: '8px' }}>
+              {tournamentSlugs.map((tournamentSlug) => (
+                <ListItemButton
+                  key={tournamentSlug}
+                  onClick={() => {
+                    loadPhaseGroups(tournamentSlug);
+                  }}
+                >
+                  <ListItemText>{tournamentSlug}</ListItemText>
+                </ListItemButton>
+              ))}
+            </List>
+          )}
         </DialogContent>
       </Dialog>
     </>

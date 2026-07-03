@@ -2025,6 +2025,7 @@ export default async function setupIPCs(
       const tournamentJson = await wrappedFetch(
         `https://api.start.gg/tournament/${slug}?expand[]=event`,
       );
+      const realSlug = tournamentJson.entities.tournament.slug.slice(11);
       const events = tournamentJson.entities.event.filter(
         (event: any) => event.videogameId === 1,
       );
@@ -2059,6 +2060,7 @@ export default async function setupIPCs(
           );
         }),
       );
+      startggTournamentSlugs.add(realSlug);
     },
   );
 

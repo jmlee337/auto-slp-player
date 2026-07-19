@@ -169,7 +169,7 @@ const electronHandler = {
     shouldSetupAndAutoSwitchObs: boolean,
   ): Promise<void> =>
     ipcRenderer.invoke(
-      'ShouldSetupAndAutoSwitchObs',
+      'setShouldSetupAndAutoSwitchObs',
       shouldSetupAndAutoSwitchObs,
     ),
   getObsSettings: (): Promise<OBSSettings> =>

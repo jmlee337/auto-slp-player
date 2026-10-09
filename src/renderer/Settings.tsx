@@ -275,7 +275,7 @@ export default function Settings({
               )}
               {obsGamecaptureResult === ObsGamecaptureResult.FAIL && (
                 <Alert severity="error">
-                  obs-vkcapture is required, install from{' '}
+                  obs-vkcapture is required, build and install from{' '}
                   <Link
                     href="https://github.com/jmlee337/obs-vkcapture"
                     target="_blank"

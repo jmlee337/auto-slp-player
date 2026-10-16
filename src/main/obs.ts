@@ -35,6 +35,17 @@ const exepctedSceneNameToOverlayName = new Map([
   ['quad 4', 'Overlay 34'],
 ]);
 
+function getDolphinInputKind() {
+  if (process.platform === 'darwin') {
+    return 'screen_capture';
+  }
+  if (process.platform === 'linux') {
+    return 'vkcapture-source';
+  }
+  // windows
+  return 'game_capture';
+}
+
 export default class OBSConnection {
   private connectionStatus: OBSConnectionStatus;
 
@@ -183,6 +194,28 @@ export default class OBSConnection {
     }
 
     if (!this.dolphinVersion) {
+      return false;
+    }
+
+    const dolphinInputKind = getDolphinInputKind();
+    const expectedInputKinds = [
+      'image_source',
+      'color_source_v3',
+      'browser_source',
+      'slideshow_v2',
+      dolphinInputKind,
+    ];
+    const availableInputKinds = new Set(
+      (await this.obsWebSocket.call('GetInputKindList')).inputKinds,
+    );
+    const unavailableInputKinds = expectedInputKinds.filter(
+      (inputKind) => !availableInputKinds.has(inputKind),
+    );
+    if (unavailableInputKinds.length > 0) {
+      this.setConnectionStatus(
+        OBSConnectionStatus.OBS_NOT_SETUP,
+        `OBS source(s) unavailable: ${unavailableInputKinds.join(', ')}`,
+      );
       return false;
     }
 
@@ -356,17 +389,8 @@ export default class OBSConnection {
       await this.obsWebSocket.call('RemoveScene', { sceneName: 'Scene' });
     }
 
-    let inputKind = '';
-    if (process.platform === 'darwin') {
-      inputKind = 'screen_capture';
-    } else if (process.platform === 'linux') {
-      inputKind = 'vkcapture-source';
-    } else {
-      // windows
-      inputKind = 'game_capture';
-    }
     const { inputs } = await this.obsWebSocket.call('GetInputList', {
-      inputKind,
+      inputKind: dolphinInputKind,
     });
     const inputNames = new Set(
       inputs.map((input) => input.inputName as string),
@@ -396,7 +420,7 @@ export default class OBSConnection {
         const { inputUuid } = await this.obsWebSocket.call('CreateInput', {
           sceneName: 'quad 1',
           inputName,
-          inputKind,
+          inputKind: dolphinInputKind,
           inputSettings: {
             show_cursor: false,
             show_hidden_windows: true,
@@ -474,7 +498,7 @@ export default class OBSConnection {
         const { inputUuid } = await this.obsWebSocket.call('CreateInput', {
           sceneName: 'quad 1',
           inputName,
-          inputKind,
+          inputKind: dolphinInputKind,
           inputSettings: {
             show_cursor: false,
           },
@@ -557,7 +581,7 @@ export default class OBSConnection {
         const { inputUuid } = await this.obsWebSocket.call('CreateInput', {
           sceneName: 'quad 1',
           inputName,
-          inputKind,
+          inputKind: dolphinInputKind,
           inputSettings: {
             capture_audio: true,
             capture_cursor: false,
